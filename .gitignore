@@ -192,3 +192,13 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# numpy data files
+#  numpy data files are used to store large arrays in binary format.
+#  They are typically created by numpy's `save` or `savez` functions.
+#  These files can be large and are not needed in version control.
+#  If you want to keep them, you can uncomment the following line.
+*.npy
+
+data/
+output/
