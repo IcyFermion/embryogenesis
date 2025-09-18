@@ -200,5 +200,7 @@ cython_debug/
 #  If you want to keep them, you can uncomment the following line.
 *.npy
 
+.temp.ipynb
+
 data/
 output/
