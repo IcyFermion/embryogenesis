@@ -38,7 +38,9 @@ class LineageTree:
     
     def add_node(self, lineage_id, parent_id=-1):
         current_id = self.size
+        # lineage_id_mapping: tree internal id -> lineage id
         self.lineage_id_mapping.append(lineage_id)
+        # reverse_lineage_id_mapping: lineage id -> tree internal id
         self.reverse_lineage_id_mapping[lineage_id] = current_id
         self.children_list.append([])
         self.parent_list.append(parent_id)
@@ -67,6 +69,7 @@ class LineageOptimization:
                  lineage_tree: LineageTree, 
                  first_internal_layer: list[tuple[int, int]],
                  lineage_names: list[str],
+                 lineage_type_code_dict: dict,
                  exp_norm = 2):
         self.xyz_mat = xyz_mat
         self.exp_mat = exp_mat
@@ -76,6 +79,50 @@ class LineageOptimization:
         self.exp_norm = exp_norm
         self.tree_ids_by_depth, self.terminal_tree_ids, self.internal_tree_ids = self.lineage_traverse()
         self.lineage_xyz_cost, self.lineage_exp_cost = self.calc_lineage_cost(debugging=True)
+        terminal_lineage_ids = [self.lineage_tree.lineage_id_mapping[tree_id] for tree_id in self.terminal_tree_ids]
+        # complexity_code_dict: terminal_lineage_id -> new type code starting from 0
+        complexity_code_dict = {}
+        new_type_converter = {}
+        for lineage_id in terminal_lineage_ids:
+            original_type_code = lineage_type_code_dict[self.lineage_names[lineage_id]]
+            # some monkey fix to force the type of cutoff terminals to be the same
+            original_type_code = max(original_type_code, 18)
+            if original_type_code not in new_type_converter:
+                new_type_converter[original_type_code] = len(new_type_converter)
+            complexity_code_dict[lineage_id] = new_type_converter[original_type_code]
+        self.terminal_type_code_dict = complexity_code_dict
+        # compute complexity score for this lineage tree
+        cell_div_count = 0
+        parent_code_mapping = {}
+        bfs_queue = deque(terminal_lineage_ids)
+        while bfs_queue:
+            cur_node_lineage_id = bfs_queue.popleft()
+            cur_node_tree_id = self.lineage_tree.reverse_lineage_id_mapping[cur_node_lineage_id]
+            cur_parent_tree_id = self.lineage_tree.parent_list[cur_node_tree_id]
+            cur_parent_lineage_id = self.lineage_tree.lineage_id_mapping[cur_parent_tree_id] if cur_parent_tree_id != -1 else None
+            cur_node_code = complexity_code_dict[cur_node_lineage_id]
+            if cur_node_code is None:
+                print(f"Type code not found for node: {cur_node_lineage_id}")
+                continue
+            if cur_parent_lineage_id is None:
+                print(f"Parent not found for node: {cur_node_lineage_id}")
+                continue
+            if cur_parent_lineage_id not in complexity_code_dict:
+                complexity_code_dict[cur_parent_lineage_id] = cur_node_code
+                bfs_queue.append(cur_parent_lineage_id)
+            else:
+                cur_parent_code = complexity_code_dict[cur_parent_lineage_id]
+                if cur_parent_code > cur_node_code:
+                    parent_code_tuple = (cur_parent_code, cur_node_code)
+                else:
+                    parent_code_tuple = (cur_node_code, cur_parent_code)
+                if parent_code_tuple not in parent_code_mapping:
+                    parent_code_mapping[parent_code_tuple] = len(parent_code_mapping)+len(new_type_converter)
+                complexity_code_dict[cur_parent_lineage_id] = parent_code_mapping[parent_code_tuple]
+                cell_div_count += 1
+        print(len(parent_code_mapping)/cell_div_count)
+
+
         self.xyz_cost_mat = np.zeros((self.lineage_tree.size, self.lineage_tree.size))
         self.exp_cost_mat = np.zeros((self.lineage_tree.size, self.lineage_tree.size))
         for i in range(self.lineage_tree.size):
@@ -176,7 +223,8 @@ class LineageOptimization:
                 cur_lineage_id_mapping[parents_tree_ids[col]] = optimization_pool[row]
             for index in reversed(row_indices):
                 del optimization_pool[index]
-        return self.calc_lineage_cost(first_internal_tree_ids=first_internal_tree_ids, lineage_id_mapping=cur_lineage_id_mapping)
+        xyz_cost, exp_cost = self.calc_lineage_cost(first_internal_tree_ids=first_internal_tree_ids, lineage_id_mapping=cur_lineage_id_mapping)
+        return xyz_cost, exp_cost
 
     def bottom_up_by_cell_runner(self, first_internal_layer: list[tuple[int, int]] = None):
 
@@ -470,7 +518,8 @@ class LineageOptimization:
             else:
                 top_internal_tree_ids = [tree_id for tree_id, _ in first_internal_layer]
                 tree_ids_by_depth, terminal_tree_ids, internal_tree_ids = self.lineage_traverse(first_internal_layer)
-
+            return self.paired_bottom_up_rebuild(internal_tree_ids, terminal_tree_ids, shared_data["xyz_cost_mat"], shared_data["exp_cost_mat"], \
+                                                  shared_data["lineage_id_mapping"], shared_data["lineage_tree_size"], 1001)
             pareto_list_first_quarter = process_map(
                 partial(self.paired_bottom_up_rebuild, internal_tree_ids, terminal_tree_ids, \
                             shared_data["xyz_cost_mat"], shared_data["exp_cost_mat"], shared_data["lineage_id_mapping"], shared_data["lineage_tree_size"]),
@@ -517,6 +566,11 @@ class LineageOptimization:
         cur_lineage_id_mapping = np.arange(lineage_tree_size).tolist()
         internal_pool = [lineage_id_mapping[tree_id] for tree_id in internal_tree_ids]
         bottom_layer = [lineage_id_mapping[tree_id] for tree_id in terminal_tree_ids]
+        # to compute complexity score
+        complexity_code_dict = deepcopy(self.terminal_type_code_dict)
+        cell_div_count = 0
+        parent_code_mapping = {}
+        num_terminal_types = len(set(complexity_code_dict.values()))
         
         while internal_pool:
             # Pre-allocate for expected number of edges
@@ -558,6 +612,17 @@ class LineageOptimization:
                 cur_children_list[parent_lineage_id].append(child2)
                 cur_parent_list[child1] = parent_lineage_id
                 cur_parent_list[child2] = parent_lineage_id
+                child1_code = complexity_code_dict.get(child1, -1)
+                child2_code = complexity_code_dict.get(child2, -1)
+                if child1_code > child2_code:
+                    parent_code_tuple = (child2_code, child1_code)
+                else:
+                    parent_code_tuple = (child1_code, child2_code)
+                if parent_code_tuple not in parent_code_mapping:
+                    parent_code_mapping[parent_code_tuple] = num_terminal_types + len(parent_code_mapping)
+                complexity_code_dict[parent_lineage_id] = parent_code_mapping[parent_code_tuple]
+                cell_div_count += 1
+                
                 next_bottom_layer.append(parent_lineage_id)
             
             # Clean up current cost matrix before next iteration
@@ -569,10 +634,13 @@ class LineageOptimization:
             bottom_layer = next_bottom_layer
             del bottom_pairs  # Clean up pairs list
         
+        complexity_score = len(parent_code_mapping)/cell_div_count
+
         # Final cleanup
         del all_cost_mat
-        
-        return cur_xyz_cost, cur_exp_cost, cur_children_list, cur_parent_list
+
+        return cur_xyz_cost, cur_exp_cost, complexity_score, parent_code_mapping
+        # return cur_xyz_cost, cur_exp_cost, cur_children_list, cur_parent_list, complexity_score
     
     def direct_bottom_up_rebuild_runner(self, first_internal_layer: list[tuple[int, int]] = None):
         if first_internal_layer is None:
