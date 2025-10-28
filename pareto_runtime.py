@@ -1,4 +1,4 @@
-#%%
+# %%
 %load_ext autoreload
 %autoreload 2
 import pandas as pd
@@ -18,15 +18,17 @@ from matplotlib import pyplot as plt
 from typing import List, Tuple, Dict, Any
 from functools import partial
 from itertools import combinations
-from pareto_core import LineageOptimization, LineageTree
 
+from pareto_core import LineageOptimization, LineageTree
 
 # %%
 lineage_data = load_json('./data/cell_lineage.json')
 lineage_exp_df = pd.read_csv("data/protein/aggregated_all/s3.csv", index_col=0)
 lineage_exp_df = lineage_exp_df.fillna(0)
-tracking_df_all = pd.read_csv("./data/embryo3/tracks.txt", sep="\t")
-tracking_time_cutoff = 259
+# binarize lineage_exp_df, making every value > 3.2 as 1, otherwise 0
+lineage_exp_df = (lineage_exp_df > 3.2).astype(int)
+tracking_df_all = pd.read_csv("./data/embryo2/tracks.txt", sep="\t")
+tracking_time_cutoff = 280
 tracking_scale = 0.1625
 tracking_df = tracking_df_all.loc[tracking_df_all["t"] <= tracking_time_cutoff]
 untracked_nodes = ["P0", "AB", "P1"]
@@ -41,7 +43,7 @@ def depth_cutoff_func(depth):
 # %%
 from collections import defaultdict
 terminal_nodes = []
-terminal_parents = []
+parent_dict = {}
 terminal_parents_dict = defaultdict(list)
 terminal_ancestry = defaultdict(list)
 def dfs(node, parent, ancestors=[]):
@@ -49,15 +51,86 @@ def dfs(node, parent, ancestors=[]):
     if len(children) == 0:
         lookup_name = lineage_name_mapping(node["did"])
         p_lookup_name = lineage_name_mapping(parent['did'])
+        parent_dict[lookup_name] = p_lookup_name
         terminal_nodes.append(lookup_name)
-        terminal_parents.append(p_lookup_name)
         terminal_parents_dict[p_lookup_name].append(lookup_name)
         terminal_ancestry[len(terminal_nodes)-1] = ancestors
     else:
+        if parent is not None:
+            lookup_name = lineage_name_mapping(node["did"])
+            p_lookup_name = lineage_name_mapping(parent['did'])
+            parent_dict[lookup_name] = p_lookup_name
         for child in children:
             dfs(child, node, ancestors + [node["did"]])
 
 dfs(lineage_data, None)
+
+# %%
+cell_type_df = pd.read_csv("data/2023-06-29_entropy_cell_key_V2.csv")
+count = 0
+lineage_type_code_dict = defaultdict(str)
+type_code_dict = {}
+na_lineages = []
+for lineage in terminal_nodes:
+    cur_cell_type_df = cell_type_df[cell_type_df['wormweb.lineage'] == lineage]
+    if cur_cell_type_df.empty:
+        # print(f"No cell types found for lineage: {lineage}")
+        na_lineages.append(lineage)
+        continue
+    cur_lineage_types = cur_cell_type_df["wormweb.type"]
+    # remove nan from cur_lineage_types
+    cur_lineage_types = cur_lineage_types[~cur_lineage_types.isna()]
+    cur_lineage_types = cur_lineage_types.unique()
+    if len(cur_lineage_types) == 0:
+        # print(f"No cell types found for lineage: {lineage}")
+        na_lineages.append(lineage)
+        continue
+    cur_type = cur_lineage_types[0]
+    if cur_type not in type_code_dict:
+        # type_code_dict[cur_type] = chr(97 + len(type_code_dict))  # start from 'a'
+        type_code_dict[cur_type] = len(type_code_dict)
+    lineage_type_code_dict[lineage] = type_code_dict[cur_type]
+# dead/NA type
+na_type_code = len(type_code_dict)
+type_code_dict["dead/NA"] = na_type_code # unknown/dead type
+for lineage in na_lineages:
+    lineage_type_code_dict[lineage] = na_type_code
+
+# %%
+complexity_code_dict = {}
+cell_div_count = 0
+parent_code_mapping = {}
+for node in terminal_nodes:
+    complexity_code_dict[node] = lineage_type_code_dict[node]
+bfs_queue = deque(terminal_nodes)
+while bfs_queue:
+    cur_node = bfs_queue.popleft()
+    cur_parent = parent_dict.get(cur_node, None)
+    cur_node_code = complexity_code_dict.get(cur_node, None)
+    if cur_node_code is None:
+        print(f"Type code not found for node: {cur_node}")
+        continue
+    if cur_parent is None:
+        print(f"Parent not found for node: {cur_node}")
+        continue
+    if cur_parent not in complexity_code_dict:
+        complexity_code_dict[cur_parent] = cur_node_code
+        bfs_queue.append(cur_parent)
+    else:
+        cur_parent_code = complexity_code_dict[cur_parent]
+        if cur_parent_code > cur_node_code:
+            parent_code_tuple = (cur_parent_code, cur_node_code)
+        else:
+            parent_code_tuple = (cur_node_code, cur_parent_code)
+        if parent_code_tuple not in parent_code_mapping:
+            parent_code_mapping[parent_code_tuple] = len(parent_code_mapping)+len(type_code_dict)
+        complexity_code_dict[cur_parent] = parent_code_mapping[parent_code_tuple]
+        cell_div_count += 1
+
+    
+
+# %%
+len(parent_code_mapping)/cell_div_count
 
 # %%
 cell_names = tracking_df["name"].unique()
@@ -106,61 +179,22 @@ lineage_xyz_mat = lineage_xyz_df.loc[common_lineages].values
 lineage_exp_mat = lineage_exp_df.loc[common_lineages].values
 
 # %%
-# check cell division optimality for each internal node
-# bfs_queue = deque()
-# for top_node in lineage_tree.children_list[1]+lineage_tree.children_list[2]:
-#     bfs_queue.append((top_node, 2))
-
-# division_optimality_measure = []
-# while bfs_queue:
-#     node, depth = bfs_queue.popleft()
-#     children = lineage_tree.children_list[node]
-#     for child in children:
-#         bfs_queue.append((child, depth+1))
-#     if len(children) == 2:
-#         left, right = children
-#         xyz_mid = (lineage_xyz_mat[left] + lineage_xyz_mat[right]) / 2
-#         exp_mid = (lineage_exp_mat[left] + lineage_exp_mat[right]) / 2
-#         xyz_dist = np.linalg.norm(lineage_xyz_mat[node] - xyz_mid)
-#         exp_dist = np.linalg.norm(lineage_exp_mat[node] - exp_mid)
-#         xyz_children_dist = np.linalg.norm(lineage_xyz_mat[left] - lineage_xyz_mat[right])
-#         exp_children_dist = np.linalg.norm(lineage_exp_mat[left] - lineage_exp_mat[right])
-#         division_optimality_measure.append((xyz_dist/xyz_children_dist, exp_dist/exp_children_dist, depth))
-
-# plot division optimality measure,
-# with x axis as spatial optimality measure, y axis as expression optimality measure, color as depth
-
-
-# division_optimality_measure = np.array(division_optimality_measure)
-# plt.figure(figsize=(8, 6))
-# sc = plt.scatter(division_optimality_measure[:, 0], division_optimality_measure[:, 1], c=division_optimality_measure[:, 2], cmap='viridis', s=10)
-# plt.colorbar(sc, label='Depth in Lineage Tree')
-# plt.xlabel('Spatial Optimality Measure (Normalized Distance)')
-# plt.ylabel('Expression Optimality Measure (Normalized Distance)')
-# plt.title('Cell Division Optimality Measures')
-# plt.grid(True)
-# plt.show()
-
-# %%
 first_layer = [(3,2), (4,2), (5,2), (6,2)]
 
 opt = LineageOptimization(
-    lineage_xyz_mat,
+    lineage_xyz_mat, 
     lineage_exp_mat,
     lineage_tree,
     first_internal_layer=first_layer,
-    lineage_names=common_lineages)
+    lineage_names=common_lineages, 
+    lineage_type_code_dict=complexity_code_dict,
+    exp_norm=1)
+
 
 # %%
-print(len(opt.terminal_tree_ids), len(set(terminal_nodes).intersection(set(common_lineages))))
-
-# %%
-pareto_list_paired_bottom_up_rebuild = opt.paired_bottom_up_rebuild_runner()
-
-# %%
-pareto_mst_list = opt.mst_rebuild_runner()
 pareto_list_by_layer = opt.bottom_up_by_layer_runner()
 pareto_list_top_down_rebuild = opt.top_down_rebuild_runner()
+pareto_mst_list = opt.mst_rebuild_runner()
 pareto_list_top_down_rebuild_depth_cutoff = opt.top_down_rebuild_runner(depth_weight_type=depth_cutoff_func)
 
 # %%
@@ -170,21 +204,15 @@ pareto_list_paired_bottom_up_rebuild = opt.paired_bottom_up_rebuild_runner()
 pareto_list_terminal_only_kd_internal = opt.terminal_only_rebuild_runner(use_kd_tree=True)
 
 # %%
-pareto_df_terminal_only_kd_internal = pd.read_csv('output/internal_opt/embryo2/s3_280_l2/pareto_terminal_only_kd_internal.csv')
-pareto_xyz_cost_list_terminal_only_kd_internal = pareto_df_terminal_only_kd_internal["xyz_cost"].tolist()
-pareto_exp_cost_list_terminal_only_kd_internal = pareto_df_terminal_only_kd_internal["exp_cost"].tolist()
-
-#%%
-terminal_lineage_ids = [opt.lineage_tree.lineage_id_mapping[tree_id] for tree_id in opt.terminal_tree_ids]
-opt.terminal_only_rebuild(terminal_lineage_ids, use_kd_tree=True, idx=0)
-
-# %%
 # save pareto_list_terminal_only_kd_internal as a pandas dataframe
-pareto_df_terminal_only_kd_internal = pd.DataFrame(pareto_list_terminal_only_kd_internal, columns=['xyz_cost', 'exp_cost'])
-pareto_df_terminal_only_kd_internal.to_csv('output/internal_opt/embryo3/s3_259_l2/pareto_terminal_only_kd_internal.csv', index=False)
+pareto_df_terminal_only_kd_internal = pd.DataFrame(pareto_list_terminal_only_kd_internal, columns=['xyz_cost', 'exp_cost', 'internal_selection_count'])
+pareto_df_terminal_only_kd_internal.to_csv('output/internal_opt/embryo2/s3_280_bin-l1/pareto_terminal_only_kd_internal.tsv', index=False, sep='\t')
 
 # %%
-results_df = pd.read_csv('output/internal_opt/embryo2/s3_280_l2/pareto_comparison.csv')
+pareto_df_terminal_only_kd_internal = pd.read_csv('output/internal_opt/embryo2/s3_280_l1/pareto_terminal_only_kd_internal.tsv', sep='\t')
+pareto_xyz_cost_list_terminal_only_kd_internal = pareto_df_terminal_only_kd_internal['xyz_cost'].tolist()
+pareto_exp_cost_list_terminal_only_kd_internal = pareto_df_terminal_only_kd_internal['exp_cost'].tolist()
+results_df = pd.read_csv('output/internal_opt/embryo2/s3_280_l1/pareto_comparison.csv')
 pareto_xyz_cost_list_by_layer = results_df["Bottom-up By Layer XYZ Cost"].tolist()
 pareto_exp_cost_list_by_layer = results_df["Bottom-up By Layer Exp Cost"].tolist()
 pareto_xyz_cost_list_top_down_rebuild = results_df["Top-Down Rebuild XYZ Cost"].tolist()
@@ -192,7 +220,7 @@ pareto_exp_cost_list_top_down_rebuild = results_df["Top-Down Rebuild Exp Cost"].
 pareto_xyz_cost_list_top_down_rebuild_depth_cutoff = results_df["Top-Down Rebuild (Hard Depth Cutoff) XYZ Cost"].tolist()
 pareto_exp_cost_list_top_down_rebuild_depth_cutoff = results_df["Top-Down Rebuild (Hard Depth Cutoff) Exp Cost"].tolist()
 pareto_xyz_cost_list_paired_bottom_up_rebuild = results_df["Paired Bottom-Up Rebuild XYZ Cost"].tolist()
-pareto_exp_cost_list_paired_bottom_up_rebuild = results_df["Paired Bottom-Up Rebuild Exp Cost"].tolist()
+pareto_exp_cost_list_paired_bottom_up_rebuild = results_df["Paired Bottom-Up Rebuild Exp Cost"].tolist()    
 pareto_xyz_cost_list_mst = results_df["MST Based Rebuild XYZ Cost"].tolist()
 pareto_exp_cost_list_mst = results_df["MST Based Rebuild Exp Cost"].tolist()
 
@@ -207,19 +235,19 @@ pareto_xyz_cost_list_top_down_rebuild_depth_cutoff = [cost[0] for cost in pareto
 pareto_exp_cost_list_top_down_rebuild_depth_cutoff = [cost[1] for cost in pareto_list_top_down_rebuild_depth_cutoff]
 pareto_xyz_cost_list_paired_bottom_up_rebuild = [cost[0] for cost in pareto_list_paired_bottom_up_rebuild]
 pareto_exp_cost_list_paired_bottom_up_rebuild = [cost[1] for cost in pareto_list_paired_bottom_up_rebuild]
-pareto_xyz_cost_list_terminal_only_kd_internal = [cost[0] for cost in pareto_list_terminal_only_kd_internal]
-pareto_exp_cost_list_terminal_only_kd_internal = [cost[1] for cost in pareto_list_terminal_only_kd_internal]
+# pareto_xyz_cost_list_terminal_only_kd_internal = [cost[0] for cost in pareto_list_terminal_only_kd_internal]
+# pareto_exp_cost_list_terminal_only_kd_internal = [cost[1] for cost in pareto_list_terminal_only_kd_internal]
 plt.figure(figsize=(8, 6))
 plt.plot(pareto_xyz_cost_list_by_layer, pareto_exp_cost_list_by_layer, marker='o', linestyle='-',  markersize=3, label='Bottom-up By Lineage Layer')
-plt.plot(pareto_xyz_cost_list_top_down_rebuild, pareto_exp_cost_list_top_down_rebuild, marker='o', linestyle='-',  markersize=3, label='Top-Down Rebuild (No Depth Weight)')
+plt.plot(pareto_xyz_cost_list_top_down_rebuild, pareto_exp_cost_list_top_down_rebuild, marker='o', linestyle='-',  markersize=3, label='Top-Down Rebuild (No Depth Limit)')
 plt.plot(pareto_xyz_cost_list_mst, pareto_exp_cost_list_mst, marker='o', linestyle='-',  markersize=3, label='MST Based Reconstruction')
-plt.plot(pareto_xyz_cost_list_top_down_rebuild_depth_cutoff, pareto_exp_cost_list_top_down_rebuild_depth_cutoff, marker='o', linestyle='-', markersize=3, label='Top-Down Rebuild (Hard Depth Cutoff)')
-plt.plot(pareto_xyz_cost_list_paired_bottom_up_rebuild, pareto_exp_cost_list_paired_bottom_up_rebuild, marker='o', linestyle='-', markersize=3, label='Bottom-Up Rebuild Full Internal')
-plt.plot(pareto_xyz_cost_list_terminal_only_kd_internal, pareto_exp_cost_list_terminal_only_kd_internal, marker='o', linestyle='-', markersize=3, label='Bottom-Up Rebuild Half Internal')
+plt.plot(pareto_xyz_cost_list_top_down_rebuild_depth_cutoff, pareto_exp_cost_list_top_down_rebuild_depth_cutoff, marker='o', linestyle='-', markersize=3, label='Top-Down Rebuild (Depth Limited)')
+plt.plot(pareto_xyz_cost_list_paired_bottom_up_rebuild, pareto_exp_cost_list_paired_bottom_up_rebuild, marker='o', linestyle='-', markersize=3, label='Bottom-Up Rebuild Real Internals')
+# plt.plot(pareto_xyz_cost_list_terminal_only_kd_internal, pareto_exp_cost_list_terminal_only_kd_internal, marker='o', linestyle='-', markersize=3, label='Bottom-Up Rebuild Quasi Internals')
 plt.xlabel('Motility Cost')
 plt.ylabel('Expression Cost')
-plt.scatter(opt.lineage_xyz_cost, opt.lineage_exp_cost, color='black', marker='*', label='Real Lineage', zorder=99, s=50)
-plt.title(f'Full Tree Pareto Front, t=280, Embryo 2')
+plt.scatter(opt.lineage_xyz_cost, opt.lineage_exp_cost, color='black', marker='*', label='Lineage Cost', zorder=99, s=75)
+plt.title(f'Full Tree Pareto Front, t=280, Embryo 2, Binarized L1 Norm')
 plt.grid(True)
 plt.legend()
 plt.show()
@@ -237,7 +265,7 @@ results_df = pd.DataFrame({
     'Top-Down Rebuild (Hard Depth Cutoff) XYZ Cost': pareto_xyz_cost_list_top_down_rebuild_depth_cutoff,
     'Top-Down Rebuild (Hard Depth Cutoff) Exp Cost': pareto_exp_cost_list_top_down_rebuild_depth_cutoff
 })
-results_df.to_csv('output/internal_opt/embryo3/s3_259_l2/pareto_comparison.csv', index=False)
+results_df.to_csv('output/internal_opt/embryo2/s3_280_bin-l1/pareto_comparison.csv', index=False)
 
 # %%
 results_df = pd.read_csv('output/internal_opt/s3_280_3d_l2/pareto_comparison.csv')
@@ -248,7 +276,7 @@ pareto_exp_cost_list_top_down_rebuild = results_df["Top-Down Rebuild Exp Cost"].
 pareto_xyz_cost_list_top_down_rebuild_depth_cutoff = results_df["Top-Down Rebuild (Hard Depth Cutoff) XYZ Cost"].tolist()
 pareto_exp_cost_list_top_down_rebuild_depth_cutoff = results_df["Top-Down Rebuild (Hard Depth Cutoff) Exp Cost"].tolist()
 pareto_xyz_cost_list_paired_bottom_up_rebuild = results_df["Paired Bottom-Up Rebuild XYZ Cost"].tolist()
-pareto_exp_cost_list_paired_bottom_up_rebuild = results_df["Paired Bottom-Up Rebuild Exp Cost"].tolist()
+pareto_exp_cost_list_paired_bottom_up_rebuild = results_df["Paired Bottom-Up Rebuild Exp Cost"].tolist()    
 pareto_xyz_cost_list_mst = results_df["MST Based Rebuild XYZ Cost"].tolist()
 pareto_exp_cost_list_mst = results_df["MST Based Rebuild Exp Cost"].tolist()
 
@@ -290,7 +318,7 @@ pareto_exp_cost_list_top_down_rebuild = results_df["Top-Down Rebuild Exp Cost"].
 pareto_xyz_cost_list_top_down_balanced_rebuild = results_df["Top-Down Balanced Rebuild XYZ Cost"].tolist()
 pareto_exp_cost_list_top_down_balanced_rebuild = results_df["Top-Down Balanced Rebuild Exp Cost"].tolist()
 pareto_xyz_cost_list_paired_bottom_up_rebuild = results_df["Paired Bottom-Up Rebuild XYZ Cost"].tolist()
-pareto_exp_cost_list_paired_bottom_up_rebuild = results_df["Paired Bottom-Up Rebuild Exp Cost"].tolist()
+pareto_exp_cost_list_paired_bottom_up_rebuild = results_df["Paired Bottom-Up Rebuild Exp Cost"].tolist()    
 # pareto_xyz_cost_list_mst = [xyz_cost for xyz_cost, _, _ in pareto_mst_list]
 # pareto_exp_cost_list_mst = [exp_cost for _, exp_cost, _ in pareto_mst_list]
 # pareto_xyz_cost_list_direct_bottom_up_rebuild = [xyz_cost for xyz_cost, _, _, _, _ in pareto_list_direct_bottom_up_rebuild]
@@ -444,3 +472,6 @@ plt.show()
 pareto_list_by_layer
 
 # %%
+
+
+
