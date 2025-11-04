@@ -10,6 +10,9 @@ from functools import partial
 import random
 from collections import defaultdict
 from heapq import heapify, heappop, heappush
+import matplotlib as mpl
+mpl.rcParams['figure.dpi'] = 300
+
 
 
 class ParetoFront:
@@ -182,7 +185,7 @@ class ParetoFront:
                 pareto_xyz_cost_list, pareto_exp_cost_list, lineage_xyz_cost, lineage_exp_cost
             )
         plt.plot(pareto_xyz_cost_list, pareto_exp_cost_list, marker='o', linestyle='-', color=color, markersize=3, label='Pareto Front')
-        plt.xlabel('XYZ Cost')
+        plt.xlabel('Motility Cost')
         plt.ylabel('Expression Cost')
         plt.scatter(lineage_xyz_cost, lineage_exp_cost, marker="D", color=color, label='Lineage Cost')
         plt.title(f'{self.title} (alpha={alpha}, norm={norm})')
@@ -209,7 +212,7 @@ class ParetoFront:
             )
             plt.plot(pareto_xyz_cost_list, pareto_exp_cost_list, marker='o', linestyle='-', color=line_color, markersize=3, label=f'{norm} norm')
             plt.scatter(lineage_xyz_cost, lineage_exp_cost, marker="D" ,color=lineage_color, label=f'{norm} norm lineage')
-        plt.xlabel('XYZ Cost')
+        plt.xlabel('Motility Cost')
         plt.ylabel('Expression Cost')
         plt.title(f'{self.title}s for Different Norms')
         plt.grid(True)
@@ -325,7 +328,7 @@ class ParetoFront:
 
         plt.figure(figsize=(8, 6))
         plt.plot(pareto_xyz_cost_list, pareto_exp_cost_list, marker='o', linestyle='-', color='blue', markersize=3, label='Pareto Front')
-        plt.xlabel('XYZ Cost')
+        plt.xlabel('Motility Cost')
         plt.ylabel('Expression Cost')
         plt.scatter(lineage_xyz_cost, lineage_exp_cost, color='red', label='Lineage Cost')
         plt.scatter([x[0] for x in random_cost_list], [x[1] for x in random_cost_list], alpha=0.5, s=1, label='Random Cousin Shuffles')
@@ -333,6 +336,24 @@ class ParetoFront:
         plt.grid(True)
         plt.legend()
         plt.show()
+
+    def pre_plot(self):
+        colors = sns.color_palette(n_colors=10)
+        xyz_cost_mat, exp_cost_mat = self.compute_cost_matrices(norm="l2")
+        monte_carlo_list = process_map(partial(self.monte_carlo_simulation, xyz_cost_mat, exp_cost_mat), range(1000000), max_workers=20, chunksize=100, desc="Monte Carlo Simulation")
+        alpha, pareto_xyz_cost_list, pareto_exp_cost_list, lineage_xyz_cost, lineage_exp_cost = self.compute_pareto_front(xyz_cost_mat, exp_cost_mat, monte_carlo=False)
+        # plot the monte carlo simulation results together with the pareto front
+        plt.figure(figsize=(8, 6))
+        plt.plot(pareto_xyz_cost_list, pareto_exp_cost_list, marker='o', linestyle='-', color=colors[0], markersize=3, label='Pareto Front')
+        plt.xlabel('Motility Cost')
+        plt.ylabel('Expression Cost')
+        plt.scatter(lineage_xyz_cost, lineage_exp_cost, marker='*', color='black', label='Lineage Cost', zorder=99, s=75)
+        plt.scatter([x[0] for x in monte_carlo_list], [x[1] for x in monte_carlo_list], alpha=0.5, s=1, color=colors[7], label='Random Assignments')
+        plt.title('Pareto Front for Terminal Cell Assignments')
+        plt.grid(True)
+        plt.legend()
+        plt.show()
+        return monte_carlo_list, pareto_xyz_cost_list, pareto_exp_cost_list, lineage_xyz_cost, lineage_exp_cost
 
     def normal_run(self):
         pareto_plot_series = []

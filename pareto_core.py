@@ -865,6 +865,9 @@ class LineageOptimization:
         parent_code_mapping = {}
         type_code_list = [self.terminal_type_code_dict[lineage_id] for lineage_id in terminal_lineage_ids]
         cell_div_count = 0
+        # record ancestry path for each terminal node
+        ancestry_paths = [[i] for i in range(len(terminal_lineage_ids))]
+        offspring_list = [[i] for i in range(len(terminal_lineage_ids))]
 
         while len(bottom_layer) > 1 and internal_exp_kd_tree:
             # Pre-allocate arrays for better memory management
@@ -887,6 +890,7 @@ class LineageOptimization:
             del bottom_edges  # Explicitly delete large list
             
             next_bottom_layer = []
+            next_ancestry_paths = []
             if len(bottom_layer) % 2 == 1:
                 paired_children = set()
                 for pair in bottom_pairs:
@@ -896,7 +900,6 @@ class LineageOptimization:
             
             # Pre-calculate new matrix size and pre-allocate
             new_nodes_count = len(bottom_pairs)
-            new_size = len(cur_xyz_mat) + new_nodes_count
             
             # Use more memory-efficient approach for matrix expansion
             if new_nodes_count > 0:
@@ -923,6 +926,10 @@ class LineageOptimization:
                     next_bottom_layer.append(len(cur_xyz_mat) + i)
                     type_1 = type_code_list[child1]
                     type_2 = type_code_list[child2]
+                    combined_offspring = offspring_list[child1] + offspring_list[child2]
+                    offspring_list.append(combined_offspring)
+                    for child in combined_offspring:
+                        ancestry_paths[child].append(len(cur_xyz_mat) + i)
                     if type_1 > type_2:
                         parent_code_tuple = (type_2, type_1)
                     else:
@@ -942,9 +949,20 @@ class LineageOptimization:
             
             bottom_layer = next_bottom_layer
             del bottom_pairs  # Clean up
+        min_consines = []
+        mean_cosines = []
+        for path in ancestry_paths:
+            cos_angles = []
+            for i in range(1, len(path) -1):
+                vec1 = cur_exp_mat[path[i]] - cur_exp_mat[path[i -1]]
+                vec2 = cur_exp_mat[path[i +1]] - cur_exp_mat[path[i]]
+                cos_angle = np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2) + 1e-10)
+                cos_angles.append(cos_angle)
+            min_consines.append(np.min(cos_angles) if cos_angles else 1.0)
+            mean_cosines.append(np.mean(cos_angles) if cos_angles else 1.0)
         del cur_xyz_mat, cur_exp_mat, internal_exp_kd_tree  # Final cleanup
         complexity_score = len(parent_code_mapping) / cell_div_count if cell_div_count > 0 else 0
-        return cur_xyz_cost, cur_exp_cost, internal_selection_count, complexity_score
+        return cur_xyz_cost, cur_exp_cost, internal_selection_count, complexity_score, min_consines, mean_cosines
     
     def mst_rebuild_runner(self, first_internal_layer: list[tuple[int, int]] = None):
         if first_internal_layer is None:
@@ -1017,3 +1035,42 @@ class LineageOptimization:
             cur_exp_cost += self.exp_cost_mat[u][v]
 
         return cur_xyz_cost, cur_exp_cost, max(list(lineage_id_by_depth.keys()))
+
+
+    def bottom_up_iterative_assignment(self, internal_tree_ids: list[int], terminal_tree_ids: list[int], idx: int):
+        alpha = 0 + 0.001 * idx  # weight for xyz cost
+        all_cost_mat = self.xyz_cost_mat * alpha + self.exp_cost_mat * (1 - alpha)
+        cur_xyz_cost = 0
+        cur_exp_cost = 0
+        cur_children_list = [[] for _ in range(self.lineage_tree.size)]
+        cur_parent_list = [-1] * self.lineage_tree.size
+        # use the same lineage id as tree id in the rebuilt tree
+        cur_lineage_id_mapping = np.arange(self.lineage_tree.size).tolist()
+        internal_pool = [self.lineage_tree.lineage_id_mapping[tree_id] for tree_id in internal_tree_ids]
+        bottom_layer = [self.lineage_tree.lineage_id_mapping[tree_id] for tree_id in terminal_tree_ids]
+        while internal_pool and len(bottom_layer) > 1:
+            # Pre-allocate for expected number of edges
+            n_combinations = len(bottom_layer) * (len(bottom_layer) - 1) // 2
+            bottom_edges = []
+            
+            for a, b in combinations(bottom_layer, 2):
+                bottom_edges.append((a, b, all_cost_mat[a][b]))
+            
+            G = nx.Graph()
+            G.add_weighted_edges_from(bottom_edges)
+            bottom_pairs = list(nx.min_weight_matching(G))
+            
+            # Clean up graph and edges immediately
+            G.clear()
+            del G
+            del bottom_edges
+            
+            next_bottom_layer = []
+            if len(bottom_layer) % 2 == 1:
+                paired_children = set()
+                for pair in bottom_pairs:
+                    paired_children.update(pair)
+                unpaired_child = (set(bottom_layer) - paired_children).pop()
+                next_bottom_layer.append(unpaired_child)
+            
+            # Use more memory-efficient matrix indexing
