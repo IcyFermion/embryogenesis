@@ -48,6 +48,51 @@ class LineageTree:
             self.children_list[parent_id].append(current_id)
         self.size += 1
         return current_id
+    
+    def record_last_tracked_time(self, lineage_id_to_last_tracking_time: list[int]):
+        # last_tracked_time_list: tree internal id -> last tracked time
+        self.last_tracked_time_list = [-1] * self.size
+        for tree_id in range(self.size):
+            lineage_id = self.lineage_id_mapping[tree_id]
+            if lineage_id != -1:
+                self.last_tracked_time_list[tree_id] = lineage_id_to_last_tracking_time[lineage_id]
+        # branch_time_length: tree internal id -> time length from parent to this node
+        self.branch_time_length = [0] * self.size
+        for tree_id in range(self.size):
+            parent_id = self.parent_list[tree_id]
+            if parent_id != -1:
+                self.branch_time_length[tree_id] = self.last_tracked_time_list[tree_id] - self.last_tracked_time_list[parent_id]
+
+    def path_from_root(self, tree_id: int):
+        path = []
+        current_id = tree_id
+        while current_id != -1:
+            path.append(current_id)
+            current_id = self.parent_list[current_id]
+        path.reverse()
+        return path
+    
+    def shared_time_from_root(self, tree_id1: int, tree_id2: int):
+        path1 = self.path_from_root(tree_id1)
+        path2 = self.path_from_root(tree_id2)
+        shared_time = 0
+        for id1, id2 in zip(path1, path2):
+            if id1 == id2:
+                shared_time += self.branch_time_length[id1]
+            else:
+                break
+        return shared_time
+    
+    def compute_vcv_matrix(self, terminal_tree_ids: list[int], sigma_sq=1.0):
+        vcv_matrix = np.zeros((len(terminal_tree_ids), len(terminal_tree_ids)))
+        for i in range(len(terminal_tree_ids)):
+            for j in range(len(terminal_tree_ids)):
+                tree_id_i = terminal_tree_ids[i]
+                tree_id_j = terminal_tree_ids[j]
+                vcv_matrix[i][j] = sigma_sq * self.shared_time_from_root(tree_id_i, tree_id_j)
+                vcv_matrix[j][i] = vcv_matrix[i][j]
+        return vcv_matrix
+    
 
     def __deepcopy__(self, memo=None):
         if memo is None:
@@ -193,10 +238,8 @@ class LineageOptimization:
         tree_ids_by_depth = defaultdict(list)
         terminal_tree_ids = []
         internal_tree_ids = []
-        bfs_queue = deque()
-        for tree_id, depth in first_internal_layer:
-            bfs_queue.append((tree_id, depth))
-            tree_ids_by_depth[depth].append(tree_id)
+        bfs_queue = deque(first_internal_layer)
+            # tree_ids_by_depth[depth].append(tree_id)
         while bfs_queue:
             tree_id, depth = bfs_queue.popleft()
             tree_ids_by_depth[depth].append(tree_id)
@@ -253,6 +296,35 @@ class LineageOptimization:
             cur_lineage_id_mapping[tree_id] = lineage_id
         return self.calc_lineage_cost(lineage_id_mapping=cur_lineage_id_mapping)
     
+    def random_assignment_by_layer_runner(self, iterations=1000000):
+        internal_tree_ids_by_depth = defaultdict(list)
+        for depth in sorted(self.tree_ids_by_depth.keys()):
+            for tree_id in self.tree_ids_by_depth[depth]:
+                if tree_id in self.internal_tree_ids:
+                    internal_tree_ids_by_depth[depth].append(tree_id)
+        random_assignment_costs = process_map(
+            partial(self.random_assignment_by_layer, internal_tree_ids_by_depth),
+            range(iterations),
+            max_workers=10,
+            chunksize=200,
+            desc="Computing random assignment by layer costs..."
+        )
+        return random_assignment_costs
+
+    def random_assignment_by_layer(self,internal_tree_ids_by_depth, seed):
+        random.seed(seed)
+        cur_lineage_id_mapping = deepcopy(self.lineage_tree.lineage_id_mapping)
+        for depth, tree_ids in internal_tree_ids_by_depth.items():
+            lineage_ids = [cur_lineage_id_mapping[tree_id] for tree_id in tree_ids]
+            random.shuffle(lineage_ids)
+            for tree_id, lineage_id in zip(tree_ids, lineage_ids):
+                cur_lineage_id_mapping[tree_id] = lineage_id
+        terminal_lineage_ids = [cur_lineage_id_mapping[tree_id] for tree_id in self.terminal_tree_ids]
+        for tree_id, lineage_id in zip(self.terminal_tree_ids, terminal_lineage_ids):
+            cur_lineage_id_mapping[tree_id] = lineage_id
+        return self.calc_lineage_cost(lineage_id_mapping=cur_lineage_id_mapping)
+
+
     def random_rebuild_runner(self, iterations=1000000, depth_limit=float('inf')):
         first_layer_tree_ids = [tree_id for tree_id, depth in self.first_internal_layer]
         first_layer_lineage_id_with_depth = [(self.lineage_tree.lineage_id_mapping[tree_id], depth)  
@@ -300,6 +372,106 @@ class LineageOptimization:
             xyz_cost += self.xyz_cost_mat[lineage_id][parent_lineage_id]
             exp_cost += self.exp_cost_mat[lineage_id][parent_lineage_id]
         return xyz_cost, exp_cost
+    
+    def estimate_phylogenetic_evolution_rate(self):
+        terminal_xyz_values = self.xyz_mat[self.terminal_tree_ids]
+        # terminal_x_values = list(terminal_xyz_values[:, 2])
+        n_terminals = len(self.terminal_tree_ids)
+        vcv_matrix = self.lineage_tree.compute_vcv_matrix(self.terminal_tree_ids, sigma_sq=1.0)
+        vcv_inv = np.linalg.inv(vcv_matrix)
+        ones = np.ones(n_terminals)
+        root_state = (ones @ vcv_inv @ terminal_xyz_values) / (ones @ vcv_inv @ ones)
+        centered_values = terminal_xyz_values - root_state
+        sigma_sq_mle = (centered_values.T @ vcv_inv @ centered_values) / n_terminals
+        return sigma_sq_mle.diagonal()
+    
+    def phylogenetic_reconstruction(self):
+        terminal_xyz_values = self.xyz_mat[self.terminal_tree_ids]
+        n_terminals = len(self.terminal_tree_ids)
+        xyz_sigma_sq = self.estimate_phylogenetic_evolution_rate()
+        node_estimates = {}
+        node_variances = {}
+        for i, tree_id in enumerate(self.terminal_tree_ids):
+            node_estimates[tree_id] = terminal_xyz_values[i]
+            node_variances[tree_id] = np.zeros(3)
+
+        def post_order_traversal(node_id):
+            if self.lineage_tree.children_list[node_id] == []:
+                return node_estimates[node_id], node_variances[node_id]
+            child_estimates = []
+            for child in self.lineage_tree.children_list[node_id]:
+                if child not in node_estimates:
+                    child_val, child_var = post_order_traversal(child)
+                    node_estimates[child] = child_val
+                    node_variances[child] = child_var
+                child_estimates.append({
+                    'value': node_estimates[child],
+                    'variance': node_variances[child],
+                    'branch_length': self.lineage_tree.branch_time_length[child]
+                })
+            # Calculate weighted average for this node
+            weights = [1/(c['branch_length'] * xyz_sigma_sq + c['variance']) for c in child_estimates]
+            values = [c['value'] for c in child_estimates]
+            weighted_avg = sum(w * v for w, v in zip(weights, values)) / sum(weights)
+            variance = 1 / sum(weights)
+
+            return weighted_avg, variance
+
+        root_val, root_var = post_order_traversal(0)
+        node_estimates[0] = root_val
+        node_variances[0] = root_var
+
+        def pre_order_traversal(node_id, parent_value=None):
+            if node_id == 0:
+                return
+            if len(self.lineage_tree.children_list[node_id]) == 0:
+                return
+            upward_est = node_estimates[node_id]
+            upward_var = node_variances[node_id]
+            # Prediction from parent
+            parent_pred = parent_value  # Under BM, expected value = parent value
+            parent_pred_var = self.lineage_tree.branch_time_length[node_id] * xyz_sigma_sq
+
+            # Combine estimates (inverse-variance weighting)
+            w_upward = 1 / upward_var
+            w_parent = 1 / parent_pred_var
+
+            if not np.isinf(w_upward).any():
+                refined_value = (upward_est * w_upward + parent_pred * w_parent) / (w_upward + w_parent)
+                refined_var = 1 / (w_upward + w_parent)
+            else:
+                refined_value = upward_est
+                refined_var = upward_var
+            node_estimates[node_id] = refined_value
+            node_variances[node_id] = refined_var
+
+            for child in self.lineage_tree.children_list[node_id]:
+                pre_order_traversal(child, refined_value)
+        
+        for child in self.lineage_tree.children_list[0]:
+            pre_order_traversal(child, root_val)
+
+        return node_estimates, node_variances
+    
+    def phylogenetic_sampling(self, n_samples=10000):
+        node_estimates, node_variances = self.phylogenetic_reconstruction()
+        samples = []
+        for tree_id in range(self.lineage_tree.size):
+            mean = node_estimates[tree_id]
+            var = node_variances[tree_id]
+            samples.append(np.random.multivariate_normal(mean, np.diag(var), size=n_samples))
+        cost = np.zeros((n_samples))
+        mean_cost = 0
+        for i in range(7, self.lineage_tree.size):
+            mean = node_estimates[i]
+            cur_val = samples[i]
+            parent_id = self.lineage_tree.parent_list[i]
+            parent_val = samples[parent_id]
+            parent_mean = node_estimates[parent_id]
+            diff = cur_val - parent_val
+            cost += np.linalg.norm(diff, axis=1)
+            mean_cost += np.linalg.norm(mean - parent_mean)
+        return cost, mean_cost
 
 
     def bottom_up_by_layer_runner(self, first_internal_layer: list[tuple[int, int]] = None):
@@ -351,6 +523,75 @@ class LineageOptimization:
                 del optimization_pool[index]
         xyz_cost, exp_cost = self.calc_lineage_cost(first_internal_tree_ids=first_internal_tree_ids, lineage_id_mapping=cur_lineage_id_mapping)
         return xyz_cost, exp_cost
+    
+    def top_down_by_layer_runner(self, first_internal_layer: list[tuple[int, int]] = None):
+        if first_internal_layer is None:
+            top_internal_tree_ids = [tree_id for tree_id, _ in self.first_internal_layer]
+            internal_tree_ids = self.internal_tree_ids
+            terminal_tree_ids = self.terminal_tree_ids
+            tree_ids_by_depth = self.tree_ids_by_depth
+        else:
+            top_internal_tree_ids = [tree_id for tree_id, _ in first_internal_layer]
+            tree_ids_by_depth, terminal_tree_ids, internal_tree_ids = self.lineage_traverse(first_internal_layer)
+        return self.top_down_by_layer(top_internal_tree_ids, internal_tree_ids, terminal_tree_ids, tree_ids_by_depth, 1001)
+        # pareto_list_layerwise = process_map(
+        #     partial(self.top_down_by_layer, top_internal_tree_ids, internal_tree_ids, terminal_tree_ids, tree_ids_by_depth),
+        #     range(1001),
+        #     max_workers=10,
+        #     chunksize=20,
+        #     desc="Computing pareto costs"
+        # )
+        return pareto_list_layerwise
+
+    def top_down_by_layer(self, first_internal_tree_ids: list[int], internal_tree_ids: list[int], 
+                          terminal_tree_ids: list[int], tree_ids_by_depth: dict[int, list[int]], idx: int):
+        alpha = 0 + 0.001 * idx  # weight for xyz cost
+        cur_lineage_id_mapping = deepcopy(self.lineage_tree.lineage_id_mapping)
+        optimization_pool = deepcopy(internal_tree_ids)
+        optimization_pool = [self.lineage_tree.lineage_id_mapping[tree_id] for tree_id in optimization_pool if tree_id not in first_internal_tree_ids]
+        cur_xyz_cost = 0
+        cur_exp_cost = 0
+        for depth in sorted(tree_ids_by_depth.keys()):
+            parent_tree_ids = tree_ids_by_depth[depth]
+            children_tree_ids = []
+            for parent_tree_id in parent_tree_ids:
+                children_tree_ids.extend(self.lineage_tree.children_list[parent_tree_id])
+            children_tree_ids = [tree_id for tree_id in children_tree_ids if tree_id not in terminal_tree_ids]
+            xyz_cost_mat = np.zeros((len(children_tree_ids), len(optimization_pool)))
+            exp_cost_mat = np.zeros((len(children_tree_ids), len(optimization_pool)))
+            for i in range(len(children_tree_ids)):
+                for j in range(len(optimization_pool)):
+                    parent_lineage_id = cur_lineage_id_mapping[self.lineage_tree.parent_list[children_tree_ids[i]]]
+                    candidate_lineage_id = optimization_pool[j]
+                    xyz_cost_mat[i][j] += np.linalg.norm(self.xyz_mat[candidate_lineage_id] - self.xyz_mat[parent_lineage_id])
+                    exp_cost_mat[i][j] += np.linalg.norm(self.exp_mat[candidate_lineage_id] - self.exp_mat[parent_lineage_id], ord=self.exp_norm)
+            cost_mat = alpha * xyz_cost_mat + (1 - alpha) * exp_cost_mat
+            row_indices, col_indices = linear_sum_assignment(cost_mat)
+            for row, col in zip(row_indices, col_indices):
+                cur_lineage_id_mapping[children_tree_ids[row]] = optimization_pool[col]
+                cur_xyz_cost += xyz_cost_mat[row][col]
+                cur_exp_cost += exp_cost_mat[row][col]
+            for index in sorted(col_indices, reverse=True):
+                del optimization_pool[index]
+            if not optimization_pool:
+                print("finished internal nodes optimization")
+                break
+        terminal_parent_lineage_ids = []
+        for tree_id in terminal_tree_ids:
+            parent_tree_id = self.lineage_tree.parent_list[tree_id]
+            terminal_parent_lineage_ids.append(cur_lineage_id_mapping[parent_tree_id])
+        terminal_xyz_cost_mat = np.zeros((len(terminal_tree_ids), len(terminal_parent_lineage_ids)))
+        terminal_exp_cost_mat = np.zeros((len(terminal_tree_ids), len(terminal_parent_lineage_ids)))
+        for i, tree_id in enumerate(terminal_tree_ids):
+            lineage_id = cur_lineage_id_mapping[tree_id]
+            for j, parent_lineage_id in enumerate(terminal_parent_lineage_ids):
+                terminal_xyz_cost_mat[i][j] = np.linalg.norm(self.xyz_mat[lineage_id] - self.xyz_mat[parent_lineage_id])
+                terminal_exp_cost_mat[i][j] = np.linalg.norm(self.exp_mat[lineage_id] - self.exp_mat[parent_lineage_id], ord=self.exp_norm)
+        row_indices, col_indices = linear_sum_assignment(alpha * terminal_xyz_cost_mat + (1 - alpha) * terminal_exp_cost_mat)
+        for row, col in zip(row_indices, col_indices):
+            cur_xyz_cost += terminal_xyz_cost_mat[row][col]
+            cur_exp_cost += terminal_exp_cost_mat[row][col]
+        return cur_xyz_cost, cur_exp_cost
 
     def bottom_up_by_cell_runner(self, first_internal_layer: list[tuple[int, int]] = None):
 
