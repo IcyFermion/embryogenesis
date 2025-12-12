@@ -1162,11 +1162,7 @@ class LineageOptimization:
         cur_xyz_mat = self.xyz_mat[terminal_lineage_ids].copy()  # Explicit copy
         cur_exp_mat = self.exp_mat[terminal_lineage_ids].copy()  # Explicit copy
         bottom_layer = list(range(len(terminal_lineage_ids)))  # Use list() instead of tolist()
-        internal_exp_mat = self.exp_mat[internal_lineage_ids]
-        if exp_replacement:
-            internal_exp_kd_tree = KDTree(internal_exp_mat) if use_kd_tree else None
-        else:
-            internal_exp_kd_tree = kdtree.create(internal_exp_mat.tolist()) if use_kd_tree else None
+        internal_exp_mat = self.exp_mat[internal_lineage_ids].copy()
         internal_selection_count = np.zeros(len(internal_lineage_ids), dtype=int).tolist() if use_kd_tree else None
         parent_code_mapping = {}
         type_code_list = [self.terminal_type_code_dict[lineage_id] for lineage_id in terminal_lineage_ids]
@@ -1175,7 +1171,7 @@ class LineageOptimization:
         ancestry_paths = [[i] for i in range(len(terminal_lineage_ids))]
         offspring_list = [[i] for i in range(len(terminal_lineage_ids))]
 
-        while len(bottom_layer) > 1 and internal_exp_kd_tree:
+        while len(bottom_layer) > 1 and len(internal_exp_mat):
             # Pre-allocate arrays for better memory management
             n_combinations = len(bottom_layer) * (len(bottom_layer) - 1) // 2
             bottom_edges = []
@@ -1215,14 +1211,20 @@ class LineageOptimization:
                 for i, (child1, child2) in enumerate(bottom_pairs):
                     mid_xyz = (cur_xyz_mat[child1] + cur_xyz_mat[child2]) * 0.5  # More efficient than /2
                     mid_exp = (cur_exp_mat[child1] + cur_exp_mat[child2]) * 0.5
+                    exp_1 = cur_exp_mat[child1]
+                    exp_2 = cur_exp_mat[child2]
+                    # Find closest internal expression profile
                     if use_kd_tree:
-                        dist, node_idx = internal_exp_kd_tree.query(mid_exp.reshape(1, -1), k=1, p=1)
-                        node = internal_exp_mat[node_idx[0]]
-                        internal_selection_count[node_idx[0]] += 1
-                        mid_exp = node
-                        # print("deleted node dist:", dist)
+                        dist_1 = np.linalg.norm(internal_exp_mat - exp_1, ord=self.exp_norm, axis=1)
+                        dist_2 = np.linalg.norm(internal_exp_mat - exp_2, ord=self.exp_norm, axis=1)
+                        combined_dist = dist_1 + dist_2
+                        min_idx = np.argmin(combined_dist)
+                        mid_exp = internal_exp_mat[min_idx]
+                        internal_selection_count[min_idx] += 1
                         if not exp_replacement:
-                            internal_exp_kd_tree = internal_exp_kd_tree.remove(node.data)
+                            internal_exp_mat = np.delete(internal_exp_mat, min_idx, axis=0)
+                            if len(internal_exp_mat) <= 0:
+                                break
 
                     # Calculate costs before storing
                     cur_xyz_cost += np.linalg.norm(cur_xyz_mat[child1] - mid_xyz) + np.linalg.norm(cur_xyz_mat[child2] - mid_xyz)
@@ -1267,7 +1269,7 @@ class LineageOptimization:
                 cos_angles.append(cos_angle)
             min_consines.append(np.min(cos_angles) if cos_angles else 1.0)
             mean_cosines.append(np.mean(cos_angles) if cos_angles else 1.0)
-        del cur_xyz_mat, cur_exp_mat, internal_exp_kd_tree  # Final cleanup
+        del cur_xyz_mat, cur_exp_mat  # Final cleanup
         complexity_score = len(parent_code_mapping) / cell_div_count if cell_div_count > 0 else 0
         return cur_xyz_cost, cur_exp_cost, internal_selection_count, complexity_score, min_consines, mean_cosines
     
