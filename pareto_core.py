@@ -15,7 +15,7 @@ from functools import partial
 from itertools import combinations
 from typing import Callable
 from scipy.spatial import KDTree
-# import kdtree
+import kdtree
 
 
 class LineageTree:
@@ -116,13 +116,15 @@ class LineageOptimization:
                  first_internal_layer: list[tuple[int, int]],
                  lineage_names: list[str],
                  lineage_type_code_dict: dict,
-                 exp_norm = 2):
+                 exp_norm = 2,
+                 max_workers=10):
         self.xyz_mat = xyz_mat
         self.exp_mat = exp_mat
         self.lineage_tree = lineage_tree
         self.lineage_names = lineage_names
         self.first_internal_layer = first_internal_layer
         self.exp_norm = exp_norm
+        self.max_workers = max_workers
         # gather untracked lineage ids
         untracked_tree_ids = set()
         for tree_id, _depth in first_internal_layer:
@@ -246,7 +248,7 @@ class LineageOptimization:
         random_complexity_scores = process_map(
             partial(self.random_complexity_score, terminal_lineage_ids), 
             range(iterations),
-            max_workers=10,
+            max_workers=self.max_workers,
             chunksize=200,
             desc="Computing random complexity scores..."
         )
@@ -328,7 +330,7 @@ class LineageOptimization:
         random_assignment_costs = process_map(
             self.random_assignment_cost,
             range(iterations),
-            max_workers=10,
+            max_workers=self.max_workers,
             chunksize=200,
             desc="Computing random assignment costs..."
         )
@@ -356,7 +358,7 @@ class LineageOptimization:
         random_assignment_costs = process_map(
             partial(self.random_assignment_by_layer, internal_tree_ids_by_depth),
             range(iterations),
-            max_workers=10,
+            max_workers=self.max_workers,
             chunksize=200,
             desc="Computing random assignment by layer costs..."
         )
@@ -388,7 +390,7 @@ class LineageOptimization:
             partial(self.random_rebuild_cost, depth_limit, first_layer_lineage_id_with_depth,
                     internal_candidate_lineage_ids, terminal_lineage_ids),
             range(iterations),
-            max_workers=10,
+            max_workers=self.max_workers,
             chunksize=200,
             desc="Computing random rebuild costs..."
         )
@@ -540,7 +542,7 @@ class LineageOptimization:
             pareto_list_layerwise = process_map(
                 partial(self.bottom_up_by_layer, top_internal_tree_ids, self.internal_tree_ids, self.tree_ids_by_depth),
                 range(1001),
-                max_workers=10,
+                max_workers=self.max_workers,
                 chunksize=20,
                 desc="Computing pareto costs"
             )
@@ -550,7 +552,7 @@ class LineageOptimization:
             pareto_list_layerwise = process_map(
                 partial(self.bottom_up_by_layer, top_internal_tree_ids, internal_tree_ids, tree_ids_by_depth),
                 range(1001),
-                max_workers=10,
+                max_workers=self.max_workers,
                 chunksize=20,
                 desc="Computing pareto costs"
             )
@@ -597,7 +599,7 @@ class LineageOptimization:
         # pareto_list_layerwise = process_map(
         #     partial(self.top_down_by_layer, top_internal_tree_ids, internal_tree_ids, terminal_tree_ids, tree_ids_by_depth),
         #     range(1001),
-        #     max_workers=10,
+        #     max_workers=self.max_workers,
         #     chunksize=20,
         #     desc="Computing pareto costs"
         # )
@@ -661,7 +663,7 @@ class LineageOptimization:
             pareto_list = process_map(
                 partial(self.bottom_up_by_cell, top_internal_tree_ids, self.internal_tree_ids, self.terminal_tree_ids),
                 range(1001),
-                max_workers=10,
+                max_workers=self.max_workers,
                 chunksize=20,
                 desc="Computing pareto costs"
             )
@@ -671,7 +673,7 @@ class LineageOptimization:
             pareto_list = process_map(
                 partial(self.bottom_up_by_cell, top_internal_tree_ids, internal_tree_ids, terminal_tree_ids),
                 range(1001),
-                max_workers=10,
+                max_workers=self.max_workers,
                 chunksize=20,
                 desc="Computing pareto costs"
             )
@@ -737,7 +739,7 @@ class LineageOptimization:
             pareto_list = process_map(
                 partial(self.top_down_rebuild, first_internal_layer, self.internal_tree_ids, self.terminal_tree_ids, depth_weight_type),
                 range(1001),
-                max_workers=10,
+                max_workers=self.max_workers,
                 chunksize=20,
                 desc="Computing pareto costs"
             )
@@ -746,7 +748,7 @@ class LineageOptimization:
             pareto_list = process_map(
                 partial(self.top_down_rebuild, first_internal_layer, internal_tree_ids, terminal_tree_ids, depth_weight_type),
                 range(1001),
-                max_workers=10,
+                max_workers=self.max_workers,
                 chunksize=20,
                 desc="Computing pareto costs"
             )
@@ -854,7 +856,7 @@ class LineageOptimization:
                 partial(self.top_down_balanced_rebuild, top_internal_tree_ids, self.internal_tree_ids, \
                          self.terminal_tree_ids, self.xyz_cost_mat, self.exp_cost_mat, self.lineage_tree.lineage_id_mapping, self.lineage_tree.size),
                 range(1001),
-                max_workers=10,
+                max_workers=self.max_workers,
                 chunksize=20,
                 desc="Computing pareto costs"
             )
@@ -865,7 +867,7 @@ class LineageOptimization:
                 partial(self.top_down_balanced_rebuild, top_internal_tree_ids, internal_tree_ids, \
                          terminal_tree_ids, self.xyz_cost_mat, self.exp_cost_mat, self.lineage_tree.lineage_id_mapping, self.lineage_tree.size),
                 range(1001),
-                max_workers=10,
+                max_workers=self.max_workers,
                 chunksize=20,
                 desc="Computing pareto costs"
             )
@@ -951,7 +953,7 @@ class LineageOptimization:
                 partial(self.paired_bottom_up_rebuild, internal_tree_ids, terminal_tree_ids, \
                             shared_data["xyz_cost_mat"], shared_data["exp_cost_mat"], shared_data["lineage_id_mapping"], shared_data["lineage_tree_size"]),
                 range(250),
-                max_workers=10,
+                max_workers=self.max_workers,
                 chunksize=5,
                 desc="Computing pareto costs 1/4"
             )
@@ -959,7 +961,7 @@ class LineageOptimization:
                 partial(self.paired_bottom_up_rebuild, internal_tree_ids, terminal_tree_ids, \
                             shared_data["xyz_cost_mat"], shared_data["exp_cost_mat"], shared_data["lineage_id_mapping"], shared_data["lineage_tree_size"]),
                 range(250, 500),
-                max_workers=10,
+                max_workers=self.max_workers,
                 chunksize=5,
                 desc="Computing pareto costs 2/4"
             )
@@ -967,7 +969,7 @@ class LineageOptimization:
                 partial(self.paired_bottom_up_rebuild, internal_tree_ids, terminal_tree_ids, \
                             shared_data["xyz_cost_mat"], shared_data["exp_cost_mat"], shared_data["lineage_id_mapping"], shared_data["lineage_tree_size"]),
                 range(500, 750),
-                max_workers=10,
+                max_workers=self.max_workers,
                 chunksize=5,
                 desc="Computing pareto costs 3/4"
             )
@@ -975,7 +977,7 @@ class LineageOptimization:
                 partial(self.paired_bottom_up_rebuild, internal_tree_ids, terminal_tree_ids, \
                             shared_data["xyz_cost_mat"], shared_data["exp_cost_mat"], shared_data["lineage_id_mapping"], shared_data["lineage_tree_size"]),
                 range(750, 1001),
-                max_workers=10,
+                max_workers=self.max_workers,
                 chunksize=5,
                 desc="Computing pareto costs 4/4"
             )
@@ -1074,7 +1076,7 @@ class LineageOptimization:
             pareto_list = process_map(
                 partial(self.direct_bottom_up_rebuild, self.internal_tree_ids, self.terminal_tree_ids),
                 range(1001),
-                max_workers=10,
+                max_workers=self.max_workers,
                 chunksize=20,
                 desc="Computing pareto costs"
             )
@@ -1083,7 +1085,7 @@ class LineageOptimization:
             pareto_list = process_map(
                 partial(self.direct_bottom_up_rebuild, internal_tree_ids, terminal_tree_ids),
                 range(1001),
-                max_workers=10,
+                max_workers=self.max_workers,
                 chunksize=20,
                 desc="Computing pareto costs"
             )
@@ -1125,7 +1127,7 @@ class LineageOptimization:
         #     cur_exp_cost += extra_exp_cost
         return cur_xyz_cost, cur_exp_cost, cur_children_list, cur_parent_list, len(bottom_layer)
     
-    def terminal_only_rebuild_runner(self, first_internal_layer: list[tuple[int, int]] = None, use_kd_tree: bool=False):
+    def terminal_only_rebuild_runner(self, first_internal_layer: list[tuple[int, int]] = None, use_kd_tree: bool=False, exp_replacement: bool=True):
         # some of the rows in exp_mat can have nan values
         # exclude those rows from kd tree
         if first_internal_layer is not None:
@@ -1136,22 +1138,22 @@ class LineageOptimization:
         terminal_lineage_ids = [self.lineage_tree.lineage_id_mapping[tree_id] for tree_id in terminal_tree_ids]
         internal_lineage_ids = [self.lineage_tree.lineage_id_mapping[tree_id] for tree_id in internal_tree_ids]
         pareto_list_1 = process_map(
-            partial(self.terminal_only_rebuild, terminal_lineage_ids, internal_lineage_ids, use_kd_tree),
+            partial(self.terminal_only_rebuild, terminal_lineage_ids, internal_lineage_ids, use_kd_tree, exp_replacement),
             range(500),
-            max_workers=10,
+            max_workers=self.max_workers,
             chunksize=20,
             desc="Computing pareto costs 1/2"
         )
         pareto_list_2 = process_map(
-            partial(self.terminal_only_rebuild, terminal_lineage_ids, internal_lineage_ids, use_kd_tree),
+            partial(self.terminal_only_rebuild, terminal_lineage_ids, internal_lineage_ids, use_kd_tree, exp_replacement),
             range(500, 1001),
-            max_workers=10,
+            max_workers=self.max_workers,
             chunksize=20,
             desc="Computing pareto costs 2/2"
         )
         return pareto_list_1 + pareto_list_2
 
-    def terminal_only_rebuild(self, terminal_lineage_ids: list[int], internal_lineage_ids: list[int], use_kd_tree: bool = False, idx: int = 0):
+    def terminal_only_rebuild(self, terminal_lineage_ids: list[int], internal_lineage_ids: list[int], use_kd_tree: bool = False, exp_replacement: bool = True, idx: int = 0):
         alpha = 0 + 0.001 * idx  # weight for xyz cost
         cur_xyz_cost = 0
         cur_exp_cost = 0
@@ -1161,7 +1163,10 @@ class LineageOptimization:
         cur_exp_mat = self.exp_mat[terminal_lineage_ids].copy()  # Explicit copy
         bottom_layer = list(range(len(terminal_lineage_ids)))  # Use list() instead of tolist()
         internal_exp_mat = self.exp_mat[internal_lineage_ids]
-        internal_exp_kd_tree = KDTree(internal_exp_mat) if use_kd_tree else None
+        if exp_replacement:
+            internal_exp_kd_tree = KDTree(internal_exp_mat) if use_kd_tree else None
+        else:
+            internal_exp_kd_tree = kdtree.create(internal_exp_mat.tolist()) if use_kd_tree else None
         internal_selection_count = np.zeros(len(internal_lineage_ids), dtype=int).tolist() if use_kd_tree else None
         parent_code_mapping = {}
         type_code_list = [self.terminal_type_code_dict[lineage_id] for lineage_id in terminal_lineage_ids]
@@ -1216,7 +1221,8 @@ class LineageOptimization:
                         internal_selection_count[node_idx[0]] += 1
                         mid_exp = node
                         # print("deleted node dist:", dist)
-                        # internal_exp_kd_tree = internal_exp_kd_tree.remove(node.data)
+                        if not exp_replacement:
+                            internal_exp_kd_tree = internal_exp_kd_tree.remove(node.data)
 
                     # Calculate costs before storing
                     cur_xyz_cost += np.linalg.norm(cur_xyz_mat[child1] - mid_xyz) + np.linalg.norm(cur_xyz_mat[child2] - mid_xyz)
@@ -1277,7 +1283,7 @@ class LineageOptimization:
         mst_stat_list = process_map(
             partial(self.mst_rebuild, top_internal_tree_ids, internal_tree_ids, terminal_tree_ids),
             range(1001),
-            max_workers=10,
+            max_workers=self.max_workers,
             chunksize=20,
             desc="Computing mst test"
         )
