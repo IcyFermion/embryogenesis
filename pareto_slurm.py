@@ -200,19 +200,19 @@ if __name__ == "__main__":
         exp_norm=2,
         max_workers=num_threads)
     
-    pareto_list_by_layer = opt.bottom_up_by_layer_runner()
-    pareto_list_top_down_rebuild = opt.top_down_rebuild_runner()
-    pareto_mst_list = opt.mst_rebuild_runner()
-    pareto_list_top_down_rebuild_depth_cutoff = opt.top_down_rebuild_runner(depth_weight_type=depth_cutoff_func)
+    # pareto_list_by_layer = opt.bottom_up_by_layer_runner()
+    # pareto_list_top_down_rebuild = opt.top_down_rebuild_runner()
+    # pareto_mst_list = opt.mst_rebuild_runner()
+    # pareto_list_top_down_rebuild_depth_cutoff = opt.top_down_rebuild_runner(depth_weight_type=depth_cutoff_func)
 
-    pareto_xyz_cost_list_by_layer = [cost[0] for cost in pareto_list_by_layer]
-    pareto_exp_cost_list_by_layer = [cost[1] for cost in pareto_list_by_layer]
-    pareto_xyz_cost_list_top_down_rebuild = [cost[0] for cost in pareto_list_top_down_rebuild]
-    pareto_exp_cost_list_top_down_rebuild = [cost[1] for cost in pareto_list_top_down_rebuild]
-    pareto_xyz_cost_list_mst = [cost[0] for cost in pareto_mst_list]
-    pareto_exp_cost_list_mst = [cost[1] for cost in pareto_mst_list]
-    pareto_xyz_cost_list_top_down_rebuild_depth_cutoff = [cost[0] for cost in pareto_list_top_down_rebuild_depth_cutoff]
-    pareto_exp_cost_list_top_down_rebuild_depth_cutoff = [cost[1] for cost in pareto_list_top_down_rebuild_depth_cutoff]
+    # pareto_xyz_cost_list_by_layer = [cost[0] for cost in pareto_list_by_layer]
+    # pareto_exp_cost_list_by_layer = [cost[1] for cost in pareto_list_by_layer]
+    # pareto_xyz_cost_list_top_down_rebuild = [cost[0] for cost in pareto_list_top_down_rebuild]
+    # pareto_exp_cost_list_top_down_rebuild = [cost[1] for cost in pareto_list_top_down_rebuild]
+    # pareto_xyz_cost_list_mst = [cost[0] for cost in pareto_mst_list]
+    # pareto_exp_cost_list_mst = [cost[1] for cost in pareto_mst_list]
+    # pareto_xyz_cost_list_top_down_rebuild_depth_cutoff = [cost[0] for cost in pareto_list_top_down_rebuild_depth_cutoff]
+    # pareto_exp_cost_list_top_down_rebuild_depth_cutoff = [cost[1] for cost in pareto_list_top_down_rebuild_depth_cutoff]
     
     pareto_list_terminal_only_kd_internal = opt.terminal_only_rebuild_runner(use_kd_tree=True, exp_replacement=False)
     pareto_xyz_cost_list_terminal_only_kd_internal = [cost[0] for cost in pareto_list_terminal_only_kd_internal]
@@ -234,19 +234,19 @@ if __name__ == "__main__":
     pareto_xyz_cost_list_paired_bottom_up_rebuild = [cost[0] for cost in pareto_list_paired_bottom_up_rebuild]
     pareto_exp_cost_list_paired_bottom_up_rebuild = [cost[1] for cost in pareto_list_paired_bottom_up_rebuild]
 
-    results_df = pd.DataFrame({
-        'Bottom-up By Layer XYZ Cost': pareto_xyz_cost_list_by_layer,
-        'Bottom-up By Layer Exp Cost': pareto_exp_cost_list_by_layer,
-        'Top-Down Rebuild XYZ Cost': pareto_xyz_cost_list_top_down_rebuild,
-        'Top-Down Rebuild Exp Cost': pareto_exp_cost_list_top_down_rebuild,
-        'Paired Bottom-Up Rebuild XYZ Cost': pareto_xyz_cost_list_paired_bottom_up_rebuild,
-        'Paired Bottom-Up Rebuild Exp Cost': pareto_exp_cost_list_paired_bottom_up_rebuild,
-        'MST Based Rebuild XYZ Cost': pareto_xyz_cost_list_mst,
-        'MST Based Rebuild Exp Cost': pareto_exp_cost_list_mst,
-        'Top-Down Rebuild (Hard Depth Cutoff) XYZ Cost': pareto_xyz_cost_list_top_down_rebuild_depth_cutoff,
-        'Top-Down Rebuild (Hard Depth Cutoff) Exp Cost': pareto_exp_cost_list_top_down_rebuild_depth_cutoff
-    })
-    results_df.to_csv('output/internal_opt/embryo3/10_pca_226_l2/pareto_comparison.csv', index=False)
+    # results_df = pd.DataFrame({
+    #     'Bottom-up By Layer XYZ Cost': pareto_xyz_cost_list_by_layer,
+    #     'Bottom-up By Layer Exp Cost': pareto_exp_cost_list_by_layer,
+    #     'Top-Down Rebuild XYZ Cost': pareto_xyz_cost_list_top_down_rebuild,
+    #     'Top-Down Rebuild Exp Cost': pareto_exp_cost_list_top_down_rebuild,
+    #     'Paired Bottom-Up Rebuild XYZ Cost': pareto_xyz_cost_list_paired_bottom_up_rebuild,
+    #     'Paired Bottom-Up Rebuild Exp Cost': pareto_exp_cost_list_paired_bottom_up_rebuild,
+    #     'MST Based Rebuild XYZ Cost': pareto_xyz_cost_list_mst,
+    #     'MST Based Rebuild Exp Cost': pareto_exp_cost_list_mst,
+    #     'Top-Down Rebuild (Hard Depth Cutoff) XYZ Cost': pareto_xyz_cost_list_top_down_rebuild_depth_cutoff,
+    #     'Top-Down Rebuild (Hard Depth Cutoff) Exp Cost': pareto_exp_cost_list_top_down_rebuild_depth_cutoff
+    # })
+    # results_df.to_csv('output/internal_opt/embryo3/10_pca_226_l2/pareto_comparison.csv', index=False)
 
     
 

@@ -12,7 +12,7 @@ from collections import defaultdict
 from heapq import heapify, heappop, heappush
 import matplotlib as mpl
 mpl.rcParams['figure.dpi'] = 300
-
+default_colors = sns.color_palette(n_colors=10)
 
 
 class ParetoFront:
@@ -309,6 +309,7 @@ class ParetoFront:
         plt.tight_layout()
         plt.show()
 
+
     def restricted_shuffle(self, norm="l2"):
         xyz_cost_mat, exp_cost_mat = self.compute_cost_matrices(norm=norm)
         self.terminal_cousin_group()
@@ -330,30 +331,135 @@ class ParetoFront:
         plt.plot(pareto_xyz_cost_list, pareto_exp_cost_list, marker='o', linestyle='-', color='blue', markersize=3, label='Pareto Front')
         plt.xlabel('Motility Cost')
         plt.ylabel('Expression Cost')
-        plt.scatter(lineage_xyz_cost, lineage_exp_cost, color='red', label='Lineage Cost')
-        plt.scatter([x[0] for x in random_cost_list], [x[1] for x in random_cost_list], alpha=0.5, s=1, label='Random Cousin Shuffles')
-        plt.title(f'{self.title} (alpha={alpha}, norm={norm})')
+        plt.scatter(lineage_xyz_cost, lineage_exp_cost, marker='*', color='white', label='Real Lineage Cost')
+        plt.scatter([x[0] for x in random_cost_list], [x[1] for x in random_cost_list], alpha=0.5, s=10, color=default_colors[8], label='Random Cousin Shuffles')
+        plt.title(f'{self.title}')
+        # plt.title(f'{self.title} (alpha={alpha}, norm={norm})')
         plt.grid(True)
         plt.legend()
         plt.show()
 
-    def pre_plot(self):
-        colors = sns.color_palette(n_colors=10)
-        xyz_cost_mat, exp_cost_mat = self.compute_cost_matrices(norm="l2")
-        monte_carlo_list = process_map(partial(self.monte_carlo_simulation, xyz_cost_mat, exp_cost_mat), range(1000000), max_workers=20, chunksize=100, desc="Monte Carlo Simulation")
-        alpha, pareto_xyz_cost_list, pareto_exp_cost_list, lineage_xyz_cost, lineage_exp_cost = self.compute_pareto_front(xyz_cost_mat, exp_cost_mat, monte_carlo=False)
-        # plot the monte carlo simulation results together with the pareto front
+    def optimal_xyz_assignment(self, norm="l2"):
+        xyz_cost_mat, exp_cost_mat = self.compute_cost_matrices(norm=norm)
+        cur_cost_mat = xyz_cost_mat
+        cur_row_ind, cur_col_ind = linear_sum_assignment(cur_cost_mat)
+        cur_xyz_cost = xyz_cost_mat[cur_row_ind, cur_col_ind].sum()
+        cur_exp_cost = exp_cost_mat[cur_row_ind, cur_col_ind].sum()
+        print(f"Optimal xyz assignment costs (norm={norm}): Motility Cost = {cur_xyz_cost}, Expression Cost = {cur_exp_cost}")
+        return cur_row_ind, cur_col_ind, cur_xyz_cost, cur_exp_cost
+
+    def pre_plot(self, norm="l2"):
+        xyz_cost_mat, exp_cost_mat = self.compute_cost_matrices(norm=norm)
+        
+        # optimal xyz assignment
+        cur_cost_mat = xyz_cost_mat
+        cur_row_ind, cur_col_ind = linear_sum_assignment(cur_cost_mat)
+        cur_xyz_cost_list = xyz_cost_mat[cur_row_ind, cur_col_ind]
+        cur_xyz_cost_sum = cur_xyz_cost_list.sum()
+        lineage_xyz_cost_list = xyz_cost_mat[cur_row_ind, cur_row_ind]
+        xyz_cost_diff_list = cur_xyz_cost_list - lineage_xyz_cost_list
+        cur_exp_cost = exp_cost_mat[cur_row_ind, cur_col_ind]
+        cur_exp_cost_sum = cur_exp_cost.sum()
+        # plot the distribution of optimal xyz costs vs lineage xyz costs
         plt.figure(figsize=(8, 6))
-        plt.plot(pareto_xyz_cost_list, pareto_exp_cost_list, marker='o', linestyle='-', color=colors[0], markersize=3, label='Pareto Front')
+        plt.scatter(lineage_xyz_cost_list, cur_xyz_cost_list, color='yellow', label='Optimal XYZ Assignment Costs', s=10)
+        # draw y=x line for reference
+        max_cost = max(max(lineage_xyz_cost_list), max(cur_xyz_cost_list))
+        plt.plot([0, max_cost], [0, max_cost], color='red', linestyle='--', zorder=-1, label='y=x Reference Line')
+        plt.xlabel('Lineage Displacement (um)')
+        plt.ylabel('Optimally Assigned Displacement (um)')
+        # plt.title(f'Optimal XYZ Assignment vs Lineage Costs (norm={norm})')
+        plt.show()
+        print(f"Optimal xyz assignment costs (norm={norm}): Motility Cost = {cur_xyz_cost_sum}, Expression Cost = {cur_exp_cost_sum}")
+        print("number of optimally assigned displacements stayed the same:", sum(cur_xyz_cost_list == lineage_xyz_cost_list))
+        top5_ind = np.argsort(cur_xyz_cost_list - lineage_xyz_cost_list)[:5]
+        print("Top 5 Terminal Nodes with Largest Decrease in Displacement Cost:")
+        for ind in top5_ind:
+            terminal_node_ind = cur_col_ind[ind]
+            print(f"Terminal Node: {self.terminal_nodes[terminal_node_ind]}, Lineage Parent: {self.terminal_parents[terminal_node_ind]}, Optimal Parent: {self.terminal_parents[ind]}, Displacement Difference: {xyz_cost_diff_list[ind]:.4f}")
+    
+        # optimal exp assignment
+        cur_cost_mat = exp_cost_mat
+        cur_row_ind, cur_col_ind = linear_sum_assignment(cur_cost_mat)
+        cur_exp_cost_list = exp_cost_mat[cur_row_ind, cur_col_ind]
+        cur_exp_cost_sum = cur_exp_cost_list.sum()
+        lineage_exp_cost_list = exp_cost_mat[cur_row_ind, cur_row_ind]
+        exp_cost_diff_list = cur_exp_cost_list - lineage_exp_cost_list
+        cur_xyz_cost = xyz_cost_mat[cur_row_ind, cur_col_ind]
+        cur_xyz_cost_sum = cur_xyz_cost.sum()
+        # plot the distribution of optimal xyz costs vs lineage xyz costs
+        plt.figure(figsize=(8, 6))
+        plt.scatter(lineage_exp_cost_list, cur_exp_cost_list, color='yellow', label='Optimal Expression Assignment Costs', s=10)
+        # draw y=x line for reference
+        max_cost = max(max(lineage_exp_cost_list), max(cur_exp_cost_list))
+        plt.plot([0, max_cost], [0, max_cost], color='red', linestyle='--', zorder=-1, label='y=x Reference Line')
+        plt.xlabel('Lineage Expression Cost')
+        plt.ylabel('Optimally Assigned Expression Cost')
+        # plt.title(f'Optimal Expression Assignment vs Lineage Costs (norm={norm})')
+        plt.show()
+        print(f"Optimal Expression assignment costs (norm={norm}): Expression Cost = {cur_exp_cost_sum}, Motility Cost = {cur_xyz_cost_sum}")
+        print("number of optimally assigned displacements stayed the same:", sum(cur_exp_cost_list == lineage_exp_cost_list))
+        top5_ind = np.argsort(exp_cost_diff_list)[:5]
+        print("Top 5 Terminal Nodes with Largest Decrease in Expression Cost:")
+        for ind in top5_ind:
+            terminal_node_ind = cur_col_ind[ind]
+            print(f"Terminal Node: {self.terminal_nodes[terminal_node_ind]}, Lineage Parent: {self.terminal_parents[terminal_node_ind]}, Optimal Parent: {self.terminal_parents[ind]}, Displacement Difference: {exp_cost_diff_list[ind]:.4f}")
+
+        monte_carlo_list = process_map(partial(self.monte_carlo_simulation, xyz_cost_mat, exp_cost_mat), range(1000000), max_workers=20, chunksize=100, desc="Monte Carlo Simulation")
+        self.terminal_cousin_group()
+        # Use multiprocessing for speed up
+        random_cost_list_1st_cousins = process_map(
+            partial(self.compute_random_cost, xyz_cost_mat, exp_cost_mat),
+            range(100000), 
+            max_workers=20, 
+            chunksize=1000, 
+            desc="Computing random costs by 1st cousins shuffle"
+        )
+
+        self.terminal_cousin_group(degree=3)
+        # Use multiprocessing for speed up
+        random_cost_list_2nd_cousins = process_map(
+            partial(self.compute_random_cost, xyz_cost_mat, exp_cost_mat),
+            range(100000), 
+            max_workers=20, 
+            chunksize=1000, 
+            desc="Computing random costs by 2nd cousins shuffle"
+        )
+
+        self.terminal_cousin_group(degree=4)
+        # Use multiprocessing for speed up
+        random_cost_list_3rd_cousins = process_map(
+            partial(self.compute_random_cost, xyz_cost_mat, exp_cost_mat),
+            range(100000), 
+            max_workers=20, 
+            chunksize=1000, 
+            desc="Computing random costs by 3nd cousins shuffle"
+        )
+
+        # plotting the distribution of random costs in a 2d plot
+        lineage_xyz_cost = xyz_cost_mat.diagonal().sum()
+        lineage_exp_cost = exp_cost_mat.diagonal().sum()
+        alpha, pareto_xyz_cost_list, pareto_exp_cost_list, lineage_xyz_cost, lineage_exp_cost = self.compute_pareto_front(xyz_cost_mat, exp_cost_mat, monte_carlo=False)
+
+        print("lineage costs:", "xyz,", lineage_xyz_cost, "exp,", lineage_exp_cost)
+        monte_carlo_xyz_list = [x[0] for x in monte_carlo_list]
+        monte_carlo_exp_list = [x[1] for x in monte_carlo_list]
+        print("monte carlo costs:", "xyz,", np.mean(monte_carlo_xyz_list), "exp,", np.mean(monte_carlo_exp_list))
+        print("monte carlo costs std:", "xyz,", np.std(monte_carlo_xyz_list), "exp,", np.std(monte_carlo_exp_list))
+        
+        plt.figure(figsize=(8, 6))
+        plt.plot(pareto_xyz_cost_list, pareto_exp_cost_list, marker='o', linestyle='-', color='white', markersize=3, label='Pareto Front')
         plt.xlabel('Motility Cost')
         plt.ylabel('Expression Cost')
-        plt.scatter(lineage_xyz_cost, lineage_exp_cost, marker='*', color='black', label='Lineage Cost', zorder=99, s=75)
-        plt.scatter([x[0] for x in monte_carlo_list], [x[1] for x in monte_carlo_list], alpha=0.5, s=1, color=colors[7], label='Random Assignments')
-        plt.title('Pareto Front for Terminal Cell Assignments')
-        plt.grid(True)
-        plt.legend()
+        plt.scatter(lineage_xyz_cost, lineage_exp_cost, marker='*', color='#FF0000', label='Real Lineage Cost')
+        plt.scatter([x[0] for x in random_cost_list_1st_cousins], [x[1] for x in random_cost_list_1st_cousins], alpha=0.5, s=10, color="#E6FF00", label='Random 1st Cousin Shuffles')
+        plt.scatter([x[0] for x in random_cost_list_2nd_cousins], [x[1] for x in random_cost_list_2nd_cousins], alpha=0.5, s=10, color="#FF8C42", label='Random 2nd Cousin Shuffles')
+        plt.scatter([x[0] for x in random_cost_list_3rd_cousins], [x[1] for x in random_cost_list_3rd_cousins], alpha=0.5, s=10, color="#20B2AA", label='Random 3rd Cousin Shuffles')
+        plt.scatter([x[0] for x in monte_carlo_list], [x[1] for x in monte_carlo_list], alpha=0.5, s=10, color="#00D060", label='Random Shuffles')
+        # plt.title(f'{self.title} (alpha={alpha}, norm={norm})')
+        # plt.grid(True)
+        # plt.legend()
         plt.show()
-        return monte_carlo_list, pareto_xyz_cost_list, pareto_exp_cost_list, lineage_xyz_cost, lineage_exp_cost
 
     def normal_run(self):
         pareto_plot_series = []

@@ -326,6 +326,37 @@ class LineageOptimization:
             print(xyz_cost, exp_cost, edge_count)
         return xyz_cost, exp_cost
     
+    def group_cousins_by_degree(self, degree=1):
+        cousin_groups = defaultdict(list)
+        for tree_id in self.terminal_tree_ids:
+            path = self.lineage_tree.path_from_root(tree_id)
+            if len(path) > degree + 1:
+                cousin_ancestor_id = path[-(degree + 2)]
+                cousin_groups[cousin_ancestor_id].append(tree_id)
+        cousin_groups_list = list(cousin_groups.values())
+        return cousin_groups_list
+    
+    def random_cousin_shuffle_runner(self, degree=1, iterations=1000000):
+        cousin_groups = self.group_cousins_by_degree(degree)
+        random_cousin_shuffle_costs = process_map(
+            partial(self.random_cousin_shuffle, cousin_groups),
+            range(iterations),
+            max_workers=self.max_workers,
+            chunksize=200,
+            desc="Computing random cousin shuffle costs..."
+        )
+        return random_cousin_shuffle_costs
+
+    def random_cousin_shuffle(self, cousin_groups, seed):
+        random.seed(seed)
+        cur_lineage_id_mapping = deepcopy(self.lineage_tree.lineage_id_mapping)
+        for group in cousin_groups:
+            lineage_ids = [cur_lineage_id_mapping[tree_id] for tree_id in group]
+            random.shuffle(lineage_ids)
+            for tree_id, lineage_id in zip(group, lineage_ids):
+                cur_lineage_id_mapping[tree_id] = lineage_id
+        return self.calc_lineage_cost(lineage_id_mapping=cur_lineage_id_mapping)
+
     def random_assignment_runner(self, iterations=1000000):
         random_assignment_costs = process_map(
             self.random_assignment_cost,
@@ -440,7 +471,7 @@ class LineageOptimization:
         sigma_sq_mle = (centered_values.T @ vcv_inv @ centered_values) / n_terminals
         return sigma_sq_mle.diagonal()
     
-    def phylogenetic_reconstruction(self):
+    def phylogenetic_reconstruction(self, root_id=0):
         epsilon = 1e-8
         terminal_xyz_values = self.xyz_mat[self.terminal_tree_ids]
         terminal_exp_values = self.exp_mat[self.terminal_tree_ids]
@@ -475,12 +506,12 @@ class LineageOptimization:
 
             return weighted_avg, variance
 
-        root_val, root_var = post_order_traversal(0)
-        node_estimates[0] = root_val
-        node_variances[0] = root_var
+        root_val, root_var = post_order_traversal(root_id)
+        node_estimates[root_id] = root_val
+        node_variances[root_id] = root_var
 
         def pre_order_traversal(node_id, parent_value=None):
-            if node_id == 0:
+            if node_id == root_id:
                 return
             if len(self.lineage_tree.children_list[node_id]) == 0:
                 return
@@ -506,33 +537,33 @@ class LineageOptimization:
             for child in self.lineage_tree.children_list[node_id]:
                 pre_order_traversal(child, refined_value)
         
-        for child in self.lineage_tree.children_list[0]:
+        for child in self.lineage_tree.children_list[root_id]:
             pre_order_traversal(child, root_val)
 
         return node_estimates, node_variances
     
-    def phylogenetic_sampling(self, n_samples=10000):
-        node_estimates, node_variances = self.phylogenetic_reconstruction()
-        samples = []
-        for tree_id in range(self.lineage_tree.size):
+    def phylogenetic_sampling(self, root_id=0, n_samples=10000):
+        node_estimates, node_variances = self.phylogenetic_reconstruction(root_id=root_id)
+        samples = {}
+        for tree_id in node_estimates.keys():
             mean = node_estimates[tree_id]
             var = node_variances[tree_id]
-            samples.append(np.random.multivariate_normal(mean, np.diag(var), size=n_samples))
+            samples[tree_id] = np.random.multivariate_normal(mean, np.diag(var), size=n_samples)
         xyz_cost = np.zeros((n_samples))
         exp_cost = np.zeros((n_samples))
         mean_xyz_cost = 0
         mean_exp_cost = 0
-        for i in range(7, self.lineage_tree.size):
-            mean = node_estimates[i]
-            cur_val = samples[i]
-            parent_id = self.lineage_tree.parent_list[i]
+        for tree_id in node_estimates.keys():
+            cur_val = samples[tree_id]
+            parent_id = self.lineage_tree.parent_list[tree_id]
+            if tree_id == root_id:
+                continue
             parent_val = samples[parent_id]
-            parent_mean = node_estimates[parent_id]
             diff = cur_val - parent_val
             xyz_cost += np.linalg.norm(diff[:, :3], axis=1)
             exp_cost += np.linalg.norm(diff[:, 3:], axis=1)
-            mean_xyz_cost += np.linalg.norm(mean[:3] - parent_mean[:3])
-            mean_exp_cost += np.linalg.norm(mean[3:] - parent_mean[3:])
+            mean_xyz_cost += np.linalg.norm(node_estimates[tree_id][:3] - node_estimates[parent_id][:3])
+            mean_exp_cost += np.linalg.norm(node_estimates[tree_id][3:] - node_estimates[parent_id][3:])
         return xyz_cost, exp_cost, mean_xyz_cost, mean_exp_cost
 
 
