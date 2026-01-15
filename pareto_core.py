@@ -1,7 +1,7 @@
 import numpy as np
 from collections import defaultdict, deque
 from multiprocessing import Manager
-from scipy.optimize import linear_sum_assignment
+from scipy.optimize import linear_sum_assignment, minimize
 from tqdm.contrib.concurrent import process_map
 from tqdm import tqdm
 import networkx as nx
@@ -458,8 +458,8 @@ class LineageOptimization:
         return xyz_cost, exp_cost
     
     def estimate_phylogenetic_evolution_rate(self):
-        terminal_xyz_values = self.xyz_mat[self.terminal_tree_ids]
-        terminal_exp_values = self.exp_mat[self.terminal_tree_ids]
+        terminal_xyz_values = self.xyz_mat[self.terminal_tree_ids].copy()
+        terminal_exp_values = self.exp_mat[self.terminal_tree_ids].copy()
         terminal_values = np.hstack((terminal_xyz_values, terminal_exp_values))
         # terminal_x_values = list(terminal_xyz_values[:, 2])
         n_terminals = len(self.terminal_tree_ids)
@@ -473,8 +473,8 @@ class LineageOptimization:
     
     def phylogenetic_reconstruction(self, root_id=0):
         epsilon = 1e-8
-        terminal_xyz_values = self.xyz_mat[self.terminal_tree_ids]
-        terminal_exp_values = self.exp_mat[self.terminal_tree_ids]
+        terminal_xyz_values = self.xyz_mat[self.terminal_tree_ids].copy()
+        terminal_exp_values = self.exp_mat[self.terminal_tree_ids].copy()
         terminal_values = np.hstack((terminal_xyz_values, terminal_exp_values))
         n_terminals = len(self.terminal_tree_ids)
         xyz_sigma_sq = self.estimate_phylogenetic_evolution_rate()
@@ -566,6 +566,199 @@ class LineageOptimization:
             mean_exp_cost += np.linalg.norm(node_estimates[tree_id][3:] - node_estimates[parent_id][3:])
         return xyz_cost, exp_cost, mean_xyz_cost, mean_exp_cost
 
+    def bottom_up_pareto_at_each_layer(self):
+        list_of_pareto_fronts = []
+        list_of_layer_costs = []
+        current_layer = self.terminal_tree_ids.copy()
+        first_layer_tree_ids = [tree_id for tree_id, _ in self.first_internal_layer]
+        seen_tree_ids = set(current_layer)
+        lineage_id_to_parent_list = []
+        for i in range(1001):
+            lineage_id_to_parent_list.append([-1] * self.lineage_tree.size)
+        while True:
+            # if any(tree_id in first_layer_tree_ids for tree_id in current_layer):
+            #     break
+            print(len(current_layer), "nodes in current layer")
+            current_layer_cost = (0, 0)
+            current_lineage_ids = [self.lineage_tree.lineage_id_mapping[tree_id] for tree_id in current_layer]
+            current_parent_tree_ids = [self.lineage_tree.parent_list[tree_id] for tree_id in current_layer]
+            current_parent_lineage_ids = [self.lineage_tree.lineage_id_mapping[tree_id] for tree_id in current_parent_tree_ids]
+            xyz_cost_mat = np.zeros((len(current_lineage_ids), len(current_parent_lineage_ids)))
+            exp_cost_mat = np.zeros((len(current_lineage_ids), len(current_parent_lineage_ids)))
+            for i in tqdm(range(len(current_lineage_ids))):
+                candidate_lineage_id = current_lineage_ids[i]
+                for j in range(len(current_parent_lineage_ids)):
+                    parent_lineage_id = current_parent_lineage_ids[j]
+                    xyz_cost_mat[i][j] += np.linalg.norm(self.xyz_mat[candidate_lineage_id] - self.xyz_mat[parent_lineage_id], ord=2)
+                    exp_cost_mat[i][j] += np.linalg.norm(self.exp_mat[candidate_lineage_id] - self.exp_mat[parent_lineage_id], ord=self.exp_norm)
+                current_layer_cost = (current_layer_cost[0] + xyz_cost_mat[i][i], current_layer_cost[1] + exp_cost_mat[i][i])
+            list_of_layer_costs.append(current_layer_cost)
+
+            current_pareto_front = []
+            for k in tqdm(range(1001)):
+                alpha = 0 + 0.001 * k  # weight for xyz cost
+                cost_mat = alpha * xyz_cost_mat + (1 - alpha) * exp_cost_mat
+                row_indices, col_indices = linear_sum_assignment(cost_mat)
+                total_xyz_cost = 0
+                total_exp_cost = 0
+                for row, col in zip(row_indices, col_indices):
+                    total_xyz_cost += xyz_cost_mat[row][col]
+                    total_exp_cost += exp_cost_mat[row][col]
+                    child_lineage_id = current_lineage_ids[row]
+                    parent_lineage_id = current_parent_lineage_ids[col]
+                    lineage_id_to_parent_list[k][child_lineage_id] = parent_lineage_id
+                current_pareto_front.append((total_xyz_cost, total_exp_cost))
+            list_of_pareto_fronts.append(current_pareto_front)
+            # move to next layer
+            next_layer = []
+            for tree_id in current_parent_tree_ids:
+                if tree_id in first_layer_tree_ids:
+                    continue
+                if tree_id in seen_tree_ids:
+                    next_layer.append(tree_id)
+                else:
+                    seen_tree_ids.add(tree_id)
+            if len(next_layer) == 0:
+                break
+            current_layer = next_layer
+
+        return list_of_pareto_fronts, list_of_layer_costs, lineage_id_to_parent_list
+
+    def free_xyz_distance(self):
+        print(np.nan_to_num(self.xyz_mat).mean())
+
+        def local_energy(point, neighbors):
+            # energy function for internal relaxation
+            return sum(np.linalg.norm(point - n) for n in neighbors)
+
+        first_layer_tree_ids = [tree_id for tree_id, _ in self.first_internal_layer]
+        new_xyz_dict = {}
+        neighbor_ids = defaultdict(list)
+        internal_tree_ids = set()
+        for tree_id in self.terminal_tree_ids:
+            lineage_id = self.lineage_tree.lineage_id_mapping[tree_id]
+            lineage_xyz = self.xyz_mat[lineage_id].copy()
+            new_xyz_dict[tree_id] = lineage_xyz
+        cur_tree_ids = self.terminal_tree_ids.copy()
+        while cur_tree_ids:
+            next_layer_tree_ids = []
+            for tree_id in cur_tree_ids:
+                if tree_id in first_layer_tree_ids: continue
+                lineage_id = self.lineage_tree.lineage_id_mapping[tree_id]
+                lineage_xyz = self.xyz_mat[lineage_id].copy()
+                parent_id = self.lineage_tree.parent_list[tree_id]
+                internal_tree_ids.add(parent_id)
+                neighbor_ids[parent_id].append(tree_id)
+                neighbor_ids[tree_id].append(parent_id)
+                if parent_id not in new_xyz_dict:
+                    new_xyz_dict[parent_id] = lineage_xyz
+                else:
+                    new_xyz_dict[parent_id] += lineage_xyz
+                    new_xyz_dict[parent_id] /= 2
+                    next_layer_tree_ids.append(parent_id)
+            cur_tree_ids = next_layer_tree_ids
+        internal_tree_ids = list(internal_tree_ids)
+        bfs_queue = deque(first_layer_tree_ids)
+        total_distance = 0
+        while bfs_queue:
+            tree_id = bfs_queue.popleft()
+            for child in self.lineage_tree.children_list[tree_id]:
+                total_distance += np.linalg.norm(new_xyz_dict[tree_id] - new_xyz_dict[child])
+                bfs_queue.append(child)
+        unrelaxed_total_distance = total_distance
+        print("Total free xyz distance:", unrelaxed_total_distance)
+
+        for i in range(10):
+            max_shift = 0
+            for node in internal_tree_ids:
+                # Gather neighbor positions
+                if len(neighbor_ids[node]) < 2:
+                    continue
+                neighbors = [new_xyz_dict[n] for n in neighbor_ids[node]]
+                res = minimize(local_energy, new_xyz_dict[node], args=(neighbors,), method='L-BFGS-B')
+                shift = np.linalg.norm(new_xyz_dict[node] - res.x)
+                new_xyz_dict[node] = res.x
+                if shift > max_shift:
+                    max_shift = shift
+
+            bfs_queue = deque(first_layer_tree_ids)
+            total_distance = 0
+            while bfs_queue:
+                tree_id = bfs_queue.popleft()
+                for child in self.lineage_tree.children_list[tree_id]:
+                    total_distance += np.linalg.norm(new_xyz_dict[tree_id] - new_xyz_dict[child])
+                    bfs_queue.append(child)
+
+            print(f"Iteration {i}: max shift = {max_shift}, total distance = {total_distance}")
+            
+        return total_distance, unrelaxed_total_distance, new_xyz_dict
+
+    def top_down_free_xyz_distance(self):
+        def local_energy(point, neighbors):
+            # energy function for internal relaxation
+            return sum(np.linalg.norm(point - n) for n in neighbors)
+        first_layer_tree_ids = [tree_id for tree_id, _ in self.first_internal_layer]
+        descendant_ids = defaultdict(list)
+        internal_tree_ids = set()
+        neighbor_ids = defaultdict(set)
+        def gather_descendants(tree_id, terminal_id):
+            parent_tree_id = self.lineage_tree.parent_list[tree_id]
+            descendant_ids[tree_id].append(terminal_id)
+            if tree_id not in first_layer_tree_ids:
+                internal_tree_ids.add(parent_tree_id)
+                neighbor_ids[parent_tree_id].add(tree_id)
+                neighbor_ids[tree_id].add(parent_tree_id)
+                gather_descendants(parent_tree_id, terminal_id)
+        for tree_id in self.terminal_tree_ids:
+            gather_descendants(tree_id, tree_id)
+
+        new_xyz_dict = {}
+        for tree_id, descendants in descendant_ids.items():
+            avg_xyz = np.zeros(3)
+            for desc_id in descendants:
+                desc_lineage_id = self.lineage_tree.lineage_id_mapping[desc_id]
+                desc_xyz = self.xyz_mat[desc_lineage_id].copy()
+                avg_xyz += desc_xyz
+            avg_xyz /= len(descendants)
+            new_xyz_dict[tree_id] = avg_xyz
+
+        internal_tree_ids = list(internal_tree_ids)
+        
+        bfs_queue = deque(first_layer_tree_ids)
+        total_distance = 0
+        while bfs_queue:
+            tree_id = bfs_queue.popleft()
+            for child in self.lineage_tree.children_list[tree_id]:
+                total_distance += np.linalg.norm(new_xyz_dict[tree_id] - new_xyz_dict[child])
+                bfs_queue.append(child)
+        unrelaxed_total_distance = total_distance
+        print("Total free xyz distance:", unrelaxed_total_distance)
+
+        for i in range(10):
+            max_shift = 0
+            for node in internal_tree_ids:
+                # Gather neighbor positions
+                if len(neighbor_ids[node]) < 2:
+                    continue
+                neighbors = [new_xyz_dict[n] for n in neighbor_ids[node]]
+                res = minimize(local_energy, new_xyz_dict[node], args=(neighbors,), method='L-BFGS-B')
+                shift = np.linalg.norm(new_xyz_dict[node] - res.x)
+                new_xyz_dict[node] = res.x
+                if shift > max_shift:
+                    max_shift = shift
+
+            bfs_queue = deque(first_layer_tree_ids)
+            total_distance = 0
+            while bfs_queue:
+                tree_id = bfs_queue.popleft()
+                for child in self.lineage_tree.children_list[tree_id]:
+                    total_distance += np.linalg.norm(new_xyz_dict[tree_id] - new_xyz_dict[child])
+                    bfs_queue.append(child)
+
+            print(f"Iteration {i}: max shift = {max_shift}, total distance = {total_distance}")
+
+
+        return descendant_ids
 
     def bottom_up_by_layer_runner(self, first_internal_layer: list[tuple[int, int]] = None):
         if first_internal_layer is None:

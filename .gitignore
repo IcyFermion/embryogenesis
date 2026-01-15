@@ -201,6 +201,7 @@ cython_debug/
 *.npy
 
 .temp.ipynb
+temp.ipynb
 
 data/
 output/
