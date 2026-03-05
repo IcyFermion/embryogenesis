@@ -4,5 +4,6 @@
         "figsize",
         "jensenshannon",
         "umap"
-    ]
+    ],
+    "python.analysis.autoImportCompletions": false
 }

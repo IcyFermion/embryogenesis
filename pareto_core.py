@@ -758,7 +758,7 @@ class LineageOptimization:
             print(f"Iteration {i}: max shift = {max_shift}, total distance = {total_distance}")
 
 
-        return descendant_ids
+        return unrelaxed_total_distance, total_distance, descendant_ids
 
     def bottom_up_by_layer_runner(self, first_internal_layer: list[tuple[int, int]] = None):
         if first_internal_layer is None:

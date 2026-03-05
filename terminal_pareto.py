@@ -16,25 +16,30 @@ default_colors = sns.color_palette(n_colors=10)
 
 
 class ParetoFront:
-    def __init__(self, terminal_nodes, terminal_parents, terminal_ancestry, ts_df, lineage_exp, binary_lineage_exp, binary_lineage_end_exp, title="Pareto Front"):
+    def __init__(self, terminal_nodes, terminal_parents, terminal_ancestry, xyz_coord_dict, lineage_exp, binary_lineage_exp=None, binary_lineage_end_exp=None, title="Pareto Front"):
         self.terminal_nodes = terminal_nodes
         self.terminal_parents = terminal_parents
         self.terminal_ancestry = terminal_ancestry
         self.title = title
 
-        self.xyz_coord_dict = {}
+        self.xyz_coord_dict = xyz_coord_dict
         self.exp_vector_dict = {}
         self.binary_exp_vector_dict  = {}
         self.binary_end_exp_vector_dict = {}
+        self.lca_distance_mat = self.terminal_parent_pairwise_distance()
         for node, parent in zip(terminal_nodes, terminal_parents):
-            self.xyz_coord_dict[node] = ts_df.loc[ts_df['name'] == node].values[-1][1:4]*0.1625
-            self.xyz_coord_dict[parent] = ts_df.loc[ts_df['name'] == parent].values[-1][1:4]*0.1625
             self.exp_vector_dict[node] = lineage_exp.loc[:, node].values
             self.exp_vector_dict[parent] = lineage_exp.loc[:, parent].values
-            self.binary_exp_vector_dict[node] = binary_lineage_exp.loc[:, node].values
-            self.binary_exp_vector_dict[parent] = binary_lineage_exp.loc[:, parent].values
-            self.binary_end_exp_vector_dict[node] = binary_lineage_end_exp.loc[:, node].values
-            self.binary_end_exp_vector_dict[parent] = binary_lineage_end_exp.loc[:, parent].values
+            # if binary_lineage_exp is not None and binary_lineage_end_exp is not None:
+            #     self.binary_exp_vector_dict[node] = lineage_exp.loc[:, node].values
+            #     self.binary_exp_vector_dict[parent] = lineage_exp.loc[:, parent].values
+            #     self.binary_end_exp_vector_dict[node] = lineage_exp.loc[:, node].values
+            #     self.binary_end_exp_vector_dict[parent] = lineage_exp.loc[:, parent].values
+            # else:
+            #     self.binary_exp_vector_dict[node] = binary_lineage_exp.loc[:, node].values
+            #     self.binary_exp_vector_dict[parent] = binary_lineage_exp.loc[:, parent].values
+            #     self.binary_end_exp_vector_dict[node] = binary_lineage_end_exp.loc[:, node].values
+            #     self.binary_end_exp_vector_dict[parent] = binary_lineage_end_exp.loc[:, parent].values
 
     def compute_cost_matrices(self, norm="l2", normalize=False):
         """
@@ -72,6 +77,17 @@ class ParetoFront:
             exp_cost_mat = (exp_cost_mat - exp_cost_mat.mean(axis=1, keepdims=True)) / exp_cost_mat.std(axis=1, keepdims=True)
 
         return xyz_cost_mat, exp_cost_mat
+    
+    def lca_distance(self, ancestry1: list, ancestry2: list):
+        min_length = min(len(ancestry1), len(ancestry2))
+        max_length = max(len(ancestry1), len(ancestry2))
+        lca_index = 0
+        for i in range(min_length):
+            if ancestry1[i] == ancestry2[i]:
+                lca_index = i
+            else:
+                break
+        return max_length -  (lca_index + 1)
 
     def monte_carlo_simulation(self, xyz_cost_mat, exp_cost_mat, _):
         row_ind = range(len(xyz_cost_mat))
@@ -87,6 +103,19 @@ class ParetoFront:
             lowest_common_ancestor_group[lca].append(terminal_name)
         self.cousin_group = lowest_common_ancestor_group
         return lowest_common_ancestor_group
+    
+    def terminal_parent_pairwise_distance(self):
+        distance_mat = np.zeros((len(self.terminal_parents), len(self.terminal_parents)))
+        for i in range(len(self.terminal_parents)):
+            for j in range(len(self.terminal_parents)):
+                # find the distance between terminal_i and terminal_j in the lineage tree using their ancestry
+                ancestry_i = self.terminal_ancestry[i]
+                ancestry_j = self.terminal_ancestry[j]
+                distance_mat[i][j] = self.lca_distance(ancestry_i, ancestry_j)
+
+        return distance_mat
+
+
 
     def compute_random_cost(self, xyz_cost_mat, exp_cost_mat, _):
         new_xyz_cost = 0
@@ -100,28 +129,135 @@ class ParetoFront:
                 new_xyz_cost += xyz_cost_mat[group, shuffled_group].sum()
                 new_exp_cost += exp_cost_mat[group, shuffled_group].sum()
         return new_xyz_cost, new_exp_cost
+    
+    def calculate_neighbor_change_distances(self, neighbor_dict, terminal_parent_pairwise_distances, children_dict, parent_dict):
+        total_distances = 0
+        for terminal_cell in parent_dict.keys():
+            terminal_neighbors_to_parent_distances = []
+            parent_neighbors_to_terminal_distances = []
+            parent_cell = parent_dict[terminal_cell]
+            if parent_cell not in neighbor_dict["terminal_parents"]:
+                continue
+            parent_neighbors = neighbor_dict["terminal_parents"][parent_cell]
+            terminal_neighbors = neighbor_dict["terminal"][terminal_cell]
+            for neighbor in parent_neighbors:
 
-    def compute_pareto_front(self, xyz_cost_mat, exp_cost_mat, monte_carlo=False, step_size=0.001):
+                if neighbor not in self.terminal_nodes:
+                    if neighbor not in children_dict:
+                        continue
+                    neighbor_list = children_dict[neighbor]
+                else:
+                    neighbor_list = [neighbor]
+                for node in neighbor_list:
+                    distance = np.linalg.norm(self.xyz_coord_dict[node]- self.xyz_coord_dict[terminal_cell])
+                    parent_neighbors_to_terminal_distances.append(distance)
+            for neighbor in terminal_neighbors:
+                if neighbor not in terminal_parent_pairwise_distances[parent_cell]:
+                    neighbor = parent_dict[neighbor]
+                    if neighbor not in terminal_parent_pairwise_distances[parent_cell]:
+                        continue
+                distance = terminal_parent_pairwise_distances[parent_cell][neighbor]
+                terminal_neighbors_to_parent_distances.append(distance)
+            avg_distance = (np.mean(terminal_neighbors_to_parent_distances) if terminal_neighbors_to_parent_distances else 0
+                            + np.mean(parent_neighbors_to_terminal_distances) if parent_neighbors_to_terminal_distances else 0) / 2
+            total_distances += avg_distance
+        return total_distances
+
+    def pareto_front_with_alt_exp(self, alt_exp_vector_dict, norm="l2", step_size=0.001):
+        xyz_cost_mat, exp_cost_mat = self.compute_cost_matrices(norm=norm)
+        alt_exp_cost_mat = np.zeros((len(self.terminal_parents), len(self.terminal_nodes)))
+        for i in tqdm(range(len(self.terminal_parents))):
+            for j in range(len(self.terminal_nodes)):
+                if norm == "l1":
+                    alt_exp_cost_mat[i][j] = minkowski(alt_exp_vector_dict[self.terminal_parents[i]], alt_exp_vector_dict[self.terminal_nodes[j]], p=1)
+                elif norm == "l2":
+                    alt_exp_cost_mat[i][j] = minkowski(alt_exp_vector_dict[self.terminal_parents[i]], alt_exp_vector_dict[self.terminal_nodes[j]], p=2)
+                elif norm == "cosine":
+                    alt_exp_cost_mat[i][j] = cosine(alt_exp_vector_dict[self.terminal_parents[i]], alt_exp_vector_dict[self.terminal_nodes[j]])
+        loop_len = int(1 / step_size) + 1
+        pareto_xyz_cost_list = []
+        pareto_exp_cost_list = []
+        pareto_alt_exp_cost_list = []
+        for i in range(loop_len):
+            alpha = 0 + step_size * i
+            cur_cost_mat = alpha * xyz_cost_mat + (1 - alpha) * (alt_exp_cost_mat)
+            # # add small cost to neighboring edges to discourage their assignment
+            # for edge in neighbor_edges:
+            #     parent_ind = self.terminal_parents.index(edge[0])
+            #     node_ind = self.terminal_nodes.index(edge[1])
+            #     cur_cost_mat[parent_ind][node_ind] += 1e6  # large penalty
+            cur_row_ind, cur_col_ind = linear_sum_assignment(cur_cost_mat)
+            cur_xyz_cost = xyz_cost_mat[cur_row_ind, cur_col_ind].sum()
+            cur_exp_cost = exp_cost_mat[cur_row_ind, cur_col_ind].sum()
+            cur_alt_exp_cost = alt_exp_cost_mat[cur_row_ind, cur_col_ind].sum()
+            pareto_xyz_cost_list.append(cur_xyz_cost)
+            pareto_exp_cost_list.append(cur_exp_cost)
+            pareto_alt_exp_cost_list.append(cur_alt_exp_cost)
+        return pareto_xyz_cost_list, pareto_exp_cost_list, pareto_alt_exp_cost_list
+
+    def pareto_front_with_neighbors(self, neighbor_edges, neighbor_dict, terminal_parent_pairwise_distances, step_size=0.001):
+
+        xyz_cost_mat, exp_cost_mat = self.compute_cost_matrices(norm="l2")
+        loop_len = int(1 / step_size) + 1
+        pareto_xyz_cost_list = []
+        pareto_exp_cost_list = []
+        lineage_exp_cost = exp_cost_mat.diagonal().sum()
+        lineage_xyz_cost = xyz_cost_mat.diagonal().sum()
+        lineage_neighbor_distance = 0
+        pareto_neighbor_distance_list = []
+        pareto_neighbor_change_distance_list = []
+        for i, j in neighbor_edges:
+            lineage_neighbor_distance += self.lca_distance(self.terminal_ancestry[i], self.terminal_ancestry[j])
+        for i in range(loop_len):
+            alpha = 0 + step_size * i
+            cur_cost_mat = alpha * xyz_cost_mat + (1 - alpha) * exp_cost_mat
+            # # add small cost to neighboring edges to discourage their assignment
+            # for edge in neighbor_edges:
+            #     parent_ind = self.terminal_parents.index(edge[0])
+            #     node_ind = self.terminal_nodes.index(edge[1])
+            #     cur_cost_mat[parent_ind][node_ind] += 1e6  # large penalty
+            cur_row_ind, cur_col_ind = linear_sum_assignment(cur_cost_mat)
+            cur_xyz_cost = xyz_cost_mat[cur_row_ind, cur_col_ind].sum()
+            cur_exp_cost = exp_cost_mat[cur_row_ind, cur_col_ind].sum()
+            cur_neighbor_distance = 0
+            for i, j in neighbor_edges:
+                new_i = cur_col_ind[i]
+                new_j = cur_col_ind[j]
+                cur_neighbor_distance += self.lca_distance(self.terminal_ancestry[new_i], self.terminal_ancestry[new_j])
+            cur_children_dict = defaultdict(list)
+            cur_parent_dict = {self.terminal_nodes[cur_col_ind[i]]: self.terminal_parents[i] for i in range(len(cur_col_ind))}
+            for terminal, parent in cur_parent_dict.items():
+                cur_children_dict[parent].append(terminal)
+            cur_neighbor_change_distance = self.calculate_neighbor_change_distances(neighbor_dict, terminal_parent_pairwise_distances, cur_children_dict, cur_parent_dict)
+            pareto_neighbor_change_distance_list.append(cur_neighbor_change_distance)
+            pareto_neighbor_distance_list.append(cur_neighbor_distance)
+            pareto_xyz_cost_list.append(cur_xyz_cost)
+            pareto_exp_cost_list.append(cur_exp_cost)
+        return pareto_xyz_cost_list, pareto_exp_cost_list, pareto_neighbor_distance_list, lineage_xyz_cost, lineage_exp_cost, lineage_neighbor_distance, pareto_neighbor_change_distance_list
+
+    def compute_pareto_front(self, xyz_cost_mat, exp_cost_mat, monte_carlo=False, step_size=0.001, return_lca_distances=False):
         loop_len = int(1 / step_size) + 1
         if monte_carlo:
             repeat = 1000000
+            # multiprocessing to speed up monte carlo simulation
+            monte_carlo_list = process_map(partial(self.monte_carlo_simulation, xyz_cost_mat, exp_cost_mat), range(repeat), max_workers=20, chunksize=100, desc="Monte Carlo Simulation")
+            xyz_monte_carlo_mean = np.mean([x[0] for x in monte_carlo_list])
+            exp_monte_carlo_mean = np.mean([x[1] for x in monte_carlo_list])
+            xyz_monte_carlo_std = np.std([x[0] for x in monte_carlo_list]) + 1e-6  # add small value to avoid division by zero
+            exp_monte_carlo_std = np.std([x[1] for x in monte_carlo_list]) + 1e-6
         else:
-            repeat = 1000
-        # multiprocessing to speed up monte carlo simulation
-        monte_carlo_list = process_map(partial(self.monte_carlo_simulation, xyz_cost_mat, exp_cost_mat), range(repeat), max_workers=20, chunksize=100, desc="Monte Carlo Simulation")
-        xyz_monte_carlo_mean = np.mean([x[0] for x in monte_carlo_list])
-        exp_monte_carlo_mean = np.mean([x[1] for x in monte_carlo_list])
-        xyz_monte_carlo_std = np.std([x[0] for x in monte_carlo_list])
-        exp_monte_carlo_std = np.std([x[1] for x in monte_carlo_list])
+            xyz_monte_carlo_mean = 0
+            exp_monte_carlo_mean = 0
+            xyz_monte_carlo_std = 1
+            exp_monte_carlo_std = 1
+
 
         pareto_xyz_cost_list = []
         pareto_exp_cost_list = []
-        pareto_xyz_dev_list = []
-        pareto_exp_dev_list = []
+        avg_lca_distances = []
+        unchanged_assignment_ratio_list = []
         lineage_exp_cost = exp_cost_mat.diagonal().sum()
         lineage_xyz_cost = xyz_cost_mat.diagonal().sum()
-        lineage_exp_cost_dev = (lineage_exp_cost - exp_monte_carlo_mean) / (exp_monte_carlo_std + 1e-6)  # Avoid division by zero
-        lineage_xyz_cost_dev = (lineage_xyz_cost - xyz_monte_carlo_mean) / (xyz_monte_carlo_std + 1e-6)  # Avoid division by zero
         for i in range(loop_len):
             alpha = 0 + step_size * i
             cur_cost_mat = alpha * xyz_cost_mat + (1 - alpha) * exp_cost_mat
@@ -130,12 +266,16 @@ class ParetoFront:
             cur_row_ind, cur_col_ind = linear_sum_assignment(cur_cost_mat)
             cur_xyz_cost = xyz_cost_mat[cur_row_ind, cur_col_ind].sum()
             cur_exp_cost = exp_cost_mat[cur_row_ind, cur_col_ind].sum()
+            avg_lca_distances.append(self.lca_distance_mat[cur_row_ind, cur_col_ind].sum() / len(self.terminal_parents))
             cur_xyz_cost_dev = (cur_xyz_cost - xyz_monte_carlo_mean) / xyz_monte_carlo_std
             cur_exp_cost_dev = (cur_exp_cost - exp_monte_carlo_mean) / exp_monte_carlo_std
-            pareto_xyz_cost_list.append(cur_xyz_cost)
-            pareto_exp_cost_list.append(cur_exp_cost)
-            pareto_xyz_dev_list.append(cur_xyz_cost_dev)
-            pareto_exp_dev_list.append(cur_exp_cost_dev)
+            pareto_xyz_cost_list.append(cur_xyz_cost_dev)
+            pareto_exp_cost_list.append(cur_exp_cost_dev)
+            unchanged_assignment_count = 0
+            for i, j in zip(cur_row_ind, cur_col_ind):
+                if self.terminal_parents[i] == self.terminal_parents[j]:
+                    unchanged_assignment_count += 1
+            unchanged_assignment_ratio_list.append(unchanged_assignment_count / len(cur_row_ind))
         # normalize pareto cost lists to have a range of 0 to 1
         normalized_pareto_xyz_cost_list = (np.array(pareto_xyz_cost_list) - np.min(pareto_xyz_cost_list)) / (np.max(pareto_xyz_cost_list) - np.min(pareto_xyz_cost_list))
         normalized_pareto_exp_cost_list = (np.array(pareto_exp_cost_list) - np.min(pareto_exp_cost_list)) / (np.max(pareto_exp_cost_list) - np.min(pareto_exp_cost_list))
@@ -152,11 +292,12 @@ class ParetoFront:
                 min_distance = cur_distance
                 min_xyz_distance = pareto_xyz_cost_list[i]
                 best_fit = alpha
-        print(min_xyz_distance)
-        if monte_carlo:
-            return best_fit, pareto_xyz_dev_list, pareto_exp_dev_list, lineage_xyz_cost_dev, lineage_exp_cost_dev
-        else:
-            return best_fit, pareto_xyz_cost_list, pareto_exp_cost_list, lineage_xyz_cost, lineage_exp_cost    
+        print(best_fit, min_xyz_distance)
+
+        if return_lca_distances:
+            return best_fit, pareto_xyz_cost_list, pareto_exp_cost_list, lineage_xyz_cost, lineage_exp_cost, avg_lca_distances, unchanged_assignment_ratio_list
+
+        return best_fit, pareto_xyz_cost_list, pareto_exp_cost_list, lineage_xyz_cost, lineage_exp_cost 
         
     def pareto_rescale(self, pareto_xyz_cost_list, pareto_exp_cost_list, lineage_xyz_cost, lineage_exp_cost):
         """
@@ -343,12 +484,15 @@ class ParetoFront:
         xyz_cost_mat, exp_cost_mat = self.compute_cost_matrices(norm=norm)
         cur_cost_mat = xyz_cost_mat
         cur_row_ind, cur_col_ind = linear_sum_assignment(cur_cost_mat)
+        print(cur_row_ind, cur_col_ind)
         cur_xyz_cost = xyz_cost_mat[cur_row_ind, cur_col_ind].sum()
         cur_exp_cost = exp_cost_mat[cur_row_ind, cur_col_ind].sum()
         print(f"Optimal xyz assignment costs (norm={norm}): Motility Cost = {cur_xyz_cost}, Expression Cost = {cur_exp_cost}")
         return cur_row_ind, cur_col_ind, cur_xyz_cost, cur_exp_cost
 
     def pre_plot(self, norm="l2"):
+        # plt.style.use('dark_background')
+        plt.style.use('default')
         xyz_cost_mat, exp_cost_mat = self.compute_cost_matrices(norm=norm)
         
         # optimal xyz assignment
@@ -433,32 +577,54 @@ class ParetoFront:
             range(100000), 
             max_workers=20, 
             chunksize=1000, 
-            desc="Computing random costs by 3nd cousins shuffle"
+            desc="Computing random costs by 3rd cousins shuffle"
         )
 
         # plotting the distribution of random costs in a 2d plot
         lineage_xyz_cost = xyz_cost_mat.diagonal().sum()
         lineage_exp_cost = exp_cost_mat.diagonal().sum()
-        alpha, pareto_xyz_cost_list, pareto_exp_cost_list, lineage_xyz_cost, lineage_exp_cost = self.compute_pareto_front(xyz_cost_mat, exp_cost_mat, monte_carlo=False)
+        alpha, pareto_xyz_cost_list, pareto_exp_cost_list, lineage_xyz_cost, \
+            lineage_exp_cost, avg_lca_distances, unchanged_assignment_ratio_list \
+                = self.compute_pareto_front(xyz_cost_mat, exp_cost_mat, monte_carlo=False, return_lca_distances=True)
 
         print("lineage costs:", "xyz,", lineage_xyz_cost, "exp,", lineage_exp_cost)
+        print("bottom right corner:", pareto_xyz_cost_list[0], pareto_exp_cost_list[0])
+        print("top left corner:", pareto_xyz_cost_list[-1], pareto_exp_cost_list[-1])
         monte_carlo_xyz_list = [x[0] for x in monte_carlo_list]
         monte_carlo_exp_list = [x[1] for x in monte_carlo_list]
         print("monte carlo costs:", "xyz,", np.mean(monte_carlo_xyz_list), "exp,", np.mean(monte_carlo_exp_list))
         print("monte carlo costs std:", "xyz,", np.std(monte_carlo_xyz_list), "exp,", np.std(monte_carlo_exp_list))
         
-        plt.figure(figsize=(8, 6))
-        plt.plot(pareto_xyz_cost_list, pareto_exp_cost_list, marker='o', linestyle='-', color='white', markersize=3, label='Pareto Front')
-        plt.xlabel('Motility Cost')
-        plt.ylabel('Expression Cost')
-        plt.scatter(lineage_xyz_cost, lineage_exp_cost, marker='*', color='#FF0000', label='Real Lineage Cost')
-        plt.scatter([x[0] for x in random_cost_list_1st_cousins], [x[1] for x in random_cost_list_1st_cousins], alpha=0.5, s=10, color="#E6FF00", label='Random 1st Cousin Shuffles')
-        plt.scatter([x[0] for x in random_cost_list_2nd_cousins], [x[1] for x in random_cost_list_2nd_cousins], alpha=0.5, s=10, color="#FF8C42", label='Random 2nd Cousin Shuffles')
-        plt.scatter([x[0] for x in random_cost_list_3rd_cousins], [x[1] for x in random_cost_list_3rd_cousins], alpha=0.5, s=10, color="#20B2AA", label='Random 3rd Cousin Shuffles')
-        plt.scatter([x[0] for x in monte_carlo_list], [x[1] for x in monte_carlo_list], alpha=0.5, s=10, color="#00D060", label='Random Shuffles')
-        # plt.title(f'{self.title} (alpha={alpha}, norm={norm})')
-        # plt.grid(True)
-        # plt.legend()
+        fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(6, 10), sharex=True)
+        ax1.plot(pareto_xyz_cost_list, pareto_exp_cost_list, marker='o', linestyle='-', color='black', markersize=3, label='Pareto Front')
+        ax1.set_ylabel('Expression Cost')
+        ax1.scatter(lineage_xyz_cost, lineage_exp_cost, marker='*', color='#FF0000', label='Real Lineage Cost')
+        ax1.scatter([x[0] for x in random_cost_list_1st_cousins], [x[1] for x in random_cost_list_1st_cousins], alpha=0.5, s=10, color="#B59F00", label='Random 1st Cousin Shuffles')
+        ax1.scatter([x[0] for x in random_cost_list_2nd_cousins], [x[1] for x in random_cost_list_2nd_cousins], alpha=0.5, s=10, color="#FF8C42", label='Random 2nd Cousin Shuffles')
+        ax1.scatter([x[0] for x in random_cost_list_3rd_cousins], [x[1] for x in random_cost_list_3rd_cousins], alpha=0.5, s=10, color="#20B2AA", label='Random 3rd Cousin Shuffles')
+        # ax1.scatter([x[0] for x in monte_carlo_list], [x[1] for x in monte_carlo_list], alpha=0.5, s=10, color="#00D060", label='Random Shuffles')
+        # ax1.set_title(f'{self.title} (alpha={alpha}, norm={norm})')
+        # ax1.grid(True)
+        # ax1.legend()
+        ax2.plot(pareto_xyz_cost_list, avg_lca_distances, marker='o', linestyle='-', color='black', markersize=3, label='Avg LCA Distance')
+        # mark the xyz cost of the real lineage
+        ax2.plot(lineage_xyz_cost, 0, color='#FF0000', marker='*', label='Real Lineage XYZ Cost')
+        # mark the lowest average lca distance point on the plot
+        min_lca_distance_index = np.argmin(avg_lca_distances)
+        ax2.scatter(pareto_xyz_cost_list[min_lca_distance_index], avg_lca_distances[min_lca_distance_index], marker='d', color='#FFEA00', s=50, label='Lowest Avg LCA Distance Point', zorder=10)
+        ax2.set_xlabel('Motility Cost')
+        ax2.set_ylabel('Avg LCA Distance of Assigned Parents')
+        ax2.set_ylim(0, 10)
+        ax3.plot(pareto_xyz_cost_list, unchanged_assignment_ratio_list, marker='o', linestyle='-', color='black', markersize=3, label='Unchanged Assignment Ratio')
+        # mark the xyz cost of the real lineage
+        ax3.plot(lineage_xyz_cost, 1, color='#FF0000', marker='*', label='Real Lineage XYZ Cost')
+        # mark the highest unchanged assignment ratio point on the plot
+        max_unchanged_assignment_index = np.argmax(unchanged_assignment_ratio_list)
+        ax3.scatter(pareto_xyz_cost_list[max_unchanged_assignment_index], unchanged_assignment_ratio_list[max_unchanged_assignment_index], marker='d', color='#FFEA00', s=50, label='Highest Unchanged Assignment Ratio Point', zorder=10)
+        ax3.set_xlabel('Motility Cost')
+        ax3.set_ylabel('Ratio of Unchanged Assignments')
+        ax3.set_ylim(0, 1)
+        plt.tight_layout()
         plt.show()
 
     def normal_run(self):
