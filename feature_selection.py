@@ -7,13 +7,22 @@ Public API
 ----------
 cross_validate_features(X, y, sample_weights, terminal_mask, param_grid, ...)
     5-fold stratified CV over a hyperparameter param_grid.  Returns per-config
-    metrics (val accuracy, feature stability/Jaccard, overfitting gap) plus the
-    best config ranked by val_acc × jaccard composite score.
+    metrics (val accuracy, feature-set stability, overfitting gap) plus the
+    best config ranked by a stability-aware composite score.
+
+cross_validate_focused(X, y, sample_weights, terminal_mask, selector_config, ...)
+    5-fold CV for Phase 2 that jointly tunes the number of selected features K,
+    the focused classifier architecture, and regularisation while penalising
+    overfitting and unnecessary model size.
 
 train_one_pass(X, y, sample_weights, hidden_dims, l1_lambda, dropout, ...)
     Trains SparseGateClassifier on ALL data with the CV-selected configuration.
     Returns: model, top-K feature indices, gate values, embeddings
     (n_samples × last_hidden_dim), and training loss history.
+
+eval_prediction_metrics(model, X_tensor, y_tensor, mask, device, ...)
+    Returns argmax accuracy plus soft-label-aware metrics such as expected
+    target probability and soft cross-entropy.
 
 Models
 ------
@@ -154,6 +163,63 @@ def soft_cross_entropy(logits, soft_targets, weights=None):
     return per_sample.mean()
 
 
+def _weighted_mean(values, weights=None):
+    values = np.asarray(values, dtype=np.float64)
+    if values.size == 0:
+        return float('nan')
+    if weights is None:
+        return float(values.mean())
+
+    weights = np.asarray(weights, dtype=np.float64)
+    weight_sum = weights.sum()
+    if weight_sum <= 0:
+        return float(values.mean())
+    return float(np.dot(values, weights) / weight_sum)
+
+
+def prediction_metrics_from_logits(logits, soft_targets, weights=None):
+    """
+    Summarise predictive quality for both hard and soft labels.
+
+    Returns
+    -------
+    metrics : dict
+        argmax_accuracy            – exact class-match rate on argmax labels
+        expected_target_probability – mean probability assigned to true soft mass
+        soft_cross_entropy         – mean soft cross-entropy
+    """
+    if isinstance(logits, torch.Tensor):
+        logits = logits.detach().cpu()
+    else:
+        logits = torch.as_tensor(logits, dtype=torch.float32)
+
+    if isinstance(soft_targets, torch.Tensor):
+        soft_targets = soft_targets.detach().cpu()
+    else:
+        soft_targets = torch.as_tensor(soft_targets, dtype=torch.float32)
+
+    if weights is not None:
+        if isinstance(weights, torch.Tensor):
+            weights = weights.detach().cpu().numpy()
+        else:
+            weights = np.asarray(weights, dtype=np.float64)
+
+    probs = F.softmax(logits, dim=-1)
+    log_p = F.log_softmax(logits, dim=-1)
+
+    argmax_matches = (
+        probs.argmax(dim=-1) == soft_targets.argmax(dim=-1)
+    ).numpy().astype(np.float64)
+    target_mass = (probs * soft_targets).sum(dim=-1).numpy()
+    cross_entropy = (-(soft_targets * log_p).sum(dim=-1)).numpy()
+
+    return {
+        'argmax_accuracy': _weighted_mean(argmax_matches, weights),
+        'expected_target_probability': _weighted_mean(target_mass, weights),
+        'soft_cross_entropy': _weighted_mean(cross_entropy, weights),
+    }
+
+
 def train_epoch(model, loader, optimizer, device, l1_lambda=0.0):
     model.train()
     total = 0.0
@@ -177,14 +243,44 @@ def eval_accuracy(model, X_tensor, y_tensor, mask, device):
 
     mask : bool array or BoolTensor – True for samples to evaluate
     """
+    return eval_prediction_metrics(
+        model,
+        X_tensor,
+        y_tensor,
+        mask,
+        device,
+    )['argmax_accuracy']
+
+
+@torch.no_grad()
+def eval_prediction_metrics(model, X_tensor, y_tensor, mask, device, sample_weights=None):
+    """
+    Evaluate a classifier using both hard-label and soft-label-compatible views.
+
+    For hard labels, ``argmax_accuracy`` is the usual classification accuracy.
+    For soft labels, ``argmax_accuracy`` becomes dominant-class agreement only,
+    so ``expected_target_probability`` and ``soft_cross_entropy`` should also be
+    inspected.
+    """
     model.eval()
     logits, _ = model(X_tensor.to(device))
-    preds   = logits.argmax(dim=-1).cpu().numpy()
-    targets = y_tensor.argmax(dim=-1).cpu().numpy()
-    m = mask.numpy() if isinstance(mask, torch.Tensor) else mask
-    if m.sum() == 0:
-        return float('nan')
-    return (preds[m] == targets[m]).mean()
+    logits = logits.cpu()
+    targets = y_tensor.detach().cpu() if isinstance(y_tensor, torch.Tensor) else torch.FloatTensor(y_tensor)
+
+    if mask is not None:
+        m = mask.numpy() if isinstance(mask, torch.Tensor) else np.asarray(mask)
+        if m.sum() == 0:
+            return {
+                'argmax_accuracy': float('nan'),
+                'expected_target_probability': float('nan'),
+                'soft_cross_entropy': float('nan'),
+            }
+        logits = logits[m]
+        targets = targets[m]
+        if sample_weights is not None:
+            sample_weights = sample_weights[m]
+
+    return prediction_metrics_from_logits(logits, targets, sample_weights)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -202,6 +298,36 @@ def _resolve_device(device):
     if device == 'auto':
         return torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     return torch.device(device)
+
+
+def _count_parameters(model):
+    return int(sum(p.numel() for p in model.parameters() if p.requires_grad))
+
+
+def _build_param_grid(param_grid):
+    keys = list(param_grid.keys())
+    combos = list(itertools.product(*[param_grid[k] for k in keys]))
+    return [dict(zip(keys, combo)) for combo in combos]
+
+
+def _stability_score(summary, metric_weights=None):
+    weights = {
+        'jaccard': 0.5,
+        'topk_frequency': 0.3,
+        'spearman': 0.2,
+    }
+    if metric_weights is not None:
+        weights.update(metric_weights)
+
+    mean_spearman = summary.get('mean_spearman', 0.0)
+    if np.isnan(mean_spearman):
+        mean_spearman = 0.0
+
+    return (
+        weights['jaccard'] * summary.get('mean_jaccard', 0.0)
+        + weights['topk_frequency'] * summary.get('mean_topk_frequency', 0.0)
+        + weights['spearman'] * ((mean_spearman + 1.0) / 2.0)
+    )
 
 
 def _train_sparse_gate(X, y, sample_weights, hidden_dims, l1_lambda, dropout,
@@ -250,6 +376,8 @@ def cross_validate_features(
     batch_size=128,
     seed=42,
     device='auto',
+    score_weights=None,
+    stability_metric_weights=None,
 ):
     """
     K-fold stratified cross-validation over a hyperparameter param_grid.
@@ -290,16 +418,22 @@ def cross_validate_features(
                                feature_frequency, consensus_features}
             'summary'      – {mean_val_acc, std_val_acc, mean_train_acc,
                                mean_overfit_gap, mean_jaccard, std_jaccard,
-                               mean_spearman}
-            'score'        – composite score (val_acc × jaccard)
+                               mean_spearman, mean_topk_frequency,
+                               consensus_ratio, selection_stability_score}
+            'score'        – stability-aware composite score
     best_config : dict – hyperparameter dict of the top-ranked configuration
     """
     device = _resolve_device(device)
+    weights = {
+        'val_acc': 0.65,
+        'selection_stability': 0.35,
+        'overfit_gap': 0.10,
+    }
+    if score_weights is not None:
+        weights.update(score_weights)
 
     # Build full Cartesian product of the param grid
-    keys   = list(param_grid.keys())
-    combos = list(itertools.product(*[param_grid[k] for k in keys]))
-    configs = [dict(zip(keys, combo)) for combo in combos]
+    configs = _build_param_grid(param_grid)
 
     # Stratify on dominant cell type
     strat_labels = y.argmax(axis=1)
@@ -377,6 +511,8 @@ def cross_validate_features(
 
         # Consensus = in top-K in ≥80% of folds
         consensus = np.where(freq >= int(np.ceil(n_splits * 0.8)))[0].tolist()
+        mean_topk_frequency = float(np.sort(freq / n_splits)[::-1][:n_select].mean())
+        consensus_ratio = float(min(len(consensus), n_select) / n_select)
 
         # ── Summary ──────────────────────────────────────────────────────────
         val_accs    = [fr['val_acc']   for fr in fold_results if not np.isnan(fr['val_acc'])]
@@ -391,11 +527,24 @@ def cross_validate_features(
             'mean_jaccard':     float(np.mean(pair_jaccards)),
             'std_jaccard':      float(np.std(pair_jaccards)),
             'mean_spearman':    float(np.mean(pair_spearmans)),
+            'mean_topk_frequency': mean_topk_frequency,
+            'consensus_ratio':     consensus_ratio,
         }
+        summary['selection_stability_score'] = _stability_score(
+            summary,
+            metric_weights=stability_metric_weights,
+        )
 
-        # Composite score: reward both high val accuracy and high feature stability
-        score = summary['mean_val_acc'] * summary['mean_jaccard'] \
-                if not np.isnan(summary['mean_val_acc']) else 0.0
+        # Composite score: reward validation accuracy, stable top-K features,
+        # and penalise configurations that clearly overfit.
+        mean_val_acc = summary['mean_val_acc']
+        score = 0.0
+        if not np.isnan(mean_val_acc):
+            score = (
+                weights['val_acc'] * mean_val_acc
+                + weights['selection_stability'] * summary['selection_stability_score']
+                - weights['overfit_gap'] * max(summary['mean_overfit_gap'], 0.0)
+            )
 
         results.append({
             'config':       cfg,
@@ -409,6 +558,231 @@ def cross_validate_features(
             'summary': summary,
             'score':   score,
         })
+
+    results.sort(key=lambda r: r['score'], reverse=True)
+    best_config = results[0]['config']
+    return results, best_config
+
+
+def cross_validate_focused(
+    X,
+    y,
+    sample_weights,
+    terminal_mask,
+    selector_config,
+    param_grid,
+    n_splits=5,
+    selector_epochs=300,
+    focused_epochs=400,
+    selector_batch_size=128,
+    focused_batch_size=64,
+    seed=42,
+    device='auto',
+    score_weights=None,
+):
+    """
+    Jointly tune Phase 2 architecture and the selected-feature count K.
+
+    Each fold re-runs Phase 1 feature selection on the training split only,
+    preventing feature leakage while allowing the number of retained features
+    to be part of model selection.
+
+    Parameters
+    ----------
+    selector_config : dict
+        Best Phase 1 configuration, typically returned by
+        ``cross_validate_features``.
+    param_grid : dict of lists
+        May include ``n_select``, ``hidden_dims``, ``dropout``, and
+        ``dist_lambda``.
+
+    Returns
+    -------
+    results     : list[dict]
+        Per-config CV results sorted by score.
+    best_config : dict
+        Best Phase 2 configuration.
+    """
+    device = _resolve_device(device)
+    weights = {
+        'val_acc': 0.55,
+        'soft_target_probability': 0.25,
+        'feature_stability': 0.10,
+        'overfit_gap': 0.15,
+        'param_count': 0.10,
+    }
+    if score_weights is not None:
+        weights.update(score_weights)
+
+    configs = _build_param_grid(param_grid)
+
+    strat_labels = y.argmax(axis=1)
+    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
+    folds = list(skf.split(X, strat_labels))
+
+    selector_hidden_dims = selector_config.get('hidden_dims', (128, 64))
+    selector_l1_lambda = selector_config.get('l1_lambda', 0.004)
+    selector_dropout = selector_config.get('dropout', 0.3)
+
+    results = []
+
+    for cfg in tqdm(configs, desc="Phase-2 CV configs"):
+        n_select = cfg.get('n_select', 15)
+        focused_hidden_dims = cfg.get('hidden_dims', (64, 32))
+        focused_dropout = cfg.get('dropout', 0.2)
+        dist_lambda = cfg.get('dist_lambda', 0.1)
+
+        fold_results = []
+        for fold_idx, (train_idx, val_idx) in enumerate(folds):
+            X_tr, X_val = X[train_idx], X[val_idx]
+            y_tr, y_val = y[train_idx], y[val_idx]
+            w_tr, w_val = sample_weights[train_idx], sample_weights[val_idx]
+            term_tr = terminal_mask[train_idx]
+            term_val = terminal_mask[val_idx]
+
+            selector_model, _ = _train_sparse_gate(
+                X_tr,
+                y_tr,
+                w_tr,
+                selector_hidden_dims,
+                selector_l1_lambda,
+                selector_dropout,
+                selector_epochs,
+                selector_batch_size,
+                seed + fold_idx,
+                device,
+            )
+            gate_vals = selector_model.feature_importance()
+            top_k = np.argsort(gate_vals)[::-1][:n_select].tolist()
+
+            X_tr_sel = X_tr[:, top_k].astype(np.float32)
+            X_val_sel = X_val[:, top_k].astype(np.float32)
+
+            model, _, _ = train_focused(
+                X_tr_sel,
+                y_tr,
+                w_tr,
+                hidden_dims=focused_hidden_dims,
+                dropout=focused_dropout,
+                n_epochs=focused_epochs,
+                batch_size=focused_batch_size,
+                seed=seed + fold_idx,
+                device=str(device),
+                dist_lambda=dist_lambda,
+            )
+
+            X_tr_t = torch.FloatTensor(X_tr_sel)
+            X_val_t = torch.FloatTensor(X_val_sel)
+            y_tr_t = torch.FloatTensor(y_tr)
+            y_val_t = torch.FloatTensor(y_val)
+
+            train_metrics = eval_prediction_metrics(
+                model,
+                X_tr_t,
+                y_tr_t,
+                term_tr,
+                device,
+            )
+            val_hard_metrics = eval_prediction_metrics(
+                model,
+                X_val_t,
+                y_val_t,
+                term_val,
+                device,
+            )
+            val_soft_metrics = eval_prediction_metrics(
+                model,
+                X_val_t,
+                y_val_t,
+                None,
+                device,
+                sample_weights=w_val,
+            )
+
+            fold_results.append({
+                'fold': fold_idx,
+                'train_acc': train_metrics['argmax_accuracy'],
+                'val_acc': val_hard_metrics['argmax_accuracy'],
+                'val_expected_target_probability': val_soft_metrics['expected_target_probability'],
+                'val_soft_cross_entropy': val_soft_metrics['soft_cross_entropy'],
+                'top_k_indices': top_k,
+                'n_parameters': _count_parameters(model),
+            })
+
+        all_top_k = [fr['top_k_indices'] for fr in fold_results]
+        pair_jaccards = [
+            _jaccard(all_top_k[i], all_top_k[j])
+            for i, j in combinations(range(n_splits), 2)
+        ]
+
+        n_features = X.shape[1]
+        freq = np.zeros(n_features, dtype=int)
+        for tk in all_top_k:
+            freq[np.array(tk)] += 1
+        consensus = np.where(freq >= int(np.ceil(n_splits * 0.8)))[0].tolist()
+
+        val_accs = [fr['val_acc'] for fr in fold_results if not np.isnan(fr['val_acc'])]
+        train_accs = [fr['train_acc'] for fr in fold_results]
+        overfit_gaps = [tr - va for tr, va in zip(train_accs, val_accs)]
+        expected_target_probs = [fr['val_expected_target_probability'] for fr in fold_results]
+        val_soft_cross_entropies = [fr['val_soft_cross_entropy'] for fr in fold_results]
+        n_parameters = fold_results[0]['n_parameters'] if fold_results else 0
+
+        stability_summary = {
+            'mean_jaccard': float(np.mean(pair_jaccards)) if pair_jaccards else float('nan'),
+            'consensus_ratio': float(min(len(consensus), n_select) / n_select),
+        }
+        selection_stability = (
+            0.7 * stability_summary['mean_jaccard']
+            + 0.3 * stability_summary['consensus_ratio']
+        )
+
+        summary = {
+            'mean_val_acc': float(np.mean(val_accs)) if val_accs else float('nan'),
+            'std_val_acc': float(np.std(val_accs)) if val_accs else float('nan'),
+            'mean_train_acc': float(np.mean(train_accs)) if train_accs else float('nan'),
+            'mean_overfit_gap': float(np.mean(overfit_gaps)) if overfit_gaps else float('nan'),
+            'mean_expected_target_probability': float(np.mean(expected_target_probs)),
+            'mean_soft_cross_entropy': float(np.mean(val_soft_cross_entropies)),
+            'mean_jaccard': stability_summary['mean_jaccard'],
+            'consensus_ratio': stability_summary['consensus_ratio'],
+            'selection_stability_score': selection_stability,
+            'n_parameters': n_parameters,
+        }
+
+        results.append({
+            'config': cfg,
+            'fold_results': fold_results,
+            'stability': {
+                'pair_jaccards': pair_jaccards,
+                'feature_frequency': freq,
+                'consensus_features': consensus,
+            },
+            'summary': summary,
+            'score': 0.0,
+        })
+
+    if results:
+        param_counts = np.array([r['summary']['n_parameters'] for r in results], dtype=np.float64)
+        if np.allclose(param_counts.max(), param_counts.min()):
+            normalized_param_counts = np.zeros_like(param_counts)
+        else:
+            normalized_param_counts = (param_counts - param_counts.min()) / (param_counts.max() - param_counts.min())
+
+        for result, param_penalty in zip(results, normalized_param_counts):
+            summary = result['summary']
+            mean_val_acc = summary['mean_val_acc']
+            score = 0.0
+            if not np.isnan(mean_val_acc):
+                score = (
+                    weights['val_acc'] * mean_val_acc
+                    + weights['soft_target_probability'] * summary['mean_expected_target_probability']
+                    + weights['feature_stability'] * summary['selection_stability_score']
+                    - weights['overfit_gap'] * max(summary['mean_overfit_gap'], 0.0)
+                    - weights['param_count'] * param_penalty
+                )
+            summary['normalized_param_count'] = float(param_penalty)
+            result['score'] = score
 
     results.sort(key=lambda r: r['score'], reverse=True)
     best_config = results[0]['config']
