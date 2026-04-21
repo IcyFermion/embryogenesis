@@ -5,15 +5,20 @@ Reusable ML module for protein feature selection and embedding generation.
 
 Public API
 ----------
+build_cv_folds(X, y, n_splits, seed, groups=None)
+    Construct stratified folds for standard supervised runs or grouped folds
+    for lineage/timepoint experiments where related observations must stay in
+    the same split.
+
 cross_validate_features(X, y, sample_weights, terminal_mask, param_grid, ...)
-    5-fold stratified CV over a hyperparameter param_grid.  Returns per-config
-    metrics (val accuracy, feature-set stability, overfitting gap) plus the
-    best config ranked by a stability-aware composite score.
+    5-fold stratified or grouped CV over a hyperparameter param_grid. Returns
+    per-config metrics (val accuracy, feature-set stability, overfitting gap)
+    plus the best config ranked by a stability-aware composite score.
 
 cross_validate_focused(X, y, sample_weights, terminal_mask, selector_config, ...)
-    5-fold CV for Phase 2 that jointly tunes the number of selected features K,
-    the focused classifier architecture, and regularisation while penalising
-    overfitting and unnecessary model size.
+    5-fold stratified or grouped CV for Phase 2 that jointly tunes the number
+    of selected features K, the focused classifier architecture, and
+    regularisation while penalising overfitting and unnecessary model size.
 
 train_one_pass(X, y, sample_weights, hidden_dims, l1_lambda, dropout, ...)
     Trains SparseGateClassifier on ALL data with the CV-selected configuration.
@@ -40,7 +45,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from scipy.stats import spearmanr
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import GroupKFold, StratifiedKFold
+try:
+    from sklearn.model_selection import StratifiedGroupKFold
+except ImportError:  # pragma: no cover - fallback for older scikit-learn
+    StratifiedGroupKFold = None
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
@@ -460,6 +469,32 @@ def _build_param_grid(param_grid):
     return [dict(zip(keys, combo)) for combo in combos]
 
 
+def build_cv_folds(X, y, n_splits, seed, groups=None):
+    """Build cross-validation folds with optional lineage-aware grouping."""
+    strat_labels = y.argmax(axis=1)
+
+    if groups is None:
+        splitter = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
+        return list(splitter.split(X, strat_labels))
+
+    groups = np.asarray(groups)
+    if groups.shape[0] != X.shape[0]:
+        raise ValueError(
+            f"Expected groups to have length {X.shape[0]}, got {groups.shape[0]}"
+        )
+
+    if StratifiedGroupKFold is not None:
+        splitter = StratifiedGroupKFold(
+            n_splits=n_splits,
+            shuffle=True,
+            random_state=seed,
+        )
+        return list(splitter.split(X, strat_labels, groups))
+
+    splitter = GroupKFold(n_splits=n_splits)
+    return list(splitter.split(X, strat_labels, groups))
+
+
 def _stability_score(summary, metric_weights=None):
     weights = {
         'jaccard': 0.5,
@@ -520,6 +555,7 @@ def cross_validate_features(
     sample_weights,
     terminal_mask,
     param_grid,
+    groups=None,
     n_splits=5,
     n_select=15,
     n_epochs=300,
@@ -539,6 +575,10 @@ def cross_validate_features(
     sample_weights : ndarray (n_samples,)
     terminal_mask  : ndarray (n_samples,) bool – hard-label (terminal) samples
     param_grid     : dict of lists
+    groups         : ndarray (n_samples,), optional
+        If provided, all samples with the same group value stay in the same
+        fold. This is intended for lineage/timepoint experiments where nearby
+        observations from one lineage cell should not be split across folds.
         Keys are any subset of {'l1_lambda', 'hidden_dims', 'dropout'}.
         All combinations are evaluated.  Example::
 
@@ -585,10 +625,7 @@ def cross_validate_features(
     # Build full Cartesian product of the param grid
     configs = _build_param_grid(param_grid)
 
-    # Stratify on dominant cell type
-    strat_labels = y.argmax(axis=1)
-    skf   = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
-    folds = list(skf.split(X, strat_labels))
+    folds = build_cv_folds(X, y, n_splits, seed, groups=groups)
 
     results = []
 
@@ -721,6 +758,7 @@ def cross_validate_focused(
     terminal_mask,
     selector_config,
     param_grid,
+    groups=None,
     n_splits=5,
     selector_epochs=300,
     focused_epochs=400,
@@ -745,6 +783,9 @@ def cross_validate_focused(
     param_grid : dict of lists
         May include ``n_select``, ``hidden_dims``, ``dropout``, and
         ``dist_lambda``.
+    groups : ndarray (n_samples,), optional
+        If provided, all samples with the same group value stay in the same
+        fold during both selector and focused-model validation.
 
     Returns
     -------
@@ -766,9 +807,7 @@ def cross_validate_focused(
 
     configs = _build_param_grid(param_grid)
 
-    strat_labels = y.argmax(axis=1)
-    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
-    folds = list(skf.split(X, strat_labels))
+    folds = build_cv_folds(X, y, n_splits, seed, groups=groups)
 
     selector_hidden_dims = selector_config.get('hidden_dims', (128, 64))
     selector_l1_lambda = selector_config.get('l1_lambda', 0.004)

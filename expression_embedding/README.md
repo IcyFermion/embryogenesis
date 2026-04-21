@@ -24,6 +24,7 @@ Shared source data still lives under `data/` at the repository root. Bundle-gene
 - `test_architectures.py`: smoke test for architecture construction/import wiring
 - `autoregressive_embedding.py`: reusable autoregressive embedding module
 - `autoregressive_feature_embedding.ipynb`: temporal embedding training and export notebook
+- `timepoint_terminal_feature_select.ipynb`: grouped supervised embedding notebook that uses per-timepoint terminal-cell protein observations and compares programmed-death inclusion/exclusion
 - `expression_comparison.ipynb`: downstream comparison notebook for bundle-generated embeddings and expression baselines
 - `results/`: generated CSV, PKL, PNG, TSV, and checkpoint outputs for this bundle
 
@@ -50,6 +51,18 @@ Bundle-local generated outputs:
 - `results/ar_embeddings_32d.csv`
 - `results/ar_feature_importance.tsv`
 - `results/ar_model_checkpoint.pt`
+- `results/timepoint_terminal_exclude_pd_phase1_cv_summary.csv`
+- `results/timepoint_terminal_exclude_pd_phase2_cv_summary.csv`
+- `results/timepoint_terminal_exclude_pd_embeddings_8d.csv` (or other final embedding dimension)
+- `results/timepoint_terminal_exclude_pd_embedding_metadata.csv`
+- `results/timepoint_terminal_exclude_pd_selected_proteins.tsv`
+- `results/timepoint_terminal_exclude_pd_grouped_oof_predictions.csv`
+- `results/timepoint_terminal_include_pd_phase1_cv_summary.csv`
+- `results/timepoint_terminal_include_pd_phase2_cv_summary.csv`
+- `results/timepoint_terminal_include_pd_embeddings_8d.csv` (or other final embedding dimension)
+- `results/timepoint_terminal_include_pd_embedding_metadata.csv`
+- `results/timepoint_terminal_include_pd_selected_proteins.tsv`
+- `results/timepoint_terminal_include_pd_grouped_oof_predictions.csv`
 - `results/stage1_results.csv`
 - `results/stage1_results.pkl`
 - `results/stage2_results.csv`
@@ -81,9 +94,10 @@ Recommended order if you want to regenerate the moved notebook artifacts:
 
 1. `protein_feature_select.ipynb`
 2. `autoregressive_feature_embedding.ipynb`
-3. `expression_comparison.ipynb`
+3. `timepoint_terminal_feature_select.ipynb`
+4. `expression_comparison.ipynb`
 
-That order ensures the downstream comparison notebook can see both the protein-feature outputs and the autoregressive outputs in `results/`.
+That order ensures the downstream comparison notebook can see the lineage-aggregated supervised outputs, the timepoint-terminal supervised outputs, and the autoregressive outputs in `results/`.
 
 ## Path Conventions
 
