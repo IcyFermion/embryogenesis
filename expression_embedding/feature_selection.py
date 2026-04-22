@@ -10,6 +10,10 @@ build_cv_folds(X, y, n_splits, seed, groups=None)
     for lineage/timepoint experiments where related observations must stay in
     the same split.
 
+build_selector_fold_cache(X, y, sample_weights, selector_config, folds, ...)
+    Train one Phase-1 selector per fold and cache the full feature ranking so
+    Phase-2 CV and grouped OOF evaluation can reuse the same selector fits.
+
 cross_validate_features(X, y, sample_weights, terminal_mask, param_grid, ...)
     5-fold stratified or grouped CV over a hyperparameter param_grid. Returns
     per-config metrics (val accuracy, feature-set stability, overfitting gap)
@@ -495,6 +499,17 @@ def build_cv_folds(X, y, n_splits, seed, groups=None):
     return list(splitter.split(X, strat_labels, groups))
 
 
+def _format_metric(value):
+    if value is None:
+        return 'nan'
+    try:
+        if np.isnan(value):
+            return 'nan'
+    except TypeError:
+        pass
+    return f"{float(value):.4f}"
+
+
 def _stability_score(summary, metric_weights=None):
     weights = {
         'jaccard': 0.5,
@@ -515,8 +530,20 @@ def _stability_score(summary, metric_weights=None):
     )
 
 
-def _train_sparse_gate(X, y, sample_weights, hidden_dims, l1_lambda, dropout,
-                        n_epochs, batch_size, seed, device):
+def _train_sparse_gate(
+    X,
+    y,
+    sample_weights,
+    hidden_dims,
+    l1_lambda,
+    dropout,
+    n_epochs,
+    batch_size,
+    seed,
+    device,
+    early_stopping_patience=None,
+    early_stopping_min_delta=1e-4,
+):
     """Train a SparseGateClassifier and return (model, losses)."""
     torch.manual_seed(seed)
     n_features = X.shape[1]
@@ -537,12 +564,88 @@ def _train_sparse_gate(X, y, sample_weights, hidden_dims, l1_lambda, dropout,
     sched = optim.lr_scheduler.CosineAnnealingLR(opt, T_max=n_epochs)
 
     losses = []
+    best_loss = float('inf')
+    patience_counter = 0
+
     for _ in range(n_epochs):
         loss = train_epoch(model, loader, opt, device, l1_lambda=l1_lambda)
         sched.step()
         losses.append(loss)
 
+        if early_stopping_patience is not None:
+            if loss < best_loss - early_stopping_min_delta:
+                best_loss = loss
+                patience_counter = 0
+            else:
+                patience_counter += 1
+                if patience_counter >= early_stopping_patience:
+                    break
+
     return model, losses
+
+
+def build_selector_fold_cache(
+    X,
+    y,
+    sample_weights,
+    selector_config,
+    folds,
+    selector_epochs=300,
+    selector_batch_size=128,
+    seed=42,
+    device='auto',
+    early_stopping_patience=None,
+    verbose=False,
+    log_prefix='Selector cache',
+):
+    """Train one Phase-1 selector per fold and cache full feature rankings."""
+    device = _resolve_device(device)
+
+    selector_hidden_dims = selector_config.get('hidden_dims', (128, 64))
+    selector_l1_lambda = selector_config.get('l1_lambda', 0.004)
+    selector_dropout = selector_config.get('dropout', 0.3)
+
+    selector_cache = []
+    total_folds = len(folds)
+
+    for fold_number, (train_idx, val_idx) in enumerate(folds, start=1):
+        if verbose:
+            print(
+                f"[{log_prefix}] fold {fold_number}/{total_folds} start "
+                f"train={len(train_idx)} val={len(val_idx)}"
+            )
+
+        model, losses = _train_sparse_gate(
+            X[train_idx],
+            y[train_idx],
+            sample_weights[train_idx],
+            selector_hidden_dims,
+            selector_l1_lambda,
+            selector_dropout,
+            selector_epochs,
+            selector_batch_size,
+            seed + fold_number - 1,
+            device,
+            early_stopping_patience=early_stopping_patience,
+        )
+        gate_values = model.feature_importance()
+        feature_ranking = np.argsort(gate_values)[::-1]
+        selector_cache.append({
+            'fold': fold_number - 1,
+            'train_idx': train_idx,
+            'val_idx': val_idx,
+            'gate_values': gate_values,
+            'feature_ranking': feature_ranking,
+            'selector_epochs_ran': len(losses),
+        })
+
+        if verbose:
+            print(
+                f"[{log_prefix}] fold {fold_number}/{total_folds} ready "
+                f"selector_epochs={len(losses)} top_gate={_format_metric(gate_values[feature_ranking[0]])}"
+            )
+
+    return selector_cache
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -564,6 +667,9 @@ def cross_validate_features(
     device='auto',
     score_weights=None,
     stability_metric_weights=None,
+    early_stopping_patience=None,
+    verbose=False,
+    log_prefix='Phase-1 CV',
 ):
     """
     K-fold stratified cross-validation over a hyperparameter param_grid.
@@ -629,10 +735,18 @@ def cross_validate_features(
 
     results = []
 
-    for cfg in tqdm(configs, desc="CV configs"):
+    total_folds = len(folds)
+
+    for config_idx, cfg in enumerate(
+        tqdm(configs, desc="CV configs", disable=verbose),
+        start=1,
+    ):
         l1_lambda   = cfg.get('l1_lambda',   0.004)
         hidden_dims = cfg.get('hidden_dims', (128, 64))
         dropout     = cfg.get('dropout',     0.3)
+
+        if verbose:
+            print(f"[{log_prefix}] config {config_idx}/{len(configs)} start {cfg}")
 
         fold_results = []
         for fold_idx, (train_idx, val_idx) in enumerate(folds):
@@ -642,10 +756,11 @@ def cross_validate_features(
             term_tr       = terminal_mask[train_idx]
             term_val      = terminal_mask[val_idx]
 
-            model, _ = _train_sparse_gate(
+            model, losses = _train_sparse_gate(
                 X_tr, y_tr, w_tr,
                 hidden_dims, l1_lambda, dropout,
                 n_epochs, batch_size, seed + fold_idx, device,
+                early_stopping_patience=early_stopping_patience,
             )
 
             X_tr_t  = torch.FloatTensor(X_tr)
@@ -675,7 +790,18 @@ def cross_validate_features(
                 'val_loss':      float(val_loss),
                 'gate_values':   gate_vals,
                 'top_k_indices': top_k,
+                'selector_epochs_ran': len(losses),
             })
+
+            if verbose:
+                print(
+                    f"[{log_prefix}] config {config_idx}/{len(configs)} "
+                    f"fold {fold_idx + 1}/{total_folds} "
+                    f"train_acc={_format_metric(train_acc)} "
+                    f"val_acc={_format_metric(val_acc)} "
+                    f"val_loss={_format_metric(val_loss)} "
+                    f"selector_epochs={len(losses)}"
+                )
 
         # ── Stability metrics ────────────────────────────────────────────────
         all_top_k = [fr['top_k_indices'] for fr in fold_results]
@@ -697,14 +823,18 @@ def cross_validate_features(
             freq[np.array(tk)] += 1
 
         # Consensus = in top-K in ≥80% of folds
-        consensus = np.where(freq >= int(np.ceil(n_splits * 0.8)))[0].tolist()
-        mean_topk_frequency = float(np.sort(freq / n_splits)[::-1][:n_select].mean())
+        consensus = np.where(freq >= int(np.ceil(total_folds * 0.8)))[0].tolist()
+        mean_topk_frequency = float(np.sort(freq / total_folds)[::-1][:n_select].mean())
         consensus_ratio = float(min(len(consensus), n_select) / n_select)
 
         # ── Summary ──────────────────────────────────────────────────────────
         val_accs    = [fr['val_acc']   for fr in fold_results if not np.isnan(fr['val_acc'])]
         train_accs  = [fr['train_acc'] for fr in fold_results]
-        overfit_gaps = [tr - va for tr, va in zip(train_accs, val_accs)]
+        overfit_gaps = [
+            fr['train_acc'] - fr['val_acc']
+            for fr in fold_results
+            if not np.isnan(fr['val_acc'])
+        ]
 
         summary = {
             'mean_val_acc':     float(np.mean(val_accs))    if val_accs   else float('nan'),
@@ -746,6 +876,16 @@ def cross_validate_features(
             'score':   score,
         })
 
+        if verbose:
+            print(
+                f"[{log_prefix}] config {config_idx}/{len(configs)} done "
+                f"mean_val_acc={_format_metric(summary['mean_val_acc'])} "
+                f"mean_train_acc={_format_metric(summary['mean_train_acc'])} "
+                f"mean_overfit_gap={_format_metric(summary['mean_overfit_gap'])} "
+                f"stability={_format_metric(summary['selection_stability_score'])} "
+                f"score={_format_metric(score)}"
+            )
+
     results.sort(key=lambda r: r['score'], reverse=True)
     best_config = results[0]['config']
     return results, best_config
@@ -767,6 +907,11 @@ def cross_validate_focused(
     seed=42,
     device='auto',
     score_weights=None,
+    selector_cache=None,
+    selector_early_stopping_patience=None,
+    focused_early_stopping_patience=None,
+    verbose=False,
+    log_prefix='Phase-2 CV',
 ):
     """
     Jointly tune Phase 2 architecture and the selected-feature count K.
@@ -808,18 +953,41 @@ def cross_validate_focused(
     configs = _build_param_grid(param_grid)
 
     folds = build_cv_folds(X, y, n_splits, seed, groups=groups)
+    total_folds = len(folds)
 
-    selector_hidden_dims = selector_config.get('hidden_dims', (128, 64))
-    selector_l1_lambda = selector_config.get('l1_lambda', 0.004)
-    selector_dropout = selector_config.get('dropout', 0.3)
+    if selector_cache is None:
+        selector_cache = build_selector_fold_cache(
+            X,
+            y,
+            sample_weights,
+            selector_config,
+            folds,
+            selector_epochs=selector_epochs,
+            selector_batch_size=selector_batch_size,
+            seed=seed,
+            device=device,
+            early_stopping_patience=selector_early_stopping_patience,
+            verbose=verbose,
+            log_prefix=f"{log_prefix} selector",
+        )
+    elif len(selector_cache) != total_folds:
+        raise ValueError(
+            f"Expected selector_cache to have {total_folds} folds, got {len(selector_cache)}"
+        )
 
     results = []
 
-    for cfg in tqdm(configs, desc="Phase-2 CV configs"):
+    for config_idx, cfg in enumerate(
+        tqdm(configs, desc="Phase-2 CV configs", disable=verbose),
+        start=1,
+    ):
         n_select = cfg.get('n_select', 15)
         focused_hidden_dims = cfg.get('hidden_dims', (64, 32))
         focused_dropout = cfg.get('dropout', 0.2)
         dist_lambda = cfg.get('dist_lambda', 0.1)
+
+        if verbose:
+            print(f"[{log_prefix}] config {config_idx}/{len(configs)} start {cfg}")
 
         fold_results = []
         for fold_idx, (train_idx, val_idx) in enumerate(folds):
@@ -829,25 +997,13 @@ def cross_validate_focused(
             term_tr = terminal_mask[train_idx]
             term_val = terminal_mask[val_idx]
 
-            selector_model, _ = _train_sparse_gate(
-                X_tr,
-                y_tr,
-                w_tr,
-                selector_hidden_dims,
-                selector_l1_lambda,
-                selector_dropout,
-                selector_epochs,
-                selector_batch_size,
-                seed + fold_idx,
-                device,
-            )
-            gate_vals = selector_model.feature_importance()
-            top_k = np.argsort(gate_vals)[::-1][:n_select].tolist()
+            cached_selector = selector_cache[fold_idx]
+            top_k = cached_selector['feature_ranking'][:n_select].tolist()
 
             X_tr_sel = X_tr[:, top_k].astype(np.float32)
             X_val_sel = X_val[:, top_k].astype(np.float32)
 
-            model, _, _ = train_focused(
+            model, _, losses = train_focused(
                 X_tr_sel,
                 y_tr,
                 w_tr,
@@ -858,6 +1014,7 @@ def cross_validate_focused(
                 seed=seed + fold_idx,
                 device=str(device),
                 dist_lambda=dist_lambda,
+                early_stopping_patience=focused_early_stopping_patience,
             )
 
             X_tr_t = torch.FloatTensor(X_tr_sel)
@@ -896,7 +1053,21 @@ def cross_validate_focused(
                 'val_soft_cross_entropy': val_soft_metrics['soft_cross_entropy'],
                 'top_k_indices': top_k,
                 'n_parameters': _count_parameters(model),
+                'selector_epochs_ran': cached_selector.get('selector_epochs_ran'),
+                'focused_epochs_ran': len(losses),
             })
+
+            if verbose:
+                print(
+                    f"[{log_prefix}] config {config_idx}/{len(configs)} "
+                    f"fold {fold_idx + 1}/{total_folds} "
+                    f"train_acc={_format_metric(train_metrics['argmax_accuracy'])} "
+                    f"val_acc={_format_metric(val_hard_metrics['argmax_accuracy'])} "
+                    f"expected_target_prob={_format_metric(val_soft_metrics['expected_target_probability'])} "
+                    f"soft_ce={_format_metric(val_soft_metrics['soft_cross_entropy'])} "
+                    f"selector_epochs={cached_selector.get('selector_epochs_ran')} "
+                    f"focused_epochs={len(losses)}"
+                )
 
         all_top_k = [fr['top_k_indices'] for fr in fold_results]
         pair_jaccards = [
@@ -908,11 +1079,15 @@ def cross_validate_focused(
         freq = np.zeros(n_features, dtype=int)
         for tk in all_top_k:
             freq[np.array(tk)] += 1
-        consensus = np.where(freq >= int(np.ceil(n_splits * 0.8)))[0].tolist()
+        consensus = np.where(freq >= int(np.ceil(total_folds * 0.8)))[0].tolist()
 
         val_accs = [fr['val_acc'] for fr in fold_results if not np.isnan(fr['val_acc'])]
         train_accs = [fr['train_acc'] for fr in fold_results]
-        overfit_gaps = [tr - va for tr, va in zip(train_accs, val_accs)]
+        overfit_gaps = [
+            fr['train_acc'] - fr['val_acc']
+            for fr in fold_results
+            if not np.isnan(fr['val_acc'])
+        ]
         expected_target_probs = [fr['val_expected_target_probability'] for fr in fold_results]
         val_soft_cross_entropies = [fr['val_soft_cross_entropy'] for fr in fold_results]
         n_parameters = fold_results[0]['n_parameters'] if fold_results else 0
@@ -951,6 +1126,16 @@ def cross_validate_focused(
             'score': 0.0,
         })
 
+        if verbose:
+            print(
+                f"[{log_prefix}] config {config_idx}/{len(configs)} done "
+                f"mean_val_acc={_format_metric(summary['mean_val_acc'])} "
+                f"mean_expected_target_prob={_format_metric(summary['mean_expected_target_probability'])} "
+                f"mean_soft_ce={_format_metric(summary['mean_soft_cross_entropy'])} "
+                f"mean_overfit_gap={_format_metric(summary['mean_overfit_gap'])} "
+                f"stability={_format_metric(summary['selection_stability_score'])}"
+            )
+
     if results:
         param_counts = np.array([r['summary']['n_parameters'] for r in results], dtype=np.float64)
         if np.allclose(param_counts.max(), param_counts.min()):
@@ -973,6 +1158,14 @@ def cross_validate_focused(
             summary['normalized_param_count'] = float(param_penalty)
             result['score'] = score
 
+            if verbose:
+                cfg = result['config']
+                print(
+                    f"[{log_prefix}] config final {cfg} "
+                    f"normalized_param_count={_format_metric(param_penalty)} "
+                    f"score={_format_metric(score)}"
+                )
+
     results.sort(key=lambda r: r['score'], reverse=True)
     best_config = results[0]['config']
     return results, best_config
@@ -994,6 +1187,7 @@ def train_one_pass(
     batch_size=128,
     seed=42,
     device='auto',
+    early_stopping_patience=None,
 ):
     """
     Train SparseGateClassifier on ALL data using the CV-validated configuration.
@@ -1027,6 +1221,7 @@ def train_one_pass(
         X, y, sample_weights,
         hidden_dims, l1_lambda, dropout,
         n_epochs, batch_size, seed, device,
+        early_stopping_patience=early_stopping_patience,
     )
 
     gate_values   = model.feature_importance()
