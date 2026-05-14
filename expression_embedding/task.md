@@ -1,89 +1,87 @@
-### Task Description: Stage 1 — C. elegans mRNA Encoder with Protein-Embedding Alignment
+### Objective
+Train a shared mRNA encoder on C. elegans and C. briggsae jointly, producing per-cell embeddings in a common latent space. No protein alignment, no lineage-relational supervision.
+### Reference Artifacts
 
-### previous stage
-We have done a dual head encoder based protein time point embedding with all c elegans protein atlas data, in ``expression_embedding/timepoint_embedding.py``. The next stage is too align rna-seq embeddings from two species to this protein-based embedding.
+- C. elegans and C.briggsae mRNA atlas (Large et al.).
+- scRNA-seq data with marker-gene-derived lineage labels. ``data/c_briggsae/science.adu8249/c_elegans_tf.csv`` and ``data/c_briggsae/science.adu8249/c_briggsae_tf.csv``
+- Shared TF ortholog list, taken as the shared TFs from the scRNA-seq data.
+- Terminal-type label set shared across species. ``data/2023-06-29_entropy_cell_key_V2.csv`
+- smaller cell types should be merged together according to either schema A or D in ``expression_embedding/cell_type_merge.md``, default option should be schema D.
+- look up ``expression_embedding/protein_feature_select.ipynb`` and ``expression_embedding/feature_selection.py`` as reference on how to do cell type encoding. Important things to follow are the hard one-hot encoding for terminal cells with types, soft labels and associated decaying sample weights for intermediate cells; option to include or exclude programmed death cells in training.
 
-#### Objective
-Train a per-cell mRNA encoder on C. elegans that produces embeddings whose pairwise cosine distances match those of the frozen per-timepoint protein embedding from the previous stage. No classification, no lineage-relational supervision.
-#### Reference Artifacts
+### Data and Features
 
-- Frozen protein-embedding model and its per-cell summarized embeddings from the previous stage. Use these as fixed alignment targets; do not update.
-- C. elegans mRNA atlas (Large et al.), per-cell.
-- TF ortholog list shared between C. elegans and C. briggsae. Freeze this feature set now; it will be reused in Stage 2.
-- expression_comparison.ipynb for downstream sanity checks.
+- Sample = one lineage cell (per-cell, not per-timepoint) with a TF-ortholog mRNA vector.
+- Input preprocessing: log-transform if not already applied, then per-species z-scoring (compute mean/std within each species independently, apply within-species).
+- Species label retained as metadata for batching and evaluation, not used as model input.
 
-#### Data and Features
+### Model
 
-- c. elegans embedding results: ``expression_embedding/results/timepoint_embedding_all_features/cell_embeddings_mean.csv``
-- c. elegans rna-seq data: ``data/c_briggsae/science.adu8249/c_elegans_tf.csv``
-- c. briggsae rna-seq data: ``data/c_briggsae/science.adu8249/c_briggsae_tf.csv``, the TFs in briggsae are all present in elegans data, so we can just use TFs here as the shared RNA-seq feature across species.
-- One sample = one C. elegans lineage cell with a per-cell mRNA vector restricted to shared TF orthologs.
-- Pair samples: ~985 cells with both mRNA and a protein embedding.
-- Apply L2 normalization to input mRNA vectors before the encoder.
-
-#### Model
-
-- Small MLP encoder, 2–3 hidden layers, embedding dim 32 (configurable).
-- L2-normalize the encoder output so cosine distance is well-defined.
+- Shared MLP encoder, 2–3 hidden layers, embedding dim 32 (configurable).
+- BatchNorm1d immediately after the input layer as a hedge against residual species shift.
+- L2-normalize the encoder output.
 - Mirror decoder for reconstruction.
-- All architecture hyperparameters configurable.
+- Classification head: linear or small MLP on the embedding, output dim = number of shared terminal types.
+- No species-specific adapter. No alignment loss.
 
-#### Losses
-Total loss = α * L_align + β * L_recon, with defaults α=1.0, β=0.1.
+### Losses
+Total = ``α * L_recon + β * L_classify``, defaults ``α=1.0, β=1.0``, both configurable.
 
-- L_align: for sampled pairs (a, b), (d_cos_mRNA(a, b) - d_cos_protein(a, b))^2. Protein-side distances precomputed once and cached.
-- L_recon: MSE between input mRNA vector and reconstruction.
-- Both coefficients configurable for sweeps.
+- L_recon: MSE between input and reconstruction. Applied to both species.
+- L_classify: cross-entropy against soft labels (terminal hard labels are one-hot soft labels; progenitors use the descendant-mixture soft labels constructed identically in both species). Applied to both species.
+- No cross-species alignment loss. No lineage-relational loss.
 
-#### Pair Sampling
+### Batch Composition
+Stratified mixed-species batches: each batch contains samples from both species in roughly proportional ratios to dataset sizes. This is required, not optional — species-pure batches would let BatchNorm and the encoder develop species-specific behavior.
 
-- Sample ~10K pairs per epoch (configurable).
-- Bias toward near pairs in protein-embedding space: e.g., 50% of pairs sampled from the bottom quartile of protein distances, 50% uniform. Make the bias scheme configurable.
-- Gradients must not flow into the protein embeddings.
+### Train/Validation Split
+Sub-lineage-aware, applied independently within each species. Reuse the branch-level hold-out utility from Stage 1. Track validation metrics per species.
+### Training Loop
+Track per epoch, split by species where applicable:
 
-#### Train/Validation Split
+- Total loss and each component (train + val, per species).
+- Classification accuracy on held-out hard-labeled cells (per species).
+- Reconstruction MSE on held-out cells (per species).
+- Cross-species same-type centroid distance (see diagnostics).
 
-- Split by sub-lineage, same scheme as the previous stage. Reuse that utility.
-- Held-out cells contribute neither to pair sampling nor to reconstruction.
+Save best model by joint validation classification accuracy averaged across species.
 
-#### Training Loop
-Track per epoch:
-
-- Total loss and each component (train + val).
-- Pearson correlation between mRNA-encoder cosine distances and protein-embedding cosine distances on held-out pairs. This is the headline metric.
-- Reconstruction MSE on held-out cells.
-
-Save best model by validation alignment correlation, not total loss.
-#### Outputs
-In a configurable output directory under ``expression_embedding/results``:
+### Outputs
+In configurable output directory (default to ``expression_embedding/results/cross_species_rna_embedding``):
 
 - Trained encoder checkpoint.
-Per-cell mRNA embeddings for all C. elegans cells (parquet or HDF5).
-- Training curves (CSV + PNG): all loss components and the alignment correlation.
-#### Diagnostic plots:
+- Per-cell embeddings for all C. elegans and C. briggsae cells, with species labels (parquet or HDF5).
+- Training curves (CSV + PNG): all loss components and per-species metrics.
+- Diagnostic plots and tables (see below).
 
-- Scatter of protein-distance vs. mRNA-encoder-distance on held-out pairs.
+### Diagnostics
+Per species (intrinsic quality):
+
 - Same-type vs. different-type sibling-pair distance histograms.
-- Embedding-distance vs. lineage-tree-distance scatter.
-- 2D UMAP of mRNA embeddings, colored by terminal type and developmental time.
+- Embedding distance vs. lineage-tree distance scatter.
+- 2D PCA colored by terminal type and by developmental stage.
 
+### Cross-species (the key checks):
 
+- 2D PCA of joint embeddings, two-panel: colored by species, colored by terminal type. The type panel should show same-type cells from both species co-clustering.
+- Per-type centroid table: for each terminal type, compute centroids in each species, report d_same (same type, cross-species) and compare against d_diff_within (different types, same species). Should preserve the 14/14 result from the input-level diagnostic.
+- Confusion matrix of classifier on held-out cells, per species, against shared label set.
 
-#### Sanity Checks (Required)
+### Sanity Checks (Required)
 
-- Linear-probe baseline replicated: confirm raw mRNA → protein-embedding R² ≈ 0.33 with cosine on the same data and split. Trained encoder should clearly exceed this.
-- Encoder outputs are L2-normalized.
-- Pair sampler produces no train/val leakage.
-- Protein embeddings are frozen (gradient check).
-- Validation alignment correlation lands in the 0.4–0.55 range. Below 0.3 → investigate. Above 0.6 → suspect leakage.
+1. Per-species z-scoring applied correctly (each species independently).
+2. Mixed-species batches confirmed at the data-loader level.
+3. Sub-lineage split has no train/val leakage in either species.
+4. Cross-species same-type centroid distance is smaller than within-species different-type centroid distance for the majority of types (target: same as input-level result, 14/14 or close).
+5. Validation classification accuracy on held-out C. elegans branches is comparable to (or better than) the per-timepoint protein model's accuracy. Far below → investigate. Far above → suspect C. briggsae labeling-circularity leakage into the joint training.
 
-Out of Scope
+### Out of Scope
 
-- Classification heads.
-- Any lineage-relational loss.
-- C. briggsae data (Stage 2).
-- Per-timepoint inputs (mRNA atlas is per-cell).
-- Fine-tuning the protein embedding.
+- Protein-embedding alignment loss.
+- Species-specific input adapters (skipped per diagnostic).
+- Lineage-relational losses.
+- Per-timepoint inputs.
+- Domain-adversarial training (not needed per diagnostic).
 
-Code Organization
-Self-contained script or notebook with config (YAML or dataclass) under ``expression_embedding/``. Separate modules for data loading, model, training, evaluation. Do not modify previous stage's code.
+### Code Organization
+Self-contained script or notebook with config. Separate modules for data loading, model, training, evaluation. Inherit utilities from ``expression_embedding`` as you see fit, don't change the existing experiments runtime code.
