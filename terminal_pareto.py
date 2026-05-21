@@ -30,16 +30,16 @@ class ParetoFront:
         for node, parent in zip(terminal_nodes, terminal_parents):
             self.exp_vector_dict[node] = lineage_exp.loc[:, node].values
             self.exp_vector_dict[parent] = lineage_exp.loc[:, parent].values
-            # if binary_lineage_exp is not None and binary_lineage_end_exp is not None:
-            #     self.binary_exp_vector_dict[node] = lineage_exp.loc[:, node].values
-            #     self.binary_exp_vector_dict[parent] = lineage_exp.loc[:, parent].values
-            #     self.binary_end_exp_vector_dict[node] = lineage_exp.loc[:, node].values
-            #     self.binary_end_exp_vector_dict[parent] = lineage_exp.loc[:, parent].values
-            # else:
-            #     self.binary_exp_vector_dict[node] = binary_lineage_exp.loc[:, node].values
-            #     self.binary_exp_vector_dict[parent] = binary_lineage_exp.loc[:, parent].values
-            #     self.binary_end_exp_vector_dict[node] = binary_lineage_end_exp.loc[:, node].values
-            #     self.binary_end_exp_vector_dict[parent] = binary_lineage_end_exp.loc[:, parent].values
+            if binary_lineage_exp is not None and binary_lineage_end_exp is not None:
+                self.binary_exp_vector_dict[node] = lineage_exp.loc[:, node].values
+                self.binary_exp_vector_dict[parent] = lineage_exp.loc[:, parent].values
+                self.binary_end_exp_vector_dict[node] = lineage_exp.loc[:, node].values
+                self.binary_end_exp_vector_dict[parent] = lineage_exp.loc[:, parent].values
+            else:
+                self.binary_exp_vector_dict[node] = binary_lineage_exp.loc[:, node].values
+                self.binary_exp_vector_dict[parent] = binary_lineage_exp.loc[:, parent].values
+                self.binary_end_exp_vector_dict[node] = binary_lineage_end_exp.loc[:, node].values
+                self.binary_end_exp_vector_dict[parent] = binary_lineage_end_exp.loc[:, parent].values
 
     def compute_cost_matrices(self, norm="l2", normalize=False):
         """
