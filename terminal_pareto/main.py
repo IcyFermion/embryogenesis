@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.23.14"
+__generated_with = "0.23.5"
 app = marimo.App()
 
 
@@ -54,8 +54,9 @@ def _():
         sys.path.insert(0, _repo_root)
     from terminal_pareto import data_loader as dl
     from terminal_pareto import pareto_engine as pe
+    from terminal_pareto import lineage_metrics as lm
 
-    return dl, pe
+    return dl, lm, pe
 
 
 @app.cell(hide_code=True)
@@ -113,6 +114,15 @@ def _(lineage_data, pe):
     gp_map = pe.build_grandparent_map(lineage_data)
     print(f"Grandparent map: {len(gp_map)} cells")
     return (gp_map,)
+
+
+@app.cell
+def _(lineage_data, lm):
+    tree_index = lm.build_lineage_tree_index(lineage_data)
+    max_depth = max(v['depth'] for v in tree_index.values())
+    print(f"Lineage tree index: {len(tree_index)} nodes, max depth={max_depth}")
+    return (tree_index,)
+
 
 
 @app.cell
@@ -307,9 +317,14 @@ def _(Line2D, ce_protein_reps, markers, pe, plt):
         ], fontsize=7.5, loc='best')
         fig.suptitle('Tracking Replicate Consistency — C. elegans Protein', fontsize=14, fontweight='bold')
         fig.tight_layout()
+        import os as _os
+        _out = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                             'terminal_pareto', 'output')
+        _os.makedirs(_out, exist_ok=True)
+        fig.savefig(_os.path.join(_out, 'ce_protein_replicates.png'), dpi=150, bbox_inches='tight')
         return fig
     _fig = _plot()
-    return
+    return _fig
 
 
 @app.cell
@@ -343,9 +358,14 @@ def _(Line2D, ce_rna_reps, markers, pe, plt):
         ], fontsize=7.5, loc='best')
         fig.suptitle('Tracking Replicate Consistency — C. elegans RNA', fontsize=14, fontweight='bold')
         fig.tight_layout()
+        import os as _os
+        _out = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                             'terminal_pareto', 'output')
+        _os.makedirs(_out, exist_ok=True)
+        fig.savefig(_os.path.join(_out, 'ce_rna_replicates.png'), dpi=150, bbox_inches='tight')
         return fig
     _fig = _plot()
-    return
+    return _fig
 
 
 @app.cell
@@ -381,9 +401,14 @@ def _(Line2D, cb_rna_reps, markers, pe, plt):
         ], fontsize=7.5, loc='best')
         fig.suptitle('Tracking Replicate Consistency — C. briggsae RNA', fontsize=14, fontweight='bold')
         fig.tight_layout()
+        import os as _os
+        _out = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                             'terminal_pareto', 'output')
+        _os.makedirs(_out, exist_ok=True)
+        fig.savefig(_os.path.join(_out, 'cb_rna_replicates.png'), dpi=150, bbox_inches='tight')
         return fig
     _fig = _plot()
-    return
+    return _fig
 
 
 @app.cell
@@ -417,9 +442,14 @@ def _(Line2D, cb_rna_reps, markers, pe, plt):
         ], fontsize=7.5, loc='best')
         fig.suptitle('C. briggsae — Wildtype vs she-1 Mutant', fontsize=14, fontweight='bold')
         fig.tight_layout()
+        import os as _os
+        _out = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                             'terminal_pareto', 'output')
+        _os.makedirs(_out, exist_ok=True)
+        fig.savefig(_os.path.join(_out, 'cb_wt_vs_she1.png'), dpi=150, bbox_inches='tight')
         return fig
     _fig = _plot()
-    return
+    return _fig
 
 
 @app.cell
@@ -546,8 +576,14 @@ def _(
         fig.suptitle('Full Tree Cross-Species Comparison — Std-Based Scaling\n(centred at null mean, all at full cutoffs)',
                      fontsize=14, fontweight='bold', y=0.98)
         plt.show()
+        import os as _os
+        _out = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                             'terminal_pareto', 'output')
+        _os.makedirs(_out, exist_ok=True)
+        fig.savefig(_os.path.join(_out, 'cross_species_comparison.png'), dpi=150, bbox_inches='tight')
+        return fig
     _fig = _plot()
-    return
+    return _fig
 
 
 @app.cell(hide_code=True)
@@ -676,9 +712,14 @@ def _(
         ], fontsize=7.5, loc='best')
         fig.suptitle('Cross-Species — 2D XY-plane', fontsize=14, fontweight='bold')
         fig.tight_layout()
+        import os as _os
+        _out = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                             'terminal_pareto', 'output')
+        _os.makedirs(_out, exist_ok=True)
+        fig.savefig(_os.path.join(_out, 'cross_species_2d.png'), dpi=150, bbox_inches='tight')
         return fig
     _fig = _plot()
-    return
+    return _fig
 
 
 @app.cell(hide_code=True)
@@ -796,9 +837,359 @@ def _(
             ax_e.set_ylim(0, 1.05); ax_e.grid(True, alpha=0.3)
         fig.suptitle('Z-Axis Noise Null — 3D vs 2D vs 2D+Gaussian(z)', fontsize=14, fontweight='bold')
         fig.tight_layout()
+        import os as _os
+        _out = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                             'terminal_pareto', 'output')
+        _os.makedirs(_out, exist_ok=True)
+        fig.savefig(_os.path.join(_out, 'z_noise_null.png'), dpi=150, bbox_inches='tight')
         return fig
     _fig = _plot()
+    return _fig
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""
+    ---
+    ### 2c. Tree-Aware Lineage Distance
+
+    **Tree-Weighted Edge Retention (TWER)** measures how far in tree-space each
+    reassigned edge moves. Unlike flat ER (binary preserved/changed), TWER weights
+    each change by the lineage-tree path length between the real parent and the
+    Pareto-assigned parent. A first-cousin swap (tree dist=2) barely affects TWER;
+    a cross-branch reassignment (tree dist≥6) heavily penalises it.
+
+    **Edge Change Profile** tracks *which* edges change at each α step along the
+    Pareto sweep, revealing whether deep structural changes happen early or late.
+    """)
     return
+
+
+@app.cell
+def _(
+    cb_new_rs,
+    em_cb_new,
+    em_er,
+    em_prot,
+    er_rs,
+    lm,
+    prot_rs,
+    tn_cb_new,
+    tn_er,
+    tn_prot,
+    tp_cb_new,
+    tp_er,
+    tp_prot,
+    tree_index,
+    xm_cb_new,
+    xm_er,
+    xm_prot,
+):
+    _ITER = 300
+    _twer_prot = lm.combined_lineage_proximity(
+        xm_prot, em_prot, tp_prot, tn_prot, tree_index, prot_rs, iteration=_ITER, n_random=100)
+    _twer_er   = lm.combined_lineage_proximity(
+        xm_er,   em_er,   tp_er,   tn_er,   tree_index, er_rs,   iteration=_ITER, n_random=100)
+    _twer_cb   = lm.combined_lineage_proximity(
+        xm_cb_new, em_cb_new, tp_cb_new, tn_cb_new, tree_index, cb_new_rs, iteration=_ITER, n_random=100)
+    print(f"TWER at max ER: Prot={1-_twer_prot['twer'][_twer_prot['kp']['max_er_idx']]:.3f}  "
+          f"RNA={1-_twer_er['twer'][_twer_er['kp']['max_er_idx']]:.3f}  "
+          f"CB={1-_twer_cb['twer'][_twer_cb['kp']['max_er_idx']]:.3f}")
+    twer_data = _twer_prot, _twer_er, _twer_cb
+    return (twer_data,)
+
+
+@app.cell
+def _(Line2D, _save_plot, plt, twer_data):
+    def _plot():
+        _configs = [
+            ('C. elegans Protein', twer_data[0], '#1976D2'),
+            ('C. elegans RNA',     twer_data[1], '#4CAF50'),
+            ('C. briggsae RNA',    twer_data[2], '#1B5E20'),
+        ]
+        fig, axes = plt.subplots(1, 3, figsize=(20, 6))
+
+        for col, (title, twr, color) in enumerate(_configs):
+            ax = axes[col]
+            _er = twr['traditional_er']
+            _twer = 1 - twr['twer']
+            _xa = twr['xyz_arr']
+            _n = twr['n']
+            _kp = twr['kp']
+
+            # TWER curve
+            ax.plot(_xa, _twer, color=color, lw=2.5, alpha=0.9, label='TWER (tree-weighted)')
+            # Traditional ER curve for comparison
+            ax.plot(_xa, _er, color='gray', lw=1.2, alpha=0.5, ls='--', label='ER (flat)')
+
+            # Mark key points
+            for pk, mk in [('expr_opt_idx', 's'), ('max_er_idx', 'D'), ('spatial_opt_idx', 'o')]:
+                _i = _kp[pk]
+                ax.scatter(_xa[_i], _twer[_i], color=color, marker=mk, s=50, zorder=8,
+                          edgecolors='white', lw=0.5)
+                ax.scatter(_xa[_i], _er[_i], color='gray', marker=mk, s=30, zorder=8,
+                          edgecolors='white', lw=0.3, alpha=0.7)
+
+            ax.axvline(0, color='gray', lw=0.6, ls=':', alpha=0.3)
+            ax.set_xlabel('Spatial Cost (σ from null)')
+            ax.set_ylabel('Retention Score')
+            ax.set_title(f'{title} (n={_n})', fontsize=11, color=color, fontweight='bold')
+            ax.set_ylim(0, 1.05)
+            ax.legend(fontsize=7.5, loc='best')
+            ax.grid(True, alpha=0.3)
+
+        _handles = [
+            Line2D([0],[0], color='black', marker='s', ls='', markersize=6, label='Expr opt'),
+            Line2D([0],[0], color='black', marker='D', ls='', markersize=6, label='Max ER'),
+            Line2D([0],[0], color='black', marker='o', ls='', markersize=6, label='Spatial opt'),
+        ]
+        fig.legend(handles=_handles, fontsize=8, loc='lower center', ncol=3, bbox_to_anchor=(0.5, -0.02))
+        fig.suptitle('Tree-Weighted Edge Retention (TWER) vs Traditional ER',
+                     fontsize=14, fontweight='bold')
+        fig.tight_layout()
+        import os as _os
+        _out = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                             'terminal_pareto', 'output')
+        _os.makedirs(_out, exist_ok=True)
+        fig.savefig(_os.path.join(_out, 'twer_vs_er.png'), dpi=150, bbox_inches='tight')
+        return fig
+    _fig = _plot()
+    return _fig
+
+
+@app.cell
+def _(np, plt, twer_data):
+    def _plot():
+        _configs = [
+            ('C. elegans Protein', twer_data[0], '#1976D2'),
+            ('C. elegans RNA',     twer_data[1], '#4CAF50'),
+            ('C. briggsae RNA',    twer_data[2], '#1B5E20'),
+        ]
+        fig, axes = plt.subplots(1, 3, figsize=(20, 6))
+
+        for col, (title, twr, color) in enumerate(_configs):
+            ax = axes[col]
+            _ep = twr['edge_profile']
+            _steps = _ep['steps']        # α values where changes occurred
+            _mean_dists = _ep['mean_tree_dists']
+            _xa = twr['xyz_arr']         # spatial cost (σ) at each α
+            _n = twr['n']
+
+            if len(_steps) > 0:
+                # Map α → spatial cost for x-axis
+                _n_pts = len(_xa) - 1  # iteration count
+                _x_spatial = np.array([_xa[int(s * _n_pts)] for s in _steps])
+
+                # Scatter: spatial cost vs mean tree distance of changes
+                ax.scatter(_x_spatial, _mean_dists, color=color,
+                           s=30, alpha=0.7, edgecolors='white', lw=0.3)
+
+                # Smooth trend
+                if len(_steps) > 5:
+                    _window = max(len(_steps) // 10, 3)
+                    _smooth = _mean_dists.copy()
+                    for _j in range(len(_mean_dists) - _window + 1):
+                        _smooth[_j + _window//2] = _mean_dists[_j:_j+_window].mean()
+                    ax.plot(_x_spatial, _smooth, color='black', lw=1.5, alpha=0.6, ls='-')
+
+                ax.axhline(2, color='green', lw=0.8, ls=':', alpha=0.5, label='Cousin-level (≤2)')
+                ax.axhline(4, color='orange', lw=0.8, ls=':', alpha=0.5, label='Close relative (≤4)')
+
+                # Split by x-position (left = near expression-opt ≈ low σ,
+                # right = near spatial-opt ≈ high σ) and annotate at data coords
+                _mid_x = (_x_spatial.min() + _x_spatial.max()) / 2
+                _left = _x_spatial < _mid_x
+                _right = ~_left
+                _left_m = _mean_dists[_left].mean() if _left.any() else 0
+                _right_m = _mean_dists[_right].mean() if _right.any() else 0
+                _ylim = ax.get_ylim()
+                _ypos = _ylim[1] * 0.92
+                if _left.any():
+                    ax.annotate(f'Spatial-side mean: {_left_m:.1f}',
+                               xy=(_x_spatial[_left].mean(), _left_m),
+                               xytext=(_x_spatial[_left].mean(), _ypos),
+                               fontsize=8, color='darkgreen', ha='center',
+                               arrowprops=dict(arrowstyle='->', color='darkgreen', lw=1))
+                if _right.any():
+                    ax.annotate(f'Expr-side mean: {_right_m:.1f}',
+                               xy=(_x_spatial[_right].mean(), _right_m),
+                               xytext=(_x_spatial[_right].mean(), _ypos * 0.88),
+                               fontsize=8, color='darkred', ha='center',
+                               arrowprops=dict(arrowstyle='->', color='darkred', lw=1))
+
+            ax.axvline(0, color='gray', lw=0.6, ls=':', alpha=0.3)
+            ax.set_xlabel('Spatial Cost (σ from null)')
+            ax.set_ylabel('Mean Tree Distance of Changes')
+            ax.set_title(f'{title} — Edge Change Profile (n={_n})',
+                        fontsize=11, color=color, fontweight='bold')
+            ax.legend(fontsize=7, loc='upper right')
+            ax.grid(True, alpha=0.3)
+
+        fig.suptitle('Edge Change Profile along Pareto Sweep — Mean Tree Distance of Changed Edges',
+                     fontsize=14, fontweight='bold')
+        fig.tight_layout()
+        import os as _os
+        _out = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                             'terminal_pareto', 'output')
+        _os.makedirs(_out, exist_ok=True)
+        fig.savefig(_os.path.join(_out, 'edge_change_profile.png'), dpi=150, bbox_inches='tight')
+        return fig
+    _fig = _plot()
+    return _fig
+
+
+@app.cell
+def _(np, plt, twer_data):
+    def _plot():
+        _configs = [
+            ('C. elegans Protein', twer_data[0], '#1976D2'),
+            ('C. elegans RNA',     twer_data[1], '#4CAF50'),
+            ('C. briggsae RNA',    twer_data[2], '#1B5E20'),
+        ]
+        fig, axes = plt.subplots(1, 3, figsize=(20, 6))
+
+        for col, (title, twr, color) in enumerate(_configs):
+            ax = axes[col]
+            _lmd = twr['lineage_mean_dist']
+            _xa = twr['xyz_arr']
+            _null = twr['lineage_null']
+            _n = twr['n']
+
+            # Pareto curve
+            ax.plot(_xa, _lmd, color=color, lw=2.5, alpha=0.9, label='Pareto front')
+            # Null baselines
+            _fm = _null['full_mean']
+            _cm = _null['cousin_mean']
+            ax.axhline(_fm, color='darkred', lw=1.2, ls='--', alpha=0.7,
+                       label=f'Full random ({_fm:.1f})')
+            ax.axhline(_cm, color='darkgreen', lw=1.2, ls='--', alpha=0.7,
+                       label=f'Cousin shuffle ({_cm:.1f})')
+
+            ax.axvline(0, color='gray', lw=0.6, ls=':', alpha=0.3)
+            ax.set_xlabel('Spatial Cost (σ from null)')
+            ax.set_ylabel('Mean Tree Distance from Real Lineage')
+            ax.set_title(f'{title} (n={_n})', fontsize=11, color=color, fontweight='bold')
+            ax.legend(fontsize=7, loc='upper right')
+            ax.grid(True, alpha=0.3)
+
+        fig.suptitle('Mean Lineage Tree Distance along Pareto Front\n(null baselines from 100k Monte Carlo samples)',
+                     fontsize=14, fontweight='bold')
+        fig.tight_layout()
+        import os as _os
+        _out = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                             'terminal_pareto', 'output')
+        _os.makedirs(_out, exist_ok=True)
+        fig.savefig(_os.path.join(_out, 'lineage_distance_along_pareto.png'), dpi=150, bbox_inches='tight')
+        return fig
+    _fig = _plot()
+    return _fig
+
+
+@app.cell
+def _(np, plt, twer_data):
+    def _plot():
+        _configs = [
+            ('C. elegans Protein', twer_data[0], '#1976D2'),
+            ('C. elegans RNA',     twer_data[1], '#4CAF50'),
+            ('C. briggsae RNA',    twer_data[2], '#1B5E20'),
+        ]
+        fig, axes = plt.subplots(1, 3, figsize=(20, 6))
+
+        for col, (title, twr, color) in enumerate(_configs):
+            ax = axes[col]
+            _ct = twr['cost_tree_tradeoff']
+            _td = _ct['tree_dists']
+            _dx = _ct['delta_xyz']
+            _de = _ct['delta_exp']
+            _n = twr['n']
+
+            # Cost savings vs tree distance
+            ax.plot(_td, _dx, color='#1976D2', lw=2, alpha=0.85, label='Δ xyz cost')
+            ax.plot(_td, _de, color='#E65100', lw=2, alpha=0.85, label='Δ exp cost')
+            ax.axhline(0, color='gray', lw=0.8, ls=':', alpha=0.5)
+            # Mark real lineage at origin
+            ax.scatter([0], [0], color='black', marker='X', s=80, zorder=6,
+                      label='Real lineage')
+
+            # Annotate direction: which end is which
+            ax.annotate('← spatial-opt', xy=(_td[0], _dx[0]), fontsize=7, color='gray',
+                       ha='right', va='bottom')
+            ax.annotate('expr-opt →', xy=(_td[-1], _dx[-1]), fontsize=7, color='gray',
+                       ha='left', va='top')
+
+            ax.set_xlabel('Mean Tree Distance from Real Lineage')
+            ax.set_ylabel('Δ Cost from Real Lineage (σ)')
+            ax.set_title(f'{title} (n={_n})', fontsize=11, color=color, fontweight='bold')
+            ax.legend(fontsize=7, loc='best')
+            ax.grid(True, alpha=0.3)
+
+        fig.suptitle('Cost Savings vs Tree Disruption along Pareto Front\n'
+                     '(positive Δ = better than real lineage; negative = worse)',
+                     fontsize=14, fontweight='bold')
+        fig.tight_layout()
+        import os as _os
+        _out = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                             'terminal_pareto', 'output')
+        _os.makedirs(_out, exist_ok=True)
+        fig.savefig(_os.path.join(_out, 'cost_vs_tree_tradeoff.png'), dpi=150, bbox_inches='tight')
+        return fig
+    _fig = _plot()
+    return _fig
+
+
+@app.cell
+def _(np, plt, twer_data):
+    def _plot():
+        _configs = [
+            ('C. elegans Protein', twer_data[0], '#1976D2'),
+            ('C. elegans RNA',     twer_data[1], '#4CAF50'),
+            ('C. briggsae RNA',    twer_data[2], '#1B5E20'),
+        ]
+        fig, axes = plt.subplots(1, 3, figsize=(20, 6))
+
+        for col, (title, twr, color) in enumerate(_configs):
+            ax = axes[col]
+            _ct = twr['cost_tree_tradeoff']
+            _xa = twr['xyz_arr']
+            _mx = _ct['marginal_xyz']
+            _me = _ct['marginal_exp']
+            _mc = _ct['marginal_combined']
+            _n = twr['n']
+
+            # Marginal efficiency along the front
+            # Smooth with a small window for readability
+            _w = max(len(_mx) // 20, 3)
+            _smooth_mx = np.convolve(_mx, np.ones(_w)/_w, mode='same')
+            _smooth_me = np.convolve(_me, np.ones(_w)/_w, mode='same')
+            _smooth_mc = np.convolve(_mc, np.ones(_w)/_w, mode='same')
+
+            ax.plot(_xa, _smooth_mx, color='#1976D2', lw=1.5, alpha=0.7, ls='--',
+                   label='Marginal xyz')
+            ax.plot(_xa, _smooth_me, color='#E65100', lw=1.5, alpha=0.7, ls='--',
+                   label='Marginal exp')
+            ax.plot(_xa, _smooth_mc, color='black', lw=2, alpha=0.9,
+                   label='Combined')
+
+            ax.axhline(0, color='gray', lw=0.6, ls=':', alpha=0.4)
+            ax.axvline(0, color='gray', lw=0.6, ls=':', alpha=0.3)
+            ax.set_xlabel('Spatial Cost (σ from null)')
+            ax.set_ylabel('Δ Savings per Δ Tree Distance (σ/edge)')
+            ax.set_title(f'{title} (n={_n})', fontsize=11, color=color, fontweight='bold')
+            ax.legend(fontsize=7, loc='best')
+            ax.grid(True, alpha=0.3)
+
+        fig.suptitle('Marginal Efficiency: Cost Savings per Unit of Tree Disruption\n'
+                     '(higher = more savings per edge of tree change)',
+                     fontsize=14, fontweight='bold')
+        fig.tight_layout()
+        import os as _os
+        _out = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                             'terminal_pareto', 'output')
+        _os.makedirs(_out, exist_ok=True)
+        fig.savefig(_os.path.join(_out, 'marginal_efficiency.png'), dpi=150, bbox_inches='tight')
+        return fig
+    _fig = _plot()
+    return _fig
 
 
 @app.cell(hide_code=True)
@@ -880,9 +1271,14 @@ def _(gp_map, markers, pe, plt, prot_sub):
         ax_r.set_ylim(0, 1.05); ax_r.grid(True, alpha=0.3); ax_r.legend(fontsize=7.5, loc='best')
         fig.suptitle('Subtree Analysis — C. elegans Protein (top 20)', fontsize=14, fontweight='bold')
         fig.tight_layout()
+        import os as _os
+        _out = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                             'terminal_pareto', 'output')
+        _os.makedirs(_out, exist_ok=True)
+        fig.savefig(_os.path.join(_out, 'ce_protein_subtrees.png'), dpi=150, bbox_inches='tight')
         return fig
     _fig = _plot()
-    return
+    return _fig
 
 
 @app.cell
@@ -953,6 +1349,11 @@ def _(
         ax_r.set_ylim(0, 1.05); ax_r.grid(True, alpha=0.3); ax_r.legend(fontsize=7.5, loc='best')
         fig.suptitle('Subtree Analysis — C. elegans RNA', fontsize=14, fontweight='bold')
         fig.tight_layout()
+        import os as _os
+        _out = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                             'terminal_pareto', 'output')
+        _os.makedirs(_out, exist_ok=True)
+        fig.savefig(_os.path.join(_out, 'ce_rna_subtrees.png'), dpi=150, bbox_inches='tight')
         return fig
     _plot()
     return (er_sub,)
@@ -1026,6 +1427,11 @@ def _(
         ax_r.set_ylim(0, 1.05); ax_r.grid(True, alpha=0.3); ax_r.legend(fontsize=7.5, loc='best')
         fig.suptitle('Subtree Analysis — C. briggsae RNA', fontsize=14, fontweight='bold')
         fig.tight_layout()
+        import os as _os
+        _out = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                             'terminal_pareto', 'output')
+        _os.makedirs(_out, exist_ok=True)
+        fig.savefig(_os.path.join(_out, 'cb_rna_subtrees.png'), dpi=150, bbox_inches='tight')
         return fig
     _plot()
     return (cb_sub,)
@@ -1089,6 +1495,9 @@ def _(
     res_cb_new,
     res_er_xs,
     res_prot_xs,
+    tn_cb_new,
+    tn_er,
+    tn_prot,
     tp_cb_new,
     tp_er,
     tp_prot,
@@ -1138,6 +1547,11 @@ def _(
             ax.legend(fontsize=9); ax.grid(True, alpha=0.3, axis='y'); ax.set_ylim(0, 1.05)
         fig.suptitle('Real vs Random 20 Features', fontsize=14, fontweight='bold')
         fig.tight_layout()
+        import os as _os
+        _out = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                             'terminal_pareto', 'output')
+        _os.makedirs(_out, exist_ok=True)
+        fig.savefig(_os.path.join(_out, 'random_features_null.png'), dpi=150, bbox_inches='tight')
         return fig
     _plot()
     return cb_rand_df, er_rand_df, prot_rand_df
