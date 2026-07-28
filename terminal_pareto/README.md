@@ -13,6 +13,7 @@ terminal_pareto/
 ├── __init__.py
 ├── data_loader.py       # All I/O: tracking, expression, lineage, feature lists
 ├── pareto_engine.py     # Pure computation: Pareto sweep, null models, perturbation
+├── plot_style.py        # Shared publication palette, typography, and export helper
 └── main.py              # Marimo notebook orchestrating the full analysis
 ```
 
@@ -80,3 +81,14 @@ All functions are pure — input arrays/dicts, output arrays/dicts. No file I/O,
 
 marimo ≥ 0.23, numpy, scipy, pandas, matplotlib, seaborn, joblib, tqdm.
 All available in the `dev` conda environment (`environment.yml`).
+
+## Figure output
+
+Figures use a colour-vision-deficiency-safe palette, compact journal typography,
+light grids, and editable TrueType text in vector files. The notebook writes
+300-dpi PNG files to `terminal_pareto/output/`; `plot_style.save_figure` is
+available when matching editable PDF output is needed for final assembly.
+
+Cross-species figures remain directly in `output/`. Configuration-specific
+figures are grouped under `output/ce_protein/`, `output/ce_rna/`, and
+`output/cb_rna/`, including replicate, subtree, and lineage-proximity panels.
