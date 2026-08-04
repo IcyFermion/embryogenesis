@@ -22,8 +22,9 @@ def _(mo):
 
     For terminal cells, does the real lineage sit on the Pareto frontier
     trading off physical proximity vs. expression similarity?  All Pareto
-    fronts use **std-based scaling**: costs as z-scores relative to the
-    cousin-randomisation null, so (0,0) = null mean and 1 unit = 1σ.
+    fronts use **std-based scaling**: one unit is one standard deviation of
+    the first-cousin null, and coordinates are translated so the natural
+    lineage is at (0,0).
     """)
     return
 
@@ -123,7 +124,6 @@ def _(lineage_data, lm):
     max_depth = max(v['depth'] for v in tree_index.values())
     print(f"Lineage tree index: {len(tree_index)} nodes, max depth={max_depth}")
     return (tree_index,)
-
 
 
 @app.cell
@@ -241,13 +241,14 @@ def _(mo):
 @app.cell
 def _(dl, gp_map, lineage_data, pe):
     ce_replicates = dl.CE_REPLICATES
-    cb_replicates = dl.CB_REPLICATES_OLD + dl.CB_REPLICATES_NEW
+    # The 2014 series is superseded and excluded from the final analysis.
+    cb_replicates = dl.CB_REPLICATES_NEW
 
     def _run_rep(xyz_map, valid_names, exp_df, sel_features):
         return pe.run_replicate_pareto(xyz_map, valid_names, exp_df, sel_features, lineage_data, gp_map, n_random=300, seed=42)
 
     RUN_REP = _run_rep
-    print(f"Replicates: {len(dl.CB_REPLICATES_OLD)} old + {len(dl.CB_REPLICATES_NEW)} new briggsae")
+    print(f"Replicates: {len(cb_replicates)} C. briggsae embryos")
     return RUN_REP, cb_replicates, ce_replicates
 
 
@@ -308,10 +309,10 @@ def _(Line2D, ce_protein_reps, markers, pe, plt, ps):
             for pk, mk in markers.items():
                 ax_r.scatter(xa[kp[pk]], edge[kp[pk]], color=color, marker=mk, s=50, zorder=8, edgecolors='white', lw=0.5)
         ax_l.axhline(0, color='gray', lw=0.8, ls=':', alpha=0.4); ax_l.axvline(0, color='gray', lw=0.8, ls=':', alpha=0.4)
-        ax_l.set_xlabel('Spatial Cost (σ from null)'); ax_l.set_ylabel('Expression Cost (σ from null)')
+        ax_l.set_xlabel('Spatial cost (σ; real lineage = 0)'); ax_l.set_ylabel('Expression cost (σ; real lineage = 0)')
         ax_l.set_title('C. elegans Protein — Pareto Fronts by Replicate', fontsize=12)
         ax_l.legend(fontsize=8, loc='upper right'); ax_l.grid(True, alpha=0.3)
-        ax_r.set_xlabel('Spatial Cost (σ from null)'); ax_r.set_ylabel('Edge Retention Ratio')
+        ax_r.set_xlabel('Spatial cost (σ; real lineage = 0)'); ax_r.set_ylabel('Edge retention ratio')
         ax_r.set_title('C. elegans Protein — Edge Retention by Replicate', fontsize=12)
         ax_r.set_ylim(0, 1.05); ax_r.grid(True, alpha=0.3)
         ax_r.legend(handles=list(ax_r.get_lines()) + [
@@ -328,7 +329,7 @@ def _(Line2D, ce_protein_reps, markers, pe, plt, ps):
         fig.savefig(_os.path.join(_out, 'replicates.png'), dpi=300, bbox_inches='tight')
         return fig
     _fig = _plot()
-    return _fig
+    return
 
 
 @app.cell
@@ -352,10 +353,10 @@ def _(Line2D, ce_rna_reps, markers, pe, plt, ps):
             for pk, mk in markers.items():
                 ax_r.scatter(xa[kp[pk]], edge[kp[pk]], color=color, marker=mk, s=50, zorder=8, edgecolors='white', lw=0.5)
         ax_l.axhline(0, color='gray', lw=0.8, ls=':', alpha=0.4); ax_l.axvline(0, color='gray', lw=0.8, ls=':', alpha=0.4)
-        ax_l.set_xlabel('Spatial Cost (σ from null)'); ax_l.set_ylabel('Expression Cost (σ from null)')
+        ax_l.set_xlabel('Spatial cost (σ; real lineage = 0)'); ax_l.set_ylabel('Expression cost (σ; real lineage = 0)')
         ax_l.set_title('C. elegans RNA — Pareto Fronts by Replicate', fontsize=12)
         ax_l.legend(fontsize=8, loc='upper right'); ax_l.grid(True, alpha=0.3)
-        ax_r.set_xlabel('Spatial Cost (σ from null)'); ax_r.set_ylabel('Edge Retention Ratio')
+        ax_r.set_xlabel('Spatial cost (σ; real lineage = 0)'); ax_r.set_ylabel('Edge retention ratio')
         ax_r.set_title('C. elegans RNA — Edge Retention by Replicate', fontsize=12)
         ax_r.set_ylim(0, 1.05); ax_r.grid(True, alpha=0.3)
         ax_r.legend(handles=list(ax_r.get_lines()) + [
@@ -372,7 +373,7 @@ def _(Line2D, ce_rna_reps, markers, pe, plt, ps):
         fig.savefig(_os.path.join(_out, 'replicates.png'), dpi=300, bbox_inches='tight')
         return fig
     _fig = _plot()
-    return _fig
+    return
 
 
 @app.cell
@@ -380,8 +381,7 @@ def _(Line2D, cb_rna_reps, markers, pe, plt, ps):
     def _plot():
         fig, (ax_l, ax_r) = plt.subplots(1, 2, figsize=(11.5, 4.8))
         first = True
-        _items = [(label, d) for label, d in cb_rna_reps.items()
-                  if not label.startswith('1407')]
+        _items = list(cb_rna_reps.items())
         _colors = ps.color_ramp('#009E73', len(_items))
         for _idx, (label, d) in enumerate(_items):
             r = d['res']; tcut = d['tcut']
@@ -398,10 +398,10 @@ def _(Line2D, cb_rna_reps, markers, pe, plt, ps):
             for pk, mk in markers.items():
                 ax_r.scatter(xa[kp[pk]], edge[kp[pk]], color=color, marker=mk, s=50, zorder=8, edgecolors='white', lw=0.5)
         ax_l.axhline(0, color='gray', lw=0.8, ls=':', alpha=0.4); ax_l.axvline(0, color='gray', lw=0.8, ls=':', alpha=0.4)
-        ax_l.set_xlabel('Spatial Cost (σ from null)'); ax_l.set_ylabel('Expression Cost (σ from null)')
+        ax_l.set_xlabel('Spatial cost (σ; real lineage = 0)'); ax_l.set_ylabel('Expression cost (σ; real lineage = 0)')
         ax_l.set_title('C. briggsae RNA — Pareto Fronts by Replicate', fontsize=12)
         ax_l.legend(fontsize=6, loc='upper right'); ax_l.grid(True, alpha=0.3)
-        ax_r.set_xlabel('Spatial Cost (σ from null)'); ax_r.set_ylabel('Edge Retention Ratio')
+        ax_r.set_xlabel('Spatial cost (σ; real lineage = 0)'); ax_r.set_ylabel('Edge retention ratio')
         ax_r.set_title('C. briggsae RNA — Edge Retention by Replicate', fontsize=12)
         ax_r.set_ylim(0, 1.05); ax_r.grid(True, alpha=0.3)
         ax_r.legend(handles=list(ax_r.get_lines()) + [
@@ -418,7 +418,7 @@ def _(Line2D, cb_rna_reps, markers, pe, plt, ps):
         fig.savefig(_os.path.join(_out, 'replicates.png'), dpi=300, bbox_inches='tight')
         return fig
     _fig = _plot()
-    return _fig
+    return
 
 
 @app.cell
@@ -428,8 +428,6 @@ def _(Line2D, cb_rna_reps, markers, pe, plt):
         fig, (ax_l, ax_r) = plt.subplots(1, 2, figsize=(11.5, 4.8))
         _first_null = True
         for label, d in cb_rna_reps.items():
-            if label.startswith('1407'):
-                continue
             r = d['res']; is_wt = 'AF16' in label
             color = _wt_colors.get(label, '#43A047')
             lw = 2.5 if is_wt else 1.5; al = 0.9 if is_wt else 0.7
@@ -445,10 +443,10 @@ def _(Line2D, cb_rna_reps, markers, pe, plt):
             for pk, mk in markers.items():
                 ax_r.scatter(xa[kp[pk]], edge[kp[pk]], color=color, marker=mk, s=40, zorder=8, edgecolors='white', lw=0.5)
         ax_l.axhline(0, color='gray', lw=0.8, ls=':', alpha=0.4); ax_l.axvline(0, color='gray', lw=0.8, ls=':', alpha=0.4)
-        ax_l.set_xlabel('Spatial Cost (σ from null)'); ax_l.set_ylabel('Expression Cost (σ from null)')
+        ax_l.set_xlabel('Spatial cost (σ; real lineage = 0)'); ax_l.set_ylabel('Expression cost (σ; real lineage = 0)')
         ax_l.set_title('C. briggsae RNA — WT vs she-1 Pareto Fronts', fontsize=12)
         ax_l.legend(fontsize=7.5, loc='upper right'); ax_l.grid(True, alpha=0.3)
-        ax_r.set_xlabel('Spatial Cost (σ from null)'); ax_r.set_ylabel('Edge Retention Ratio')
+        ax_r.set_xlabel('Spatial cost (σ; real lineage = 0)'); ax_r.set_ylabel('Edge retention ratio')
         ax_r.set_title('C. briggsae RNA — WT vs she-1 Edge Retention', fontsize=12)
         ax_r.set_ylim(0, 1.05); ax_r.grid(True, alpha=0.3)
         ax_r.legend(handles=[
@@ -464,7 +462,7 @@ def _(Line2D, cb_rna_reps, markers, pe, plt):
         fig.savefig(_os.path.join(_out, 'cb_wt_vs_she1.png'), dpi=300, bbox_inches='tight')
         return fig
     _fig = _plot()
-    return _fig
+    return
 
 
 @app.cell
@@ -572,7 +570,7 @@ def _(
                        label=f'Lineage ({lx:.0f}σ, {le:.0f}σ)')
             ax.annotate(f'Lineage\n({lx:.0f}σ, {le:.0f}σ)', (lx, le), xytext=(10, 10),
                         textcoords='offset points', fontsize=8, color='black', fontweight='bold')
-            ax.set_xlabel('Spatial Cost (σ from null)'); ax.set_ylabel('Expression Cost (σ from null)')
+            ax.set_xlabel('Spatial cost (σ; real lineage = 0)'); ax.set_ylabel('Expression cost (σ; real lineage = 0)')
             ax.set_title(f'{name} (n={n})', fontsize=11, color=color, fontweight='bold')
             ax.legend(fontsize=7, loc='upper right'); ax.grid(True, alpha=0.3)
         ax_er = fig.add_subplot(
@@ -590,10 +588,10 @@ def _(
             Line2D([0],[0], color='black', marker='D', ls='', markersize=6, label='Max ER'),
             Line2D([0],[0], color='black', marker='o', ls='', markersize=6, label='Spatial opt'),
         ], fontsize=7.5, loc='best')
-        ax_er.set_xlabel('Spatial Cost (σ from null)'); ax_er.set_ylabel('Edge Retention Ratio')
+        ax_er.set_xlabel('Spatial cost (σ; real lineage = 0)'); ax_er.set_ylabel('Edge retention ratio')
         ax_er.set_title('Edge Retention along Pareto Front', fontsize=12)
         ax_er.set_ylim(0, 1.05); ax_er.grid(True, alpha=0.3)
-        fig.suptitle('Full Tree Cross-Species Comparison — Std-Based Scaling\n(centred at null mean, all at full cutoffs)',
+        fig.suptitle('Full Tree Cross-Species Comparison — Std-Based Scaling\n(centred at real lineage, all at full cutoffs)',
                      fontsize=12.5, fontweight='bold', y=0.98)
         plt.show()
         import os as _os
@@ -603,7 +601,7 @@ def _(
         fig.savefig(_os.path.join(_out, 'cross_species_comparison.png'), dpi=300, bbox_inches='tight')
         return fig
     _fig = _plot()
-    return _fig
+    return
 
 
 @app.cell(hide_code=True)
@@ -722,10 +720,10 @@ def _(
                 ax_r.scatter(xa[_i], edge[_i], color=color, marker=mk, s=50, zorder=8, edgecolors='white', lw=0.5)
                 ax_r.annotate(f'{edge[_i]:.3f}', (xa[_i], edge[_i]+0.04), color=color, fontsize=7, ha='center', fontweight='bold')
         ax_l.axhline(0, color='gray', lw=0.8, ls=':', alpha=0.4); ax_l.axvline(0, color='gray', lw=0.8, ls=':', alpha=0.4)
-        ax_l.set_xlabel('Spatial Cost 2D (σ from null)'); ax_l.set_ylabel('Expression Cost (σ from null)')
+        ax_l.set_xlabel('Spatial cost 2D (σ; real lineage = 0)'); ax_l.set_ylabel('Expression cost (σ; real lineage = 0)')
         ax_l.set_title('Cross-Species Pareto Fronts — 2D', fontsize=12)
         ax_l.legend(fontsize=8, loc='upper right'); ax_l.grid(True, alpha=0.3)
-        ax_r.set_xlabel('Spatial Cost 2D (σ from null)'); ax_r.set_ylabel('Edge Retention Ratio')
+        ax_r.set_xlabel('Spatial cost 2D (σ; real lineage = 0)'); ax_r.set_ylabel('Edge retention ratio')
         ax_r.set_title('Edge Retention — 2D', fontsize=12)
         ax_r.set_ylim(0, 1.05); ax_r.grid(True, alpha=0.3)
         ax_r.legend(handles=list(ax_r.get_lines()) + [
@@ -742,7 +740,7 @@ def _(
         fig.savefig(_os.path.join(_out, 'cross_species_2d.png'), dpi=300, bbox_inches='tight')
         return fig
     _fig = _plot()
-    return _fig
+    return
 
 
 @app.cell(hide_code=True)
@@ -855,8 +853,8 @@ def _(
             ax_p.axhline(0, color='gray', lw=0.6, ls=':', alpha=0.3); ax_p.axvline(0, color='gray', lw=0.6, ls=':', alpha=0.3)
             ax_p.set_title(f'{title} (n={n})', fontsize=11, color=color, fontweight='bold')
             ax_p.legend(fontsize=7, loc='upper right'); ax_p.grid(True, alpha=0.3)
-            ax_p.set_ylabel('Expression Cost (σ from null)')
-            ax_e.set_xlabel('Spatial Cost (σ from null)'); ax_e.set_ylabel('Edge Retention')
+            ax_p.set_ylabel('Expression cost (σ; real lineage = 0)')
+            ax_e.set_xlabel('Spatial cost (σ; real lineage = 0)'); ax_e.set_ylabel('Edge retention')
             ax_e.set_ylim(0, 1.05); ax_e.grid(True, alpha=0.3)
         fig.suptitle('Z-Axis Noise Null — 3D vs 2D vs 2D+Gaussian(z)', fontsize=14, fontweight='bold')
         fig.tight_layout()
@@ -867,7 +865,7 @@ def _(
         fig.savefig(_os.path.join(_out, 'z_noise_null.png'), dpi=300, bbox_inches='tight')
         return fig
     _fig = _plot()
-    return _fig
+    return
 
 
 @app.cell(hide_code=True)
@@ -923,7 +921,7 @@ def _(
 
 
 @app.cell
-def _(Line2D, _save_plot, plt, twer_data):
+def _(Line2D, plt, twer_data):
     def _plot():
         _configs = [
             ('C. elegans Protein', twer_data[0], '#0072B2'),
@@ -954,8 +952,8 @@ def _(Line2D, _save_plot, plt, twer_data):
                           edgecolors='white', lw=0.3, alpha=0.7)
 
             ax.axvline(0, color='gray', lw=0.6, ls=':', alpha=0.3)
-            ax.set_xlabel('Spatial Cost (σ from null)')
-            ax.set_ylabel('Retention Score')
+            ax.set_xlabel('Spatial cost\n(σ; natural lineage = 0)')
+            ax.set_ylabel('Retention score')
             ax.set_title(f'{title} (n={_n})', fontsize=11, color=color, fontweight='bold')
             ax.set_ylim(0, 1.05)
             ax.legend(fontsize=7.5, loc='best')
@@ -987,7 +985,7 @@ def _(Line2D, _save_plot, plt, twer_data):
         )
         return fig
     _fig = _plot()
-    return _fig
+    return
 
 
 @app.cell
@@ -1065,8 +1063,8 @@ def _(np, plt, twer_data):
                     )
 
             ax.axvline(0, color='gray', lw=0.6, ls=':', alpha=0.3)
-            ax.set_xlabel('Spatial Cost (σ from null)')
-            ax.set_ylabel('Mean Tree Distance of Changed Edges')
+            ax.set_xlabel('Spatial cost\n(σ; natural lineage = 0)')
+            ax.set_ylabel('Mean tree distance\nof changed edges')
             ax.set_title(f'{title} — Edge Change Profile (n={_n})',
                         fontsize=11, color=color, fontweight='bold')
             ax.grid(True, alpha=0.3)
@@ -1085,7 +1083,7 @@ def _(np, plt, twer_data):
         )
         return fig
     _fig = _plot()
-    return _fig
+    return
 
 
 @app.cell
@@ -1097,32 +1095,78 @@ def _(np, plt, twer_data):
             ('C. briggsae RNA',    twer_data[2], '#009E73'),
         ]
         fig, axes = plt.subplots(1, 3, figsize=(12.5, 4.0))
+        _right_axes = []
 
         for col, (title, twr, color) in enumerate(_configs):
             ax = axes[col]
             _lmd = twr['lineage_mean_dist']
+            _er = twr['traditional_er']
             _xa = twr['xyz_arr']
             _null = twr['lineage_null']
             _n = twr['n']
+            _kp = twr['kp']
+            _ax_td = ax.twinx()
+            _right_axes.append(_ax_td)
 
-            # Pareto curve
-            ax.plot(_xa, _lmd, color=color, lw=2.5, alpha=0.9, label='Pareto front')
-            # Null baselines
+            # Edge retention and lineage-tree distance are complementary views
+            # of how strongly each Pareto assignment rewires the observed tree.
+            _er_line, = ax.plot(
+                _xa, _er, color=color, lw=2.4, alpha=0.95,
+                label='Edge retention',
+            )
+            _td_line, = _ax_td.plot(
+                _xa, _lmd, color='#5F5F5F', lw=1.8, alpha=0.85,
+                label='Tree distance',
+            )
+            _i = _kp['max_er_idx']
+            ax.scatter(
+                [_xa[_i]], [_er[_i]], marker='D', s=34, facecolor='white',
+                edgecolor=color, lw=1.0, zorder=6,
+                label='Maximum edge retention',
+            )
+
+            # Mark null means locally against the right-hand scale rather than
+            # drawing full-width lines that could be mistaken for data curves.
             _fm = _null['full_mean']
             _cm = _null['cousin_mean']
-            ax.axhline(_fm, color='darkred', lw=1.2, ls='--', alpha=0.7,
-                       label=f'Full random ({_fm:.1f})')
-            ax.axhline(_cm, color='darkgreen', lw=1.2, ls='--', alpha=0.7,
-                       label=f'Cousin shuffle ({_cm:.1f})')
+            _td_max = max(np.max(_lmd), _fm) * 1.06
+            _ax_td.set_ylim(_td_max, 0)
+            _ax_td.plot(
+                [0.965, 1.0], [_fm, _fm],
+                transform=_ax_td.get_yaxis_transform(),
+                color='#A33A32', lw=1.2, ls='--', clip_on=False,
+            )
+            _ax_td.plot(
+                [0.965, 1.0], [_cm, _cm],
+                transform=_ax_td.get_yaxis_transform(),
+                color='#27825B', lw=1.2, ls=':', clip_on=False,
+            )
+            _ax_td.text(
+                0.955, _fm, f'Full random ({_fm:.1f})',
+                transform=_ax_td.get_yaxis_transform(), ha='right',
+                va='center', fontsize=6.2, color='#A33A32',
+            )
+            _ax_td.text(
+                0.955, _cm, f'Cousin swap ({_cm:.1f})',
+                transform=_ax_td.get_yaxis_transform(), ha='right',
+                va='center', fontsize=6.2, color='#27825B',
+            )
 
             ax.axvline(0, color='gray', lw=0.6, ls=':', alpha=0.3)
-            ax.set_xlabel('Spatial Cost (σ from null)')
-            ax.set_ylabel('Mean Tree Distance from Real Lineage')
+            ax.set_xlabel('Spatial cost\n(σ; natural lineage = 0)')
+            ax.set_ylabel('Edge retention', color=color)
+            _ax_td.set_ylabel(
+                'Mean tree distance\nfrom real lineage', color='#5F5F5F',
+            )
+            ax.tick_params(axis='y', colors=color)
+            _ax_td.tick_params(axis='y', colors='#5F5F5F')
+            ax.set_ylim(0, 1)
             ax.set_title(f'{title} (n={_n})', fontsize=11, color=color, fontweight='bold')
-            ax.legend(fontsize=7, loc='upper right')
+            ax.legend(handles=[_er_line, _td_line], fontsize=6.6, loc='best')
             ax.grid(True, alpha=0.3)
 
-        fig.suptitle('Mean Lineage Tree Distance along Pareto Front\n(null baselines from 100k Monte Carlo samples)',
+        fig.suptitle('Edge Retention and Lineage-Tree Distance along the Pareto Front\n'
+                     '(tree-distance null baselines from 100k Monte Carlo samples)',
                      fontsize=14, fontweight='bold')
         fig.tight_layout()
         import os as _os
@@ -1132,11 +1176,11 @@ def _(np, plt, twer_data):
         import plot_style as _ps
         _ps.save_panel_crops(
             fig, axes, _out, ['ce_protein', 'ce_rna', 'cb_rna'],
-            'lineage_distance_along_pareto.png',
+            'er_td_along_pareto.png', extra_axes=_right_axes,
         )
         return fig
     _fig = _plot()
-    return _fig
+    return
 
 
 @app.cell
@@ -1154,39 +1198,39 @@ def _(cb_new_rs, er_rs, np, pe, plt, prot_rs, twer_data):
             for _, _twr, _, _ in _configs
         )
         _norm = _Normalize(vmin=0, vmax=_max_tree_dist)
-        fig, axes = plt.subplots(
-            1, 3, figsize=(12.5, 4.1), layout='constrained'
-        )
+        fig, axes = plt.subplots(1, 3, figsize=(15.0, 4.5))
+        fig.subplots_adjust(left=0.06, right=0.96, bottom=0.19, top=0.80,
+                            wspace=0.55)
 
         _colorbars = []
         for col, (title, twr, random_stats, color) in enumerate(_configs):
             ax = axes[col]
             _ct = twr['cost_tree_tradeoff']
             _td = _ct['tree_dists']
-            # Cost change relative to the observed lineage: negative is better.
-            # This preserves the orientation of the other Pareto-front figures.
-            _dx = -_ct['delta_xyz']
-            _de = -_ct['delta_exp']
+            # Use the same lineage-centred coordinates as the other Pareto panels.
+            _dx = twr['xyz_arr']
+            _de = twr['exp_arr']
             _n = twr['n']
             _kp = twr['kp']
+            _lineage_x = _dx[0] + _ct['delta_xyz'][0]
+            _lineage_y = _de[0] + _ct['delta_exp'][0]
 
-            # Lower-left assignments dominate the observed lineage on both costs.
+            # Lower-left of the lineage improves both costs simultaneously.
             _xmin = min(np.min(_dx), 0)
             _ymin = min(np.min(_de), 0)
-            if _xmin < 0 and _ymin < 0:
+            if _xmin < _lineage_x and _ymin < _lineage_y:
                 ax.fill_between(
-                    [_xmin, 0], _ymin, 0, color='#F0E442', alpha=0.13,
+                    [_xmin, _lineage_x], _ymin, _lineage_y,
+                    color='#F0E442', alpha=0.13,
                     label='Both costs lower', zorder=0,
                 )
             ax.axhline(0, color='#6F6F6F', lw=0.8, ls=':', zorder=1)
             ax.axvline(0, color='#6F6F6F', lw=0.8, ls=':', zorder=1)
 
-            # Cousin-shuffle null, translated so the real lineage is at (0, 0).
+            # Cousin-shuffle samples are already centred on their mean at (0, 0).
             _null_x, _null_y = pe.get_null_cloud(random_stats, max_points=300)
-            _lineage_x = twr['xyz_arr'][0] + _ct['delta_xyz'][0]
-            _lineage_y = twr['exp_arr'][0] + _ct['delta_exp'][0]
             ax.scatter(
-                _null_x - _lineage_x, _null_y - _lineage_y,
+                _null_x, _null_y,
                 s=8, color='#9E9E9E', alpha=0.20, edgecolors='none',
                 label='Cousin-shuffle null', zorder=1,
             )
@@ -1199,7 +1243,8 @@ def _(cb_new_rs, er_rs, np, pe, plt, prot_rs, twer_data):
                 s=15, edgecolors='none', alpha=0.9, zorder=3,
             )
             ax.scatter(
-                [0], [0], color='black', marker='X', s=65, zorder=7,
+                [_lineage_x], [_lineage_y], color='black', marker='X',
+                s=65, zorder=7,
                 label='Real lineage',
             )
 
@@ -1214,20 +1259,20 @@ def _(cb_new_rs, er_rs, np, pe, plt, prot_rs, twer_data):
                     marker=_marker, s=42, lw=0.9, zorder=6, label=_label,
                 )
 
-            ax.set_xlabel('Motility cost relative to real lineage (σ)')
-            ax.set_ylabel('Expression cost relative to real lineage (σ)')
+            ax.set_xlabel('Motility cost\n(σ; natural lineage = 0)')
+            ax.set_ylabel('Expression cost\n(σ; natural lineage = 0)')
             ax.set_title(f'{title} (n={_n})', fontsize=11, color=color, fontweight='bold')
             ax.legend(fontsize=6.8, loc='best')
             ax.grid(True, alpha=0.3)
             _panel_cbar = fig.colorbar(
                 plt.cm.ScalarMappable(norm=_norm, cmap='cividis'),
-                ax=ax, fraction=0.045, pad=0.02,
+                ax=ax, fraction=0.055, pad=0.025,
             )
-            _panel_cbar.set_label('Mean tree distance')
+            _panel_cbar.set_label('Mean lineage-tree\ndistance')
             _colorbars.append(_panel_cbar.ax)
 
         fig.suptitle('Pareto Front with Lineage-Tree Distance\n'
-                     '(lower-left quadrant: lower costs than the real lineage)',
+                     '(origin: natural lineage)',
                      fontsize=14, fontweight='bold')
         import os as _os
         _out = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
@@ -1240,7 +1285,7 @@ def _(cb_new_rs, er_rs, np, pe, plt, prot_rs, twer_data):
         )
         return fig
     _fig = _plot()
-    return _fig
+    return
 
 
 @app.cell
@@ -1288,8 +1333,8 @@ def _(np, plt, twer_data):
 
             ax.axhline(0, color='gray', lw=0.6, ls=':', alpha=0.4)
             ax.axvline(0, color='gray', lw=0.6, ls=':', alpha=0.3)
-            ax.set_xlabel('Spatial Cost (σ from null)')
-            ax.set_ylabel('Δ Savings per Δ Tree Distance (σ/edge)')
+            ax.set_xlabel('Spatial cost\n(σ; natural lineage = 0)')
+            ax.set_ylabel('Δ savings per Δ tree distance\n(σ per edge)')
             ax.set_title(f'{title} (n={_n})', fontsize=11, color=color, fontweight='bold')
             ax.legend(fontsize=7, loc='best')
             ax.grid(True, alpha=0.3)
@@ -1309,7 +1354,7 @@ def _(np, plt, twer_data):
         )
         return fig
     _fig = _plot()
-    return _fig
+    return
 
 
 @app.cell(hide_code=True)
@@ -1348,7 +1393,11 @@ def _(
             _srs = pe.compute_cousin_random_stats(_xm, _em, _sg, n_random=300, seed=42)
             _xa, _ea, _, _ = pe.compute_std_scaled_pareto(_xm, _em, _tp, _srs)
             _lx, _le = pe.lineage_std_position(_xm, _em, _srs)
-            _rd = pe.relative_pareto_distance(_xa, _ea, _lx, _le)
+            _rd = pe.relative_pareto_distance(
+                _xa, _ea, _lx, _le,
+                (_srs['xyz_mean'] - _srs['lineage_xyz']) / _srs['xyz_std'],
+                (_srs['exp_mean'] - _srs['lineage_exp']) / _srs['exp_std'],
+            )
             _ps[_lb] = dict(tn=_tn, tp=_tp, xm=_xm, em=_em, res=_res, rel_pareto_dist=_rd)
             print(f"  {_lb:12s}: {len(_tn):4d} cells | Expr ER={_res['expr_opt_er']:.3f} | Max ER={_res['max_er']:.3f} | Rel Dist={_rd:.3f}")
         return _ps
@@ -1386,10 +1435,10 @@ def _(gp_map, markers, pe, plt, prot_sub):
             for pk, mk in markers.items():
                 ax_r.scatter(xa[kp[pk]], edge[kp[pk]], color=color, marker=mk, s=50, zorder=8, edgecolors='white', lw=0.5)
         ax_l.axhline(0, color='gray', lw=0.8, ls=':', alpha=0.4); ax_l.axvline(0, color='gray', lw=0.8, ls=':', alpha=0.4)
-        ax_l.set_xlabel('Spatial Cost (σ from null)'); ax_l.set_ylabel('Expression Cost (σ from null)')
+        ax_l.set_xlabel('Spatial cost (σ; real lineage = 0)'); ax_l.set_ylabel('Expression cost (σ; real lineage = 0)')
         ax_l.set_title('CE Protein — Subtree Pareto Fronts', fontsize=12)
         ax_l.legend(fontsize=8, loc='upper right'); ax_l.grid(True, alpha=0.3)
-        ax_r.set_xlabel('Spatial Cost (σ from null)'); ax_r.set_ylabel('Edge Retention')
+        ax_r.set_xlabel('Spatial cost (σ; real lineage = 0)'); ax_r.set_ylabel('Edge retention')
         ax_r.set_title('CE Protein — Edge Retention by Subtree', fontsize=12)
         ax_r.set_ylim(0, 1.05); ax_r.grid(True, alpha=0.3); ax_r.legend(fontsize=7.5, loc='best')
         fig.suptitle('Subtree Analysis — C. elegans Protein (top 20)', fontsize=14, fontweight='bold')
@@ -1401,7 +1450,7 @@ def _(gp_map, markers, pe, plt, prot_sub):
         fig.savefig(_os.path.join(_out, 'subtrees.png'), dpi=300, bbox_inches='tight')
         return fig
     _fig = _plot()
-    return _fig
+    return
 
 
 @app.cell
@@ -1433,7 +1482,11 @@ def _(
             _srs = pe.compute_cousin_random_stats(_xm, _em, _sg, n_random=300, seed=42)
             _xa, _ea, _, _ = pe.compute_std_scaled_pareto(_xm, _em, _tp, _srs)
             _lx, _le = pe.lineage_std_position(_xm, _em, _srs)
-            _rd = pe.relative_pareto_distance(_xa, _ea, _lx, _le)
+            _rd = pe.relative_pareto_distance(
+                _xa, _ea, _lx, _le,
+                (_srs['xyz_mean'] - _srs['lineage_xyz']) / _srs['xyz_std'],
+                (_srs['exp_mean'] - _srs['lineage_exp']) / _srs['exp_std'],
+            )
             _es[_lb] = dict(tn=_tn, tp=_tp, xm=_xm, em=_em, res=_res, rel_pareto_dist=_rd)
             print(f"  {_lb:12s}: {len(_tn):4d} cells | Expr ER={_res['expr_opt_er']:.3f} | Max ER={_res['max_er']:.3f} | Rel Dist={_rd:.3f}")
         return _es
@@ -1467,10 +1520,10 @@ def _(
             for pk, mk in markers.items():
                 ax_r.scatter(xa[kp[pk]], edge[kp[pk]], color=color, marker=mk, s=50, zorder=8, edgecolors='white', lw=0.5)
         ax_l.axhline(0, color='gray', lw=0.8, ls=':', alpha=0.4); ax_l.axvline(0, color='gray', lw=0.8, ls=':', alpha=0.4)
-        ax_l.set_xlabel('Spatial Cost (σ from null)'); ax_l.set_ylabel('Expression Cost (σ from null)')
+        ax_l.set_xlabel('Spatial cost (σ; real lineage = 0)'); ax_l.set_ylabel('Expression cost (σ; real lineage = 0)')
         ax_l.set_title('CE RNA — Subtree Pareto Fronts', fontsize=12)
         ax_l.legend(fontsize=8, loc='upper right'); ax_l.grid(True, alpha=0.3)
-        ax_r.set_xlabel('Spatial Cost (σ from null)'); ax_r.set_ylabel('Edge Retention')
+        ax_r.set_xlabel('Spatial cost (σ; real lineage = 0)'); ax_r.set_ylabel('Edge retention')
         ax_r.set_title('CE RNA — Edge Retention by Subtree', fontsize=12)
         ax_r.set_ylim(0, 1.05); ax_r.grid(True, alpha=0.3); ax_r.legend(fontsize=7.5, loc='best')
         fig.suptitle('Subtree Analysis — C. elegans RNA', fontsize=14, fontweight='bold')
@@ -1514,7 +1567,11 @@ def _(
             _srs = pe.compute_cousin_random_stats(_xm, _em, _sg, n_random=300, seed=42)
             _xa, _ea, _, _ = pe.compute_std_scaled_pareto(_xm, _em, _tp, _srs)
             _lx, _le = pe.lineage_std_position(_xm, _em, _srs)
-            _rd = pe.relative_pareto_distance(_xa, _ea, _lx, _le)
+            _rd = pe.relative_pareto_distance(
+                _xa, _ea, _lx, _le,
+                (_srs['xyz_mean'] - _srs['lineage_xyz']) / _srs['xyz_std'],
+                (_srs['exp_mean'] - _srs['lineage_exp']) / _srs['exp_std'],
+            )
             _cs[_lb] = dict(tn=_tn, tp=_tp, xm=_xm, em=_em, res=_res, rel_pareto_dist=_rd)
             print(f"  {_lb:12s}: {len(_tn):4d} cells | Expr ER={_res['expr_opt_er']:.3f} | Max ER={_res['max_er']:.3f} | Rel Dist={_rd:.3f}")
         return _cs
@@ -1548,10 +1605,10 @@ def _(
             for pk, mk in markers.items():
                 ax_r.scatter(xa[kp[pk]], edge[kp[pk]], color=color, marker=mk, s=50, zorder=8, edgecolors='white', lw=0.5)
         ax_l.axhline(0, color='gray', lw=0.8, ls=':', alpha=0.4); ax_l.axvline(0, color='gray', lw=0.8, ls=':', alpha=0.4)
-        ax_l.set_xlabel('Spatial Cost (σ from null)'); ax_l.set_ylabel('Expression Cost (σ from null)')
+        ax_l.set_xlabel('Spatial cost (σ; real lineage = 0)'); ax_l.set_ylabel('Expression cost (σ; real lineage = 0)')
         ax_l.set_title('CB RNA — Subtree Pareto Fronts', fontsize=12)
         ax_l.legend(fontsize=8, loc='upper right'); ax_l.grid(True, alpha=0.3)
-        ax_r.set_xlabel('Spatial Cost (σ from null)'); ax_r.set_ylabel('Edge Retention')
+        ax_r.set_xlabel('Spatial cost (σ; real lineage = 0)'); ax_r.set_ylabel('Edge retention')
         ax_r.set_title('CB RNA — Edge Retention by Subtree', fontsize=12)
         ax_r.set_ylim(0, 1.05); ax_r.grid(True, alpha=0.3); ax_r.legend(fontsize=7.5, loc='best')
         fig.suptitle('Subtree Analysis — C. briggsae RNA', fontsize=14, fontweight='bold')
@@ -1672,7 +1729,7 @@ def _(
             ax.bar(x-w/2, rv, w, color=cols, alpha=0.9, label='Selected 20')
             ax.bar(x+w/2, rm, w, color='gray', alpha=0.6, label='Random 20', yerr=rs, capsize=4)
             ax.set_xticks(x); ax.set_xticklabels(ds, fontsize=10)
-            ax.set_ylabel('Edge Retention'); ax.set_title(title, fontsize=12)
+            ax.set_ylabel('Edge retention'); ax.set_title(title, fontsize=12)
             ax.legend(fontsize=9); ax.grid(True, alpha=0.3, axis='y'); ax.set_ylim(0, 1.05)
         fig.suptitle('Real vs Random 20 Features', fontsize=14, fontweight='bold')
         fig.tight_layout()

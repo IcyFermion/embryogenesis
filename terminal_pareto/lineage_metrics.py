@@ -479,18 +479,18 @@ def lineage_distance_null(terminal_parents, tree_index, n_samples=100000, seed=4
       - full random: uniformly random permutation of all cells
       - cousin shuffle: permutation restricted to first-cousin groups
 
-    Returns dict with keys:
-        full_mean, full_std: mean/std of full random permutation
-        cousin_mean, cousin_std: mean/std of cousin shuffle
+    Returns both all-edge and changed-edge-only summaries. In particular,
+    ``cousin_changed_mean`` is exactly 2 because first-cousin terminal-cell
+    shuffles reassign edges only between sibling parent nodes.
     """
-    from terminal_pareto.pareto_engine import build_cousin_groups
-
     n = len(terminal_parents)
     rng = np.random.default_rng(seed)
     cousin_groups = build_cousin_groups_from_tree(terminal_parents, tree_index)
 
     full_dists = np.zeros(n_samples)
     cousin_dists = np.zeros(n_samples)
+    full_changed_dists = np.zeros(n_samples)
+    cousin_changed_dists = np.zeros(n_samples)
 
     # Precompute pairwise tree distances between all parents
     dist_mat = np.zeros((n, n))
@@ -503,7 +503,10 @@ def lineage_distance_null(terminal_parents, tree_index, n_samples=100000, seed=4
     for s in range(n_samples):
         # Full random
         perm_full = rng.permutation(n)
-        full_dists[s] = dist_mat[np.arange(n), perm_full].mean()
+        full_values = dist_mat[np.arange(n), perm_full]
+        full_dists[s] = full_values.mean()
+        changed = full_values[full_values > 0]
+        full_changed_dists[s] = changed.mean() if changed.size else 0
 
         # Cousin shuffle
         perm_cousin = np.arange(n)
@@ -514,15 +517,24 @@ def lineage_distance_null(terminal_parents, tree_index, n_samples=100000, seed=4
             rng.shuffle(shuffled)
             for orig, new in zip(group, shuffled):
                 perm_cousin[orig] = new
-        cousin_dists[s] = dist_mat[np.arange(n), perm_cousin].mean()
+        cousin_values = dist_mat[np.arange(n), perm_cousin]
+        cousin_dists[s] = cousin_values.mean()
+        changed = cousin_values[cousin_values > 0]
+        cousin_changed_dists[s] = changed.mean() if changed.size else 0
 
     return {
         'full_mean': float(full_dists.mean()),
         'full_std':  float(full_dists.std()),
         'cousin_mean': float(cousin_dists.mean()),
         'cousin_std':  float(cousin_dists.std()),
+        'full_changed_mean': float(full_changed_dists.mean()),
+        'full_changed_std': float(full_changed_dists.std()),
+        'cousin_changed_mean': float(cousin_changed_dists.mean()),
+        'cousin_changed_std': float(cousin_changed_dists.std()),
         'full_dists': full_dists,
         'cousin_dists': cousin_dists,
+        'full_changed_dists': full_changed_dists,
+        'cousin_changed_dists': cousin_changed_dists,
     }
 
 
@@ -541,7 +553,8 @@ def cost_vs_tree_tradeoff(xyz_mat, exp_mat, terminal_parents, tree_index,
       - marginal_xyz: d(Δxyz)/d(tree_dist) — xyz efficiency
       - marginal_exp: d(Δexp)/d(tree_dist) — expression efficiency
 
-    All costs in σ from null (z-score units).
+    All costs are measured in null-standard-deviation units and displayed
+    relative to the natural lineage.
 
     Returns dict with all arrays of length iteration+1.
     """
@@ -639,8 +652,6 @@ def nlad_along_pareto(xyz_mat, exp_mat, terminal_parents, tree_index,
         raw_distances: raw total tree distances
         null_mean, null_std: parameters of the null distribution
     """
-    from terminal_pareto.pareto_engine import build_cousin_groups
-
     xs, es = xyz_mat.copy(), exp_mat.copy()
     xs /= random_stats['xyz_std']
     es /= random_stats['exp_std']
@@ -690,12 +701,17 @@ def nlad_along_pareto(xyz_mat, exp_mat, terminal_parents, tree_index,
 
 
 def build_cousin_groups_from_tree(terminal_parents, tree_index):
-    """Build cousin groups using tree_index directly (no need for grandparent map)."""
+    """Group parent rows for first-cousin terminal-cell shuffling.
+
+    Terminal cells that share a grandparent have parents that share an
+    immediate parent. Therefore changed assignments within these groups have
+    parent-to-parent tree distance exactly 2.
+    """
     groups = defaultdict(list)
     for idx, parent in enumerate(terminal_parents):
-        gp = ancestor_at_level(parent, 2, tree_index)  # grandparent
-        if gp is not None:
-            groups[gp].append(idx)
+        shared_parent = ancestor_at_level(parent, 1, tree_index)
+        if shared_parent is not None:
+            groups[shared_parent].append(idx)
     result = [indices for indices in groups.values() if len(indices) >= 2]
     result.sort(key=len, reverse=True)
     return result

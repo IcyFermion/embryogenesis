@@ -123,6 +123,46 @@ def build_cousin_groups(terminal_nodes, gp_mapping):
     return cousin_groups
 
 
+def build_ancestor_groups(terminal_nodes, tree_index, ancestor_steps):
+    """Group terminal indices by a shared ancestor at a fixed depth.
+
+    ``ancestor_steps=2`` gives first-cousin groups (shared grandparent),
+    ``3`` gives second-cousin groups, and ``4`` gives third-cousin groups.
+    """
+    groups = {}
+    for idx, node in enumerate(terminal_nodes):
+        info = tree_index.get(node)
+        if info is None or ancestor_steps < 1:
+            continue
+        ancestors = info.get('ancestors', [])
+        if ancestor_steps - 1 >= len(ancestors):
+            continue
+        ancestor = ancestors[ancestor_steps - 1]
+        groups.setdefault(ancestor, []).append(idx)
+    result = [indices for indices in groups.values() if len(indices) >= 2]
+    result.sort(key=len, reverse=True)
+    return result
+
+
+def compute_group_shuffle_costs(xyz_mat, exp_mat, groups,
+                                n_random=1000, seed=42):
+    """Sample total costs after permutations restricted to ``groups``."""
+    rng = np.random.default_rng(seed)
+    n_cells = xyz_mat.shape[0]
+    rows = np.arange(n_cells)
+    random_xyz = np.empty(n_random)
+    random_exp = np.empty(n_random)
+    for sample in range(n_random):
+        perm = np.arange(n_cells)
+        for group in groups:
+            shuffled = np.asarray(group).copy()
+            rng.shuffle(shuffled)
+            perm[group] = shuffled
+        random_xyz[sample] = xyz_mat[rows, perm].sum()
+        random_exp[sample] = exp_mat[rows, perm].sum()
+    return random_xyz, random_exp
+
+
 def compute_cousin_random_stats(xyz_mat, exp_mat, cousin_groups, n_random=500, seed=42):
     """Compute mean/std of total costs under first-cousin-group permutation."""
     rng = np.random.default_rng(seed)
@@ -146,24 +186,29 @@ def compute_cousin_random_stats(xyz_mat, exp_mat, cousin_groups, n_random=500, s
     return {
         'xyz_mean': float(random_xyz.mean()), 'xyz_std': float(random_xyz.std()),
         'exp_mean': float(random_exp.mean()), 'exp_std': float(random_exp.std()),
+        'lineage_xyz': float(np.diag(xyz_mat).sum()),
+        'lineage_exp': float(np.diag(exp_mat).sum()),
         'random_xyz': random_xyz, 'random_exp': random_exp,
     }
 
 
 def compute_std_scaled_pareto(xyz_mat, exp_mat, terminal_parents, random_stats, iteration=1000):
-    """Pareto front with costs as z-scores relative to cousin-randomised null.
-    Both axes centred so (0,0) = null mean. 1 unit = 1σ."""
+    """Pareto front in null-SD units, translated so the lineage is at (0, 0).
+
+    Translation does not affect the assignment optimization. One unit remains
+    one standard deviation of the first-cousin null distribution.
+    """
     xs, es = xyz_mat.copy(), exp_mat.copy()
     xs /= random_stats['xyz_std']
     es /= random_stats['exp_std']
-    n_x = random_stats['xyz_mean'] / random_stats['xyz_std']
-    n_e = random_stats['exp_mean'] / random_stats['exp_std']
+    lineage_x = random_stats.get('lineage_xyz', np.diag(xyz_mat).sum()) / random_stats['xyz_std']
+    lineage_e = random_stats.get('lineage_exp', np.diag(exp_mat).sum()) / random_stats['exp_std']
     xl, el, edge_list = [], [], []
     for i in range(iteration + 1):
         a = i / iteration
         ri, ci = linear_sum_assignment(a * xs + (1 - a) * es)
-        xl.append(xs[ri, ci].sum() - n_x)
-        el.append(es[ri, ci].sum() - n_e)
+        xl.append(xs[ri, ci].sum() - lineage_x)
+        el.append(es[ri, ci].sum() - lineage_e)
         edge_list.append(lineage_edge_ratio(ri, ci, terminal_parents))
     edge_list = np.array(edge_list)
     kp = {'expr_opt_idx': 0, 'spatial_opt_idx': iteration, 'xyz_opt_idx': iteration,
@@ -172,9 +217,9 @@ def compute_std_scaled_pareto(xyz_mat, exp_mat, terminal_parents, random_stats, 
 
 
 def get_null_cloud(random_stats, max_points=200):
-    """Return (x, y) of null total-cost samples in z-score units (centred at 0,0)."""
-    x = (random_stats['random_xyz'] - random_stats['xyz_mean']) / random_stats['xyz_std']
-    y = (random_stats['random_exp'] - random_stats['exp_mean']) / random_stats['exp_std']
+    """Return null samples in SD units relative to the natural lineage."""
+    x = (random_stats['random_xyz'] - random_stats['lineage_xyz']) / random_stats['xyz_std']
+    y = (random_stats['random_exp'] - random_stats['lineage_exp']) / random_stats['exp_std']
     if len(x) > max_points:
         rng = np.random.default_rng(42)
         sel = rng.choice(len(x), max_points, replace=False)
@@ -183,19 +228,17 @@ def get_null_cloud(random_stats, max_points=200):
 
 
 def lineage_std_position(xyz_mat, exp_mat, random_stats):
-    """Lineage diagonal cost in z-score units (0 = null mean)."""
-    lx = xyz_mat.diagonal().sum() / random_stats['xyz_std'] - random_stats['xyz_mean'] / random_stats['xyz_std']
-    le = exp_mat.diagonal().sum() / random_stats['exp_std'] - random_stats['exp_mean'] / random_stats['exp_std']
-    return lx, le
+    """Lineage position in the lineage-centred display coordinates."""
+    return 0.0, 0.0
 
 
-def relative_pareto_distance(xyz_arr, exp_arr, lx, le):
-    """||LP|| / ||NP|| where L=lineage, P=closest front point, N=(0,0)=null mean."""
+def relative_pareto_distance(xyz_arr, exp_arr, lx, le, nx=0.0, ne=0.0):
+    """||LP|| / ||NP|| for lineage L, closest front point P, and null mean N."""
     dists = np.sqrt((xyz_arr - lx)**2 + (exp_arr - le)**2)
     p_idx = np.argmin(dists)
     px, py = xyz_arr[p_idx], exp_arr[p_idx]
     lp = np.sqrt((lx - px)**2 + (le - py)**2)
-    np_dist = np.sqrt(px**2 + py**2)
+    np_dist = np.sqrt((px - nx)**2 + (py - ne)**2)
     return lp / np_dist if np_dist > 1e-10 else np.inf
 
 

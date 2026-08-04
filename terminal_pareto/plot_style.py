@@ -115,7 +115,9 @@ def save_panel_crops(
         if extra_ax is not None:
             boxes.append(extra_ax.get_tightbbox(renderer))
         bbox = Bbox.union(boxes).transformed(fig.dpi_scale_trans.inverted())
-        fig.savefig(target, dpi=300, bbox_inches=bbox.expanded(1.08, 1.08),
-                    facecolor="white")
+        fig.savefig(
+            target, dpi=300, bbox_inches=bbox.expanded(1.12, 1.12),
+            pad_inches=0.10, facecolor="white",
+        )
         for item, visible in original_visibility.items():
             item.set_visible(visible)

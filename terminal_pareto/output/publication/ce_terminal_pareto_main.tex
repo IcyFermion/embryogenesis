@@ -1,0 +1,30 @@
+\documentclass[10pt]{article}
+\usepackage[margin=12mm]{geometry}
+\usepackage{graphicx}
+\usepackage{caption}
+\pagestyle{empty}
+\captionsetup{font=small,labelfont=bf}
+
+\begin{document}
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{terminal_main_pareto_front.pdf}
+\caption{\textbf{The terminal layer of the \textit{C. elegans} lineage is
+nearly Pareto optimal.} Terminal-cell identities, final positions, and
+protein-expression states were held fixed while their direct parentage edges
+were reconstructed using optimal linear assignment under varying distance
+objectives defined in Equation \ref{eqn:pareto}. The resulting curve is the
+exact Pareto front for travel distance and cell-state distance. Distances are
+measured in first-cousin-null standard deviations and translated so the
+natural lineage (black cross) is at the origin. Relaxing the lineage
+neighborhood within which assignments can be shuffled moves the null
+distributions progressively towards the upper-left: first-cousin (yellow),
+second-cousin (orange), third-cousin (green), and full-random shuffling
+(magenta inset). The outlined circle marks the Pareto-optimal assignment with
+maximum edge retention compared with natural lineage, and is filled with
+its corresponding color from the edge-retention scale with which the assignments
+along the Pareto front are colored by edge retention; brighter blue
+denotes greater retention.}
+\label{fig:ce-terminal-pareto-main}
+\end{figure}
+\end{document}

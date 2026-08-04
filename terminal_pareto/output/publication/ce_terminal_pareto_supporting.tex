@@ -1,0 +1,53 @@
+\documentclass[10pt]{article}
+\usepackage[margin=12mm]{geometry}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{tikz}
+\pagestyle{empty}
+\captionsetup{font=small,labelfont=bf}
+
+\begin{document}
+\begin{figure}[p]
+\centering
+\resizebox{\textwidth}{!}{\input{A_null_models_tikz.tex}}
+
+\vspace{4mm}
+\begin{minipage}[t]{0.485\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{terminal_support_B_er_td.pdf}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.485\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{terminal_support_C_structural_retention.pdf}
+\end{minipage}
+
+\caption{\textbf{Null models and structural metrics along the terminal-cell Pareto front.}
+\textbf{A,} Nested cousin-shuffling null models progressively relax the
+lineage restriction on terminal cell to parent assignments. First-cousin
+shuffling acts within the smallest neighborhoods, second- and third-cousin
+shuffling act within successively larger ancestral neighborhoods, and full-random
+shuffling permits assignments among all candidate parents. Terminal-cell
+identities, i.e., their final positions, and molecular states remain fixed.
+\textbf{B,} Edge retention (blue, left axis) and mean lineage-tree distance
+among changed edges (grey, inverted right axis) compared with the natural
+lineage for all assignments along the Pareto front. The natural lineage has
+edge retention one and, by definition, no changed edges; it is shown at the
+zero-distance reference. Markers identify the natural lineage, the
+maximum-edge-retention assignment, and the minimum-tree-distance assignment.
+Marks on the right axis show the corresponding changed-edge mean tree distances
+under first-cousin and full-random shuffling.
+Approaching either single-objective optimum requires increasingly significant
+changes from the natural lineage.
+\textbf{C,} Structural retention while moving along the Pareto front from
+the maximum-edge-retention compromise toward either single-objective
+optimum. The inset indicates the direction of travel of the two colored
+trajectories along the Pareto front. For each trajectory separately, the
+horizontal axis reports the fraction of the attainable reduction in its
+corresponding distance; this normalization does not compare or combine the
+objectives. Natural-edge retention falls as the remaining benefit is pursued.
+The shaded final 5\% of attainable distance reduction costs a further 5.4 percentage
+points of edge retention and 0.7 mean tree-distance units toward the travel optimum,
+and 11.4 percentage points and 2.0 tree-distance units toward the cell-state optimum.}
+\label{fig:ce-terminal-pareto-supporting}
+\end{figure}
+\end{document}
