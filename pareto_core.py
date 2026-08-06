@@ -1,3 +1,6 @@
+import os
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+
 import numpy as np
 from collections import defaultdict, deque
 from multiprocessing import Manager
@@ -545,7 +548,7 @@ class LineageOptimization:
     def phylogenetic_sampling(self, root_id=0, n_samples=10000):
         node_estimates, node_variances = self.phylogenetic_reconstruction(root_id=root_id)
         samples = {}
-        for tree_id in node_estimates.keys():
+        for tree_id in tqdm(node_estimates.keys(), desc="Sampling from phylogenetic estimates..."):
             mean = node_estimates[tree_id]
             var = node_variances[tree_id]
             samples[tree_id] = np.random.multivariate_normal(mean, np.diag(var), size=n_samples)
@@ -553,7 +556,7 @@ class LineageOptimization:
         exp_cost = np.zeros((n_samples))
         mean_xyz_cost = 0
         mean_exp_cost = 0
-        for tree_id in node_estimates.keys():
+        for tree_id in tqdm(node_estimates.keys(), desc="Calculating phylogenetic costs..."):
             cur_val = samples[tree_id]
             parent_id = self.lineage_tree.parent_list[tree_id]
             if tree_id == root_id:
@@ -566,9 +569,24 @@ class LineageOptimization:
             mean_exp_cost += np.linalg.norm(node_estimates[tree_id][3:] - node_estimates[parent_id][3:])
         return xyz_cost, exp_cost, mean_xyz_cost, mean_exp_cost
 
-    def bottom_up_pareto_at_each_layer(self):
+    def layerwise_pareto_assignment(self):
+        """Bottom-up Hungarian assignment at each layer independently.
+
+        At each depth level, runs Hungarian to find the optimal child→parent
+        edge assignment. The per-layer Pareto fronts are aggregated into
+        1001 full-tree parent mappings (one per alpha), from which total
+        xyz/exp costs are computed via calc_lineage_cost.
+
+        Returns (list_of_pareto_fronts, list_of_layer_costs, lineage_id_to_parent_list,
+                 list_of_layer_assignments).
+          - list_of_pareto_fronts[layer][k] = (xyz_cost, exp_cost) for alpha=k/1000
+          - list_of_layer_costs[layer] = (xyz_cost, exp_cost) of the original (diagonal) assignment
+          - lineage_id_to_parent_list[k][child_lid] = assigned parent lineage_id at alpha=k
+          - list_of_layer_assignments[layer][k] = col_indices array from Hungarian
+        """
         list_of_pareto_fronts = []
         list_of_layer_costs = []
+        list_of_layer_assignments = []  # NEW: col_indices per alpha per layer
         current_layer = self.terminal_tree_ids.copy()
         first_layer_tree_ids = [tree_id for tree_id, _ in self.first_internal_layer]
         seen_tree_ids = set(current_layer)
@@ -595,10 +613,12 @@ class LineageOptimization:
             list_of_layer_costs.append(current_layer_cost)
 
             current_pareto_front = []
+            current_layer_assignments = []  # NEW: col_indices at each alpha for this layer
             for k in tqdm(range(1001)):
                 alpha = 0 + 0.001 * k  # weight for xyz cost
                 cost_mat = alpha * xyz_cost_mat + (1 - alpha) * exp_cost_mat
                 row_indices, col_indices = linear_sum_assignment(cost_mat)
+                current_layer_assignments.append(col_indices.copy())  # NEW: record assignment
                 total_xyz_cost = 0
                 total_exp_cost = 0
                 for row, col in zip(row_indices, col_indices):
@@ -609,6 +629,7 @@ class LineageOptimization:
                     lineage_id_to_parent_list[k][child_lineage_id] = parent_lineage_id
                 current_pareto_front.append((total_xyz_cost, total_exp_cost))
             list_of_pareto_fronts.append(current_pareto_front)
+            list_of_layer_assignments.append(current_layer_assignments)  # NEW
             # move to next layer
             next_layer = []
             for tree_id in current_parent_tree_ids:
@@ -622,7 +643,70 @@ class LineageOptimization:
                 break
             current_layer = next_layer
 
-        return list_of_pareto_fronts, list_of_layer_costs, lineage_id_to_parent_list
+        return list_of_pareto_fronts, list_of_layer_costs, lineage_id_to_parent_list, list_of_layer_assignments
+
+    def layerwise_pareto_assignment_runner(self):
+        """Pareto front from per-layer Hungarian edge assignment.
+
+        Calls layerwise_pareto_assignment and aggregates the per-layer
+        parent mappings into full-tree costs by summing edge costs directly.
+        Also computes per-layer edge retention and records per-layer Pareto fronts.
+
+        Returns a dict with keys:
+          - 'xyz', 'exp': aggregated Pareto front arrays (length 1001)
+          - 'per_layer_pareto_fronts': list of per-layer (xyz, exp) arrays
+          - 'per_layer_edge_retention': list of per-layer ER arrays (length 1001)
+          - 'per_layer_costs': list of per-layer diagonal (original) costs
+          - 'layer_sizes': list of node counts per layer
+        """
+        list_of_pareto_fronts, list_of_layer_costs, lineage_id_to_parent_list, \
+            list_of_layer_assignments = self.layerwise_pareto_assignment()
+
+        # ── Aggregated Pareto front (sum edge costs across all layers) ──
+        pareto_xyz = np.zeros(1001)
+        pareto_exp = np.zeros(1001)
+        for i in range(1001):
+            xyz_cost, exp_cost = 0, 0
+            cur_mapping = lineage_id_to_parent_list[i]
+            for child_lid, parent_lid in enumerate(cur_mapping):
+                if parent_lid == -1:
+                    continue
+                xyz_cost += self.xyz_cost_mat[child_lid][parent_lid]
+                exp_cost += self.exp_cost_mat[child_lid][parent_lid]
+            pareto_xyz[i] = xyz_cost
+            pareto_exp[i] = exp_cost
+
+        # ── Per-layer edge retention ──
+        # Edge retention at layer L, alpha k = fraction of children assigned
+        # to their original (biological) parent (col_indices[i] == i)
+        per_layer_er = []
+        layer_sizes = []
+        for layer_idx, assignments in enumerate(list_of_layer_assignments):
+            er_curve = np.zeros(1001)
+            n = len(assignments[0])
+            layer_sizes.append(n)
+            for k, col_indices in enumerate(assignments):
+                er_curve[k] = np.sum(col_indices == np.arange(n)) / n
+            per_layer_er.append(er_curve)
+
+        # ── Per-layer Pareto fronts as arrays ──
+        per_layer_pf = []
+        for layer_pf in list_of_pareto_fronts:
+            pf_xyz = np.array([p[0] for p in layer_pf])
+            pf_exp = np.array([p[1] for p in layer_pf])
+            per_layer_pf.append((pf_xyz, pf_exp))
+
+        return {
+            'xyz': pareto_xyz,
+            'exp': pareto_exp,
+            'per_layer_pareto_fronts': per_layer_pf,
+            'per_layer_edge_retention': per_layer_er,
+            'per_layer_costs': list_of_layer_costs,
+            'layer_sizes': layer_sizes,
+        }
+
+    # Backward-compatible alias
+    bottom_up_pareto_at_each_layer = layerwise_pareto_assignment
 
     def free_xyz_distance(self):
         print(np.nan_to_num(self.xyz_mat).mean())
@@ -960,22 +1044,17 @@ class LineageOptimization:
     def top_down_rebuild_runner(self, first_internal_layer: list[tuple[int, int]] = None, depth_weight_type: str | Callable = "static"):
         if first_internal_layer is None:
             first_internal_layer = [(tree_id, depth) for tree_id, depth in self.first_internal_layer]
-            pareto_list = process_map(
-                partial(self.top_down_rebuild, first_internal_layer, self.internal_tree_ids, self.terminal_tree_ids, depth_weight_type),
-                range(1001),
-                max_workers=self.max_workers,
-                chunksize=20,
-                desc="Computing pareto costs"
-            )
+            internal_tree_ids = self.internal_tree_ids
+            terminal_tree_ids = self.terminal_tree_ids
         else:
             _, terminal_tree_ids, internal_tree_ids = self.lineage_traverse(first_internal_layer)
-            pareto_list = process_map(
-                partial(self.top_down_rebuild, first_internal_layer, internal_tree_ids, terminal_tree_ids, depth_weight_type),
-                range(1001),
-                max_workers=self.max_workers,
-                chunksize=20,
-                desc="Computing pareto costs"
-            )
+        # Sequential loop instead of process_map — avoids OOM from pickling
+        # the full LineageOptimization object in multiprocessing workers.
+        pareto_list = []
+        for idx in tqdm(range(1001), desc="Computing pareto costs"):
+            pareto_list.append(
+                self.top_down_rebuild(first_internal_layer, internal_tree_ids,
+                                      terminal_tree_ids, depth_weight_type, idx))
         return pareto_list
 
     def top_down_rebuild(self, first_internal_layer: list[tuple[int, int]], internal_tree_ids: list[int], terminal_tree_ids: list[int], depth_weight_type: str | Callable, idx: int):
@@ -1016,23 +1095,42 @@ class LineageOptimization:
             depth_weight = weight_factor_by_depth(depth)
             for j in internal_pool:
                 heapq.heappush(cost_pq, (cur_cost_mat[i][j] * depth_weight, i, j, depth))
+        # Heap safety: max entries = |top|*|pool| + |pool|*(|pool|+1)/2
+        # Use 5× this as a generous safety bound to catch pathological growth.
+        n_pool = len(internal_pool)
+        n_top = len(internal_top_nodes)
+        max_heap = n_top * n_pool + n_pool * (n_pool + 1) // 2
+        max_heap = max(50000, int(max_heap * 5))
+        max_iter = max(200000, max_heap * 5)
+        iter_count = 0
         while internal_pool:
-            if len(cost_pq) == 0:
-                print("Error: cost_pq is empty before internal_pool is empty")
+            iter_count += 1
+            if iter_count > max_iter:
+                print(f"Warning: top_down_rebuild stuck at alpha={alpha:.3f}, "
+                      f"{len(internal_pool)} nodes remain, {len(cost_pq)} in heap, breaking")
                 break
-            cur_cost, parent_lineage_id, child_lineage_id, depth = heapq.heappop(cost_pq)
-            if child_lineage_id not in internal_pool:
+            if len(cost_pq) > max_heap:
+                print(f"Warning: heap overflow at alpha={alpha:.3f}, "
+                      f"heap={len(cost_pq)} > max={max_heap}, breaking")
+                break
+            if len(cost_pq) == 0:
+                print("Error: cost_pq empty with pool remaining")
+                break
+            cur_cost, parent_id, child_id, depth = heapq.heappop(cost_pq)
+            if child_id not in internal_pool:
                 continue
-            if len(cur_children_list[parent_lineage_id]) >= 2:
+            if len(cur_children_list[parent_id]) >= 2:
                 continue
-            cur_children_list[parent_lineage_id].append(child_lineage_id)
-            cur_parent_list[child_lineage_id] = parent_lineage_id
-            internal_pool.remove(child_lineage_id)
-            cur_xyz_cost += self.xyz_cost_mat[parent_lineage_id][child_lineage_id]
-            cur_exp_cost += self.exp_cost_mat[parent_lineage_id][child_lineage_id]
-            child_depth = depth + 1
-            for next_child_lineage_id in internal_pool:
-                heapq.heappush(cost_pq, (cur_cost_mat[child_lineage_id][next_child_lineage_id] * weight_factor_by_depth(child_depth), child_lineage_id, next_child_lineage_id, child_depth))
+            cur_children_list[parent_id].append(child_id)
+            cur_parent_list[child_id] = parent_id
+            internal_pool.remove(child_id)
+            cur_xyz_cost += self.xyz_cost_mat[parent_id][child_id]
+            cur_exp_cost += self.exp_cost_mat[parent_id][child_id]
+            new_depth = depth + 1
+            depth_weight = weight_factor_by_depth(new_depth)
+            for next_child in internal_pool:
+                heapq.heappush(cost_pq, (cur_cost_mat[child_id][next_child] * depth_weight,
+                                         child_id, next_child, new_depth))
         terminal_parent_list = []
         for tree_id in internal_tree_ids:
             lineage_id = self.lineage_tree.lineage_id_mapping[tree_id]
@@ -1059,14 +1157,19 @@ class LineageOptimization:
 
         lineage_id_by_depth = defaultdict(list)
         bfs_queue = deque()
+        visited = set()
         for tree_id, depth in self.first_internal_layer:
             lineage_id = self.lineage_tree.lineage_id_mapping[tree_id]
             bfs_queue.append((lineage_id, depth))
             lineage_id_by_depth[depth].append(lineage_id)
+            visited.add(lineage_id)
         while bfs_queue:
             lineage_id, depth = bfs_queue.popleft()
-            lineage_id_by_depth[depth].append(lineage_id)
             for child in cur_children_list[lineage_id]:
+                if child in visited:
+                    continue  # cycle detected in greedy assignment — skip
+                visited.add(child)
+                lineage_id_by_depth[depth + 1].append(child)
                 bfs_queue.append((child, depth + 1))
         
         # return cur_xyz_cost, cur_exp_cost, cur_children_list, cur_parent_list, max(list(lineage_id_by_depth.keys()))
@@ -1351,7 +1454,7 @@ class LineageOptimization:
         #     cur_exp_cost += extra_exp_cost
         return cur_xyz_cost, cur_exp_cost, cur_children_list, cur_parent_list, len(bottom_layer)
     
-    def terminal_only_rebuild_runner(self, first_internal_layer: list[tuple[int, int]] = None, use_kd_tree: bool=False, exp_replacement: bool=True):
+    def terminal_only_rebuild_runner(self, first_internal_layer: list[tuple[int, int]] = None, use_kd_tree: bool=True, exp_replacement: bool=True):
         # some of the rows in exp_mat can have nan values
         # exclude those rows from kd tree
         if first_internal_layer is not None:
@@ -1502,17 +1605,15 @@ class LineageOptimization:
             top_internal_tree_ids = [tree_id for tree_id, _ in self.first_internal_layer]
             internal_tree_ids = self.internal_tree_ids
             terminal_tree_ids = self.terminal_tree_ids
-            
         else:
             top_internal_tree_ids = [tree_id for tree_id, _ in first_internal_layer]
             tree_ids_by_depth, terminal_tree_ids, internal_tree_ids = self.lineage_traverse(first_internal_layer)
-        mst_stat_list = process_map(
-            partial(self.mst_rebuild, top_internal_tree_ids, internal_tree_ids, terminal_tree_ids),
-            range(1001),
-            max_workers=self.max_workers,
-            chunksize=20,
-            desc="Computing mst test"
-        )
+        # Sequential loop — avoids multiprocessing pickle/OOM issues
+        mst_stat_list = []
+        for idx in tqdm(range(1001), desc="Computing MST costs"):
+            mst_stat_list.append(
+                self.mst_rebuild(top_internal_tree_ids, internal_tree_ids,
+                                 terminal_tree_ids, idx))
         return mst_stat_list
 
     def mst_rebuild(self, top_internal_tree_ids, internal_tree_ids, terminal_tree_ids, idx):
@@ -1541,8 +1642,14 @@ class LineageOptimization:
             for j in range(len(all_leaf_nodes)):
                 assignment_cost_mat[i][j] = cur_cost_mat[leaf_openings[i]][all_leaf_nodes[j]]
         row_indices, col_indices = linear_sum_assignment(assignment_cost_mat)
+        debug_xyz_cost = 0; debug_exp_cost = 0
         for row, col in zip(row_indices, col_indices):
+            debug_xyz_cost += self.xyz_cost_mat[leaf_openings[row]][all_leaf_nodes[col]]
+            debug_exp_cost += self.exp_cost_mat[leaf_openings[row]][all_leaf_nodes[col]]
             mst.add_edge(leaf_openings[row], all_leaf_nodes[col], weight=assignment_cost_mat[row][col])
+        if alpha in [0, 0.5, 1]:
+            print(f"Debug: MST rebuilt at alpha={alpha:.3f}, ")
+        return debug_xyz_cost, debug_exp_cost
 
         lineage_id_by_depth = defaultdict(list)
         bfs_queue = deque()
@@ -1554,8 +1661,9 @@ class LineageOptimization:
             searched_dict[lineage_id] = 1
         while bfs_queue:
             lineage_id, depth = bfs_queue.popleft()
-            neighbors = mst.neighbors(lineage_id)
-            for neighbor in neighbors:
+            if lineage_id not in mst:
+                continue  # top-level node not in MST (skip-through tree)
+            for neighbor in mst.neighbors(lineage_id):
                 if searched_dict[neighbor] == 0:
                     searched_dict[neighbor] = 1
                     bfs_queue.append((neighbor, depth + 1))
