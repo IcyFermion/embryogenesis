@@ -209,8 +209,10 @@ cython_debug/
 .temp.ipynb
 temp.ipynb
 
+paper/
 data/
 output/
 expression_embedding/results
 temp.md
-task.md__marimo__/
+task.md
+__marimo__/
