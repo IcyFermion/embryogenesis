@@ -34,9 +34,9 @@ def parse_sbd_file(filepath):
     Block structure:
       Line 0: "1 1 0 0 <cell_name>"  (active) or "0 0 -1 -1 <cell_name>" (terminal)
       Line 1: "<start_time> 3 -1 -1 [flag]"
-      Line 2: "<cell_id> <something> -1 -1 -1 <flag> <cell_name>"
+      Line 2: "<birth_frame> <something> -1 -1 -1 <flag> <cell_name>"
       Line 3: "<n_observations> [extra text]"
-      Lines 4..4+n: "<frame> <x> <y> <diameter> -1 -1 -1"
+      Lines 4..4+n: "<frame> <x> <y> <z> -1 -1 -1"
 
     Returns list of dicts, one per active cell with tracking data.
     """
@@ -62,7 +62,7 @@ def parse_sbd_file(filepath):
         start_time = int(lines[1].split()[0])
 
         # Parse cell ID line
-        cell_id = int(lines[2].split()[0])
+        birth_frame = int(lines[2].split()[0])
 
         # Parse n_observations (may have trailing text like "excr cell")
         n_obs_str = lines[3].split()[0]
@@ -77,7 +77,7 @@ def parse_sbd_file(filepath):
             n_obs = len(lines) - 4
 
         # Parse observation lines
-        frames, xs, ys, diams = [], [], [], []
+        frames, xs, ys, zs = [], [], [], []
         for j in range(4, 4 + n_obs):
             obs_parts = lines[j].split()
             if len(obs_parts) < 4:
@@ -85,18 +85,18 @@ def parse_sbd_file(filepath):
             frames.append(int(obs_parts[0]))
             xs.append(float(obs_parts[1]))
             ys.append(float(obs_parts[2]))
-            diams.append(float(obs_parts[3]))
+            zs.append(float(obs_parts[3]))
 
         cells.append({
             "cell": cell_name,
             "active": active,
             "start_time": start_time,
-            "cell_id": cell_id,
+            "birth_frame": birth_frame,
             "n_obs": len(frames),
             "frame": np.array(frames),
             "x": np.array(xs),
             "y": np.array(ys),
-            "diameter": np.array(diams),
+            "z": np.array(zs),
         })
 
     return cells
