@@ -1,0 +1,57 @@
+\documentclass[10pt]{article}
+\usepackage[margin=12mm]{geometry}
+\usepackage{graphicx}
+\usepackage{caption}
+\pagestyle{empty}
+\captionsetup{font=small,labelfont=bf}
+
+\begin{document}
+\begin{figure}[p]
+\centering
+\begin{minipage}[t]{0.485\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{fig5A_ce_canonical_definition.pdf}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.485\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{fig5B_ce_canonical_major_subtrees.pdf}
+\end{minipage}
+
+\vspace{2mm}
+\includegraphics[width=\textwidth]{fig5C_ce_canonical_all_subtrees.pdf}
+
+\caption{\textbf{Canonical positions and lineage/null proximity on subtree Pareto fronts.}
+%
+\textbf{(A)} Null-independent canonical coordinates. For assignment $a$,
+travel distance is normalized as
+$D_1(a)=[C_T(a)-C_T(T)]/[C_T(S)-C_T(T)]$ and cell-state distance as
+$D_2(a)=[C_S(a)-C_S(S)]/[C_S(T)-C_S(S)]$, the resulting coordinates place
+the travel and cell-state optima at $T=(0,1)$ and $S=(1,0)$, respectively.
+$P^*$ is the sampled Pareto assignment closest to the natural lineage $L$ in
+this geometry. The horizontal coordinate $u$ is the arc length from $T$ to
+$P^*$ divided by the total Pareto front arc length from $T$ to $S$, and
+$d_{LP}=\left\|D(L)-D(P^*)\right\|_2$ is the endpoint-normalized
+distance between the natural lineage and the sampled Pareto assignment. For
+the first-cousin-null mean $N$, $d_{NP}=\left\|D(N)-D(P^*)\right\|_2$
+uses that same lineage-selected $P^*$. Distances are evaluated only at actual
+sampled assignments, not interpolated line segments. Neutral gray denotes
+$u$, purple denotes $d_{LP}$, and gold denotes the first-cousin reference and
+$d_{NP}$.
+%
+\textbf{(B)} Lineage-to-front and first-cousin-null-to-front distances for
+the major subtrees P0, AB, ABa, ABp, and P1. Each subtree retains the same
+marker shape at its purple $d_{LP}$ and gold $d_{NP}$ positions; direct labels
+identify the subtree.
+%
+\textbf{(C)} Canonical positions of all 43 subtrees containing at least 12 usable terminal cells.
+Horizontal position records the travel and cell-state compromise of $P^*$;
+vertical position is the natural lineage's endpoint-normalized distance
+$d_{LP}$ to that assignment. Gold markers add $d_{NP}$ references for the five
+major subtrees only. Marker shape identifies the root or first-order lineage
+region, with AB separated from the root marker. ABplpp(p) denotes the nearly
+overlapping, directly nested ABplpp and ABplppp records. The endpoint-normalized
+coordinates of $L$ used to calculate $d_{LP}$ are retained without clipping to
+$[0,1]$.}
+\label{fig:ce_canonical_summary}
+\end{figure}
+\end{document}

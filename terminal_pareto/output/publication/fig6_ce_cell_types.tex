@@ -1,0 +1,46 @@
+\documentclass[10pt]{article}
+\usepackage[margin=12mm]{geometry}
+\usepackage{graphicx}
+\usepackage{caption}
+\pagestyle{empty}
+\captionsetup{font=small,labelfont=bf}
+
+\begin{document}
+\begin{figure}[p]
+\centering
+\includegraphics[width=0.95\textwidth]{fig6A_ce_retention_heatmap.pdf}\\[1mm]
+\includegraphics[width=0.95\textwidth]{fig6B_ce_within_type_fronts.pdf}\\[1mm]
+\includegraphics[width=0.95\textwidth]{fig6C_ce_type_restricted_aggregate.pdf}
+
+\caption{\textbf{Terminal cell types retain distinct lineage structure,
+while type-restricted optimization recovers only part of the global
+travel--cell-state trade-off.}
+%
+\textbf{(A)} Natural-edge retention for each terminal cell type across the
+global Pareto front. Cell types individually represented by four or fewer
+cells are pooled into "other" type. Position is normalized front arc length in the
+endpoint-normalized coordinates defined in Figure 5A. Profiles are resampled
+to uniform intervals and locally averaged for display only; the assignments
+and marked keypoint are unchanged. Brighter blue denotes greater retention;
+the scale is anchored at zero and spans the displayed maximum without
+clipping. The blue diamond and dashed line mark the Pareto assignment with
+maximum natural-edge retention.
+%
+\textbf{(B)} Pareto fronts obtained by allowing terminal assignments only
+within each displayed type. For comparability, changes in both objectives are
+expressed per cell in standard-deviation units from the embryo-wide
+first-cousin null; this null sets the common scale only and does not constrain
+the assignments. The cross marks the natural assignment;
+teal circles and vermillion squares mark the travel and cell-state optima,
+respectively.
+%
+\textbf{(C)} Aggregate front when assignments are prohibited across all
+terminal cell-type boundaries (orange), compared with the unrestricted
+front (charcoal), using the same global scaling and natural-lineage origin.
+Type-preserving assignments form a subset of the unrestricted feasible set.
+At the corresponding single-objective optima, this restriction retains an
+additional 3.10 standard deviations of travel distance and 15.07 standard
+deviations of cell-state distance relative to unrestricted optimization.}
+\label{fig:ce_cell_types}
+\end{figure}
+\end{document}

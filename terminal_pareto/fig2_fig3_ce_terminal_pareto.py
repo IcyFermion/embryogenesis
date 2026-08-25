@@ -1,4 +1,4 @@
-"""Generate the terminal-cell Pareto main and supporting publication figures."""
+"""Generate C. elegans terminal-cell Pareto Figures 2 and 3."""
 
 import argparse
 from pathlib import Path
@@ -20,9 +20,21 @@ from terminal_pareto import plot_style as ps
 
 
 OUT = Path(__file__).resolve().parent / "output" / "publication"
+DIAGNOSTIC_OUT = Path(__file__).resolve().parent / "output" / "ce_protein"
 EDGE_RETENTION_CMAP = LinearSegmentedColormap.from_list(
     "edge_retention_blue", ["#17365D", "#0072B2", "#72C7EC"]
 )
+TRAVEL_COLOR = ps.SEMANTIC_COLORS["travel"]
+CELL_STATE_COLOR = ps.SEMANTIC_COLORS["cell_state"]
+TREE_DISTANCE_COLOR = ps.SEMANTIC_COLORS["tree_distance"]
+FIRST_COUSIN_COLOR = ps.SEMANTIC_COLORS["first_cousin_null"]
+SECOND_COUSIN_COLOR = ps.NULL_MODEL_COLORS["second_cousin"]
+THIRD_COUSIN_COLOR = ps.NULL_MODEL_COLORS["third_cousin"]
+FULL_RANDOM_COLOR = ps.NULL_MODEL_COLORS["full_random"]
+# Panels B and C are assembled side by side in Figure 3. Their top edges are
+# already identical; fixing the axes baseline keeps their horizontal axes on
+# the same level despite B having a two-line x label and C a one-line label.
+SUPPORT_AXES_BOTTOM = 0.217
 
 
 def _standardize(x, y, reference):
@@ -71,10 +83,16 @@ def _load_analysis():
     return twr, nulls
 
 
-def _save(fig, stem, dpi=400):
-    OUT.mkdir(parents=True, exist_ok=True)
-    fig.savefig(OUT / f"{stem}.pdf", facecolor="white")
-    fig.savefig(OUT / f"{stem}.png", dpi=dpi, facecolor="white")
+def _save(fig, stem, dpi=400, out_dir=OUT, fixed_canvas=False):
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    # Side-by-side panels use the full, identical figure canvas so independent
+    # tight cropping cannot undo their shared axes baseline.
+    bbox = fig.bbox_inches if fixed_canvas else "tight"
+    fig.savefig(out_dir / f"{stem}.pdf", facecolor="white",
+                bbox_inches=bbox)
+    fig.savefig(out_dir / f"{stem}.png", dpi=dpi, facecolor="white",
+                bbox_inches=bbox)
 
 
 def plot_main(twr, nulls):
@@ -92,9 +110,9 @@ def plot_main(twr, nulls):
     ax.axvline(0, color="#777777", lw=0.7, ls=":", zorder=0)
 
     null_styles = [
-        (1, "First-cousin shuffle", "#B18F00"),
-        (2, "Second-cousin shuffle", "#D55E00"),
-        (3, "Third-cousin shuffle", "#009E73"),
+        (1, "First-cousin shuffle", FIRST_COUSIN_COLOR),
+        (2, "Second-cousin shuffle", SECOND_COUSIN_COLOR),
+        (3, "Third-cousin shuffle", THIRD_COUSIN_COLOR),
     ]
     for degree, label, color in null_styles:
         nx, ny = nulls[degree]
@@ -121,10 +139,11 @@ def plot_main(twr, nulls):
 
     full_x, full_y = nulls["full"]
     inset = ax.inset_axes([0.66, 0.71, 0.31, 0.24])
-    inset.scatter(full_x, full_y, s=6, color="#A64D79", alpha=0.18,
+    inset.scatter(full_x, full_y, s=6, color=FULL_RANDOM_COLOR, alpha=0.18,
                   edgecolors="none", rasterized=True)
     full_mean = (float(np.mean(full_x)), float(np.mean(full_y)))
-    inset.scatter(*full_mean, marker="+", s=30, color="#74345F", lw=1.1)
+    inset.scatter(*full_mean, marker="+", s=30, color=FULL_RANDOM_COLOR,
+                  lw=1.1)
     inset.set_xlim(full_x.min() - 2, full_x.max() + 2)
     inset.set_ylim(full_y.min() - 4, full_y.max() + 4)
     inset.set_title("Full-random shuffle", fontsize=7, pad=2)
@@ -134,7 +153,8 @@ def plot_main(twr, nulls):
     inset.grid(True, alpha=0.25)
 
     full_handle = Line2D([0], [0], marker="o", ls="", markersize=5,
-                         markerfacecolor="#A64D79", markeredgecolor="none",
+                         markerfacecolor=FULL_RANDOM_COLOR,
+                         markeredgecolor="none",
                          alpha=0.7, label="Full-random shuffle (inset)")
     handles, labels = ax.get_legend_handles_labels()
     by_label = dict(zip(labels, handles))
@@ -156,7 +176,7 @@ def plot_main(twr, nulls):
     ax.grid(True, alpha=0.32)
     cbar = fig.colorbar(front, ax=ax, fraction=0.047, pad=0.025)
     cbar.set_label("Edge retention")
-    _save(fig, "terminal_main_pareto_front")
+    _save(fig, "fig2_ce_terminal_pareto_front")
     return fig
 
 
@@ -186,7 +206,7 @@ def plot_support_b(twr, distance_mode="changed_edges"):
     fig, ax = plt.subplots(figsize=(3.45, 2.85))
     ax_td = ax.twinx()
     er_line, = ax.plot(x, er, color="#0072B2", lw=2, label="Edge retention")
-    tree_color = "#666666"
+    tree_color = TREE_DISTANCE_COLOR
     td_line, = ax_td.plot(x, td, color=tree_color, lw=1.6,
                           label="Tree distance")
     td_max = max(td.max(), full_mean) * 1.06
@@ -194,8 +214,8 @@ def plot_support_b(twr, distance_mode="changed_edges"):
     # exactly the same vertical level, with the lineage cross fully visible.
     ax_td.set_ylim(td_max, -0.04 * td_max)
     for value, label, color, ls in [
-        (full_mean, "Full random", "#A64D79", "--"),
-        (cousin_mean, "First cousin", "#B18F00", ":"),
+        (full_mean, "Full random", FULL_RANDOM_COLOR, "--"),
+        (cousin_mean, "First cousin", FIRST_COUSIN_COLOR, ":"),
     ]:
         ax_td.plot([0.965, 1], [value, value],
                    transform=ax_td.get_yaxis_transform(), color=color,
@@ -237,10 +257,20 @@ def plot_support_b(twr, distance_mode="changed_edges"):
             fontweight="bold", va="top")
     ax.grid(True, alpha=0.32)
     fig.tight_layout()
-    _save(fig, f"terminal_support_B_er_td_{distance_mode}")
+    for support_ax in (ax, ax_td):
+        pos = support_ax.get_position()
+        support_ax.set_position([
+            pos.x0, SUPPORT_AXES_BOTTOM, pos.width,
+            pos.y1 - SUPPORT_AXES_BOTTOM,
+        ])
     if distance_mode == "changed_edges":
-        # Backward-compatible canonical asset used by the supporting TeX file.
-        _save(fig, "terminal_support_B_er_td")
+        _save(fig, "fig3B_ce_edge_retention_tree_distance",
+              fixed_canvas=True)
+    else:
+        # Retain the selectable all-edge definition as a diagnostic without
+        # adding non-manuscript variants to output/publication.
+        _save(fig, "fig3B_ce_edge_retention_tree_distance_all_edges",
+              out_dir=DIAGNOSTIC_OUT)
     return fig
 
 
@@ -253,8 +283,9 @@ def plot_support_c(twr):
     fig, ax = plt.subplots(figsize=(3.45, 2.85))
 
     trajectories = [
-        ("Toward travel optimum", np.arange(k, len(x)), x, "#0072B2"),
-        ("Toward cell-state optimum", np.arange(k, -1, -1), y, "#D55E00"),
+        ("Toward travel optimum", np.arange(k, len(x)), x, TRAVEL_COLOR),
+        ("Toward cell-state optimum", np.arange(k, -1, -1), y,
+         CELL_STATE_COLOR),
     ]
     final_prices = []
     for label, indices, cost, color in trajectories:
@@ -293,16 +324,16 @@ def plot_support_c(twr):
     state_target = 0
     inset.annotate("", xy=(x[travel_target], y[travel_target]),
                    xytext=(x[k], y[k]),
-                   arrowprops=dict(arrowstyle="->", color="#0072B2", lw=1.5,
+                   arrowprops=dict(arrowstyle="->", color=TRAVEL_COLOR, lw=1.5,
                                    connectionstyle="arc3,rad=-0.12"))
     inset.annotate("", xy=(x[state_target], y[state_target]),
                    xytext=(x[k], y[k]),
-                   arrowprops=dict(arrowstyle="->", color="#D55E00", lw=1.5,
+                   arrowprops=dict(arrowstyle="->", color=CELL_STATE_COLOR, lw=1.5,
                                    connectionstyle="arc3,rad=0.12"))
     inset.text(0.05, 0.93, "Travel", transform=inset.transAxes,
-               color="#0072B2", fontsize=4.8, va="top")
+               color=TRAVEL_COLOR, fontsize=4.8, va="top")
     inset.text(0.98, 0.14, "Cell state", transform=inset.transAxes,
-               color="#D55E00", fontsize=4.8, ha="right")
+               color=CELL_STATE_COLOR, fontsize=4.8, ha="right")
     inset.set_xticks([])
     inset.set_yticks([])
     inset.set_xlabel("Travel distance", fontsize=4.8, labelpad=1)
@@ -321,7 +352,12 @@ def plot_support_c(twr):
             fontweight="bold", va="top")
     ax.grid(True, alpha=0.32)
     fig.tight_layout()
-    _save(fig, "terminal_support_C_structural_retention")
+    pos = ax.get_position()
+    ax.set_position([
+        pos.x0, SUPPORT_AXES_BOTTOM, pos.width,
+        pos.y1 - SUPPORT_AXES_BOTTOM,
+    ])
+    _save(fig, "fig3C_ce_structural_retention", fixed_canvas=True)
     return fig
 
 
@@ -332,8 +368,9 @@ def main(argv=None):
     parser.add_argument(
         "--tree-distance-mode",
         choices=("changed_edges", "all_edges", "both"),
-        default="both",
-        help="Tree-distance definition(s) for supporting panel B (default: both).",
+        default="changed_edges",
+        help=("Tree-distance definition(s) for supporting panel B "
+              "(default: changed_edges; all_edges is diagnostic-only)."),
     )
     args = parser.parse_args(argv)
     ps.configure()

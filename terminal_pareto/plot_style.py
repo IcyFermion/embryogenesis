@@ -32,6 +32,29 @@ SPECIES_COLORS = {
     "cb_rna": COLORS["green"],
 }
 
+# The null models form one ordered categorical family.  Warm earth tones keep
+# them distinct from the teal/vermillion objective directions and from the
+# sequential blue edge-retention scale.
+NULL_MODEL_COLORS = {
+    "first_cousin": "#B18F00",
+    "second_cousin": "#A6611A",
+    "third_cousin": "#7B4F2C",
+    "full_random": "#6F3B5C",
+}
+
+# Recurring visual semantics shared by the terminal-Pareto publication
+# figures.  Categorical cell-type/species palettes remain local because their
+# legends make those contexts explicit; these colors are reserved for
+# quantitative concepts that recur across multiple figures.
+SEMANTIC_COLORS = {
+    "travel": COLORS["green"],
+    "cell_state": COLORS["vermillion"],
+    "canonical_u": COLORS["grey"],
+    "lineage_front_distance": COLORS["purple"],
+    "first_cousin_null": NULL_MODEL_COLORS["first_cousin"],
+    "tree_distance": "#666666",
+}
+
 
 def configure() -> None:
     """Apply compact, journal-friendly Matplotlib defaults."""

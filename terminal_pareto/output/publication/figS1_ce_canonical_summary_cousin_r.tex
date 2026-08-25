@@ -1,0 +1,44 @@
+\documentclass[10pt]{article}
+\usepackage[margin=12mm]{geometry}
+\usepackage{graphicx}
+\usepackage{caption}
+\pagestyle{empty}
+\captionsetup{font=small,labelfont=bf}
+
+\begin{document}
+\begin{figure}[p]
+\centering
+\begin{minipage}[t]{0.485\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figS1A_ce_cousin_r_definition.pdf}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.485\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figS1B_ce_cousin_r_major_subtrees.pdf}
+\end{minipage}
+
+\vspace{2mm}
+\includegraphics[width=\textwidth]{figS1C_ce_cousin_r_all_subtrees.pdf}
+
+\caption{\textbf{Sensitivity of subtree proximity to the first-cousin null.}
+%
+\textbf{(A)} The first-cousin-null-relative construction. $P^*$ is the sampled
+Pareto assignment closest to the natural lineage $L$ in separately
+first-cousin-null-standardized travel and cell-state coordinates, and
+$r=\left\|L-P^*\right\|_2/\left\|N-P^*\right\|_2$, where $N$ is the
+first-cousin-null mean. Thus $r=0$ means lineage is on the Pareto front and $r=1$ means it is at the null
+reference.
+%
+\textbf{(B)} Canonical positions of the major subtrees P0, AB, ABa, ABp, and P1 using
+the cousin-null-relative metric.
+%
+\textbf{(C)} Cousin-null-relative positions of all eligible subtrees. Purple
+markers show the natural-lineage metric, and shape follows the lineage-region
+encoding in Figure 5. The
+inset compares $r$ with the null-independent endpoint-normalized distance
+$d_{LP}$; their strong rank agreement (Spearman $\rho=0.95$) shows that the
+broad natural-lineage-to-Pareto-front proximity ranking is robust regardless of the
+null reference.}
+\label{fig:ce_canonical_summary_cousin_r}
+\end{figure}
+\end{document}

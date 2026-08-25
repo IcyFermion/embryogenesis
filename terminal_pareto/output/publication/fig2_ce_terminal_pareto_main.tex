@@ -1,0 +1,29 @@
+\documentclass[10pt]{article}
+\usepackage[margin=12mm]{geometry}
+\usepackage{graphicx}
+\usepackage{caption}
+\pagestyle{empty}
+\captionsetup{font=small,labelfont=bf}
+
+\begin{document}
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{fig2_ce_terminal_pareto_front.pdf}
+\caption{\textbf{The terminal layer of the \emph{C.\@ elegans} lineage is
+nearly Pareto optimal.} Terminal-cell identities defined by their final physical
+positions and molecular states measured from protein expression were held fixed while
+terminal cells were reassigned to candidate parents by minimum-cost bipartite
+matching across varying weightings of combined travel and cell-state distance. The
+resulting curve traces the Pareto front. Each objective is reported in
+standard deviations of its first-cousin-shuffle null and translated so the
+natural lineage (black cross) is at the origin. As lineage restrictions are
+relaxed, the null distributions move progressively farther into the
+upper-right: first-cousin (gold), second-cousin (ochre), third-cousin
+(brown), and full-random shuffling (plum; inset as it lies further beyond the
+main-axis ranges). Pareto assignments are colored by edge retention, the
+fraction of natural terminal parent--child edges preserved; lighter blue
+denotes greater retention hence more preserved natural lineage structure.
+The outlined circle identifies the Pareto assignment with maximum edge retention.}
+\label{fig:ce_terminal_pareto_main}
+\end{figure}
+\end{document}
