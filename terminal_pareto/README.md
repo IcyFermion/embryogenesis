@@ -199,12 +199,12 @@ representation.
 
 | Replicate | Cutoff | Usable terminal edges | Strictly matched | Retained |
 |---|---:|---:|---:|---:|
-| embryo 1 | 255 | 299 | 279 | 93.3% |
-| embryo 2 | 247 | 301 | 279 | 92.7% |
-| embryo 3 | 226 | 309 | 279 | 90.3% |
+| embryo 1 | 255 | 299 | 275 | 92.0% |
+| embryo 2 | 247 | 301 | 275 | 91.4% |
+| embryo 3 | 225 | 298 | 275 | 92.3% |
 
 The matched set leaves 42 qualifying subtrees at `n >= 12`. All replicates use
-the same 279 edges, top-20 protein features, cosine cell-state distance,
+the same 275 edges, top-20 protein features, cosine cell-state distance,
 first-cousin shuffle with seed 42, exact null moments, 1,000 displayed null
 draws, and a 300-interval endpoint-inclusive sweep containing 301 weights.
 
@@ -216,13 +216,13 @@ categorical position, match the replicate colors in Panel A, and use uniform
 transparency so coincident values visibly blend. Marker shape does not encode
 replicate identity. `d_NP` remains cached but is omitted from the panel.
 
-The fronts are closely aligned globally. For P0, replicate ranges are 0.019
-for `u_L`, 0.012 for `d_LP`, and 0.057 for maximum edge retention. ABa shows
-the largest local spread: 0.124 for `u_L`, 0.060 for `d_LP`, 0.039 for `d_NP`,
-and 0.173 for maximum edge retention. The embryo-3 ABa natural assignment is
-on the sampled front and reaches maximum edge retention 1.0. The result
-supports global tracking robustness while preserving genuine local replicate
-dependence; it does not establish that every subtree is replicate invariant.
+The fronts are closely aligned globally. For P0, replicate ranges are 0.009
+for `u_L`, 0.016 for `d_LP`, and 0.044 for maximum edge retention. ABa shows
+the largest local spread: 0.127 for `u_L`, 0.054 for `d_LP`, and 0.156 for
+maximum edge retention. The largest `d_NP` spread is instead P1 at 0.042. The
+result supports global tracking robustness while preserving genuine local
+replicate dependence; it does not establish that every subtree is replicate
+invariant.
 
 The matching decision is recorded in:
 

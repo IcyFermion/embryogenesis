@@ -30,7 +30,7 @@ CB_NEW_PATH = _p("data/c_briggsae/yiming/CD240731cbhis72p1.csv")
 CE_REPLICATES = [
     ('embryo1', _p("data/embryo1/tracks.txt"), 255),
     ('embryo2', _p("data/embryo2/tracks.txt"), 247),
-    ('embryo3', _p("data/embryo3/tracks.txt"), 226),
+    ('embryo3', _p("data/embryo3/tracks.txt"), 225),
 ]
 
 CB_REPLICATES_OLD = [

@@ -62,7 +62,7 @@ MIN_CELLS = 12
 # produce 301 sampled weights.
 ITERATION = 300
 NULL_DRAWS = 1000
-EXPECTED_MATCHED_EDGES = 279
+EXPECTED_MATCHED_EDGES = 275
 EXPECTED_COMMON_SUBTREES = 42
 
 # Replicate is a local categorical encoding. Recurrent biological quantities
@@ -408,8 +408,8 @@ def plot_fronts(fronts, nulls, audit):
                 label=f"{label} (T={cutoff})", zorder=3)
         key = front[front["is_max_retention"]]
         ax.scatter(key["travel_sigma"], key["cell_state_sigma"],
-                   marker="D", s=42, facecolor=RETENTION_COLOR,
-                   edgecolor=INK, lw=0.6, zorder=6)
+                   marker="D", s=30, facecolor=RETENTION_COLOR,
+                   edgecolor=style["color"], lw=1.0, zorder=6)
 
     ax.scatter([0], [0], marker="X", s=82, facecolor=INK,
                edgecolor="white", lw=0.7, zorder=8)
@@ -431,7 +431,7 @@ def plot_fronts(fronts, nulls, audit):
         Line2D([0], [0], marker="X", ls="", markersize=7,
                markerfacecolor=INK, markeredgecolor="white",
                label="Natural lineage"),
-        Line2D([0], [0], marker="D", ls="", markersize=5.5,
+        Line2D([0], [0], marker="D", ls="", markersize=4.8,
                markerfacecolor=RETENTION_COLOR, markeredgecolor=INK,
                label="Maximum edge retention"),
         Line2D([0], [0], marker="o", ls="", markersize=5,

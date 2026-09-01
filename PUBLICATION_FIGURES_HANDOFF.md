@@ -212,19 +212,18 @@ done
 Figure S3 implements the planned three-replicate comparison in a dedicated
 renderer without changing the accepted Figures 2--6 pipeline. The predefined
 stage-matched cutoffs are embryo 1 `T=255`, embryo 2 `T=247`, and embryo 3
-`T=226`; the numerical times differ because developmental rates differ. They
-provide 299, 301, and 309 usable terminal edges, respectively. The strict
-three-way intersection contains 279 edges, retaining 90.3--93.3% per embryo,
+`T=225`; the numerical times differ because developmental rates differ. They
+provide 299, 301, and 298 usable terminal edges, respectively. The strict
+three-way intersection contains 275 edges, retaining 91.4--92.3% per embryo,
 so all displayed comparisons use the same terminal identities and natural
 parents. Forty-two subtrees remain eligible at `n >= 12`.
 
 Panel A shows the matched P0 fronts and per-replicate first-cousin nulls in
 coordinated null-SD axes. Panel B reports `u_L`, `d_LP`, and maximum edge
 retention for P0, AB, ABa, ABp, and P1. The global fronts are closely aligned,
-and P0 variation is modest (`u_L` range 0.019, `d_LP` range 0.012, maximum
-retention range 0.057). ABa shows genuine local replicate dependence: embryo
-3 places the natural assignment on the sampled front and reaches maximum
-retention 1.0. This mixture of global robustness and local sensitivity is
+and P0 variation is modest (`u_L` range 0.009, `d_LP` range 0.016, maximum
+retention range 0.044). ABa shows genuine local replicate dependence. This
+mixture of global robustness and local sensitivity is
 better presented as a supplementary robustness result than as a new main-text
 claim. See `terminal_pareto/README.md` for the complete matching decision,
 analysis record, and regeneration workflow.
