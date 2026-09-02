@@ -1,0 +1,40 @@
+\documentclass[10pt]{article}
+\usepackage[margin=12mm]{geometry}
+\usepackage{graphicx}
+\usepackage{caption}
+\pagestyle{empty}
+\captionsetup{font=small,labelfont=bf}
+
+\begin{document}
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{fig8_ce_full_tree_collective_panel.pdf}
+\caption{\textbf{Alternative full-tree reconstructions define a collective
+sampled Pareto envelope.} Six reconstruction strategies were evaluated for the
+same 1,000-edge \emph{C.\@ elegans} protein lineage: bottom-up optimization by
+lineage layer, independent layerwise parent assignment, paired bottom-up
+rebuilding, a degree-constrained spanning forest, top-down rebuilding, and a
+terminal-only rebuild without reuse of measured internal protein states. Thin
+colored curves retain the non-dominated solutions from each strategy's sampled
+weight sweep. Colored curves retain the identity of each reconstruction
+strategy. Costs are reported
+in first-cousin-shuffle standard deviations and translated so the natural
+lineage (black cross) is at the origin. The first-cousin null and fixed-topology
+parametric Brownian reference are shown on the main axes; the more distant
+internal-layer shuffle, full assignment shuffle, and random rebuild appear in
+the inset. The Brownian reference fits a full 23-dimensional rate covariance
+from all 1,000 measured branch-standardized increments, fixes four root states,
+and simulates all scored descendants down the same topology. It is included
+only as a geometric probe of proximity to the sampled Pareto envelope; its
+zero-drift, common-rate diffusion assumptions are not intended as a realistic
+model of embryogenesis. This replaces an incompatible historical 10-PC cache
+and independent-node ancestral-state sampler. The
+historical notebook's MST trace was also not comparable because it omitted
+internal spanning-tree edges; its publication replacement enforces four roots,
+at most two children per parent, and exactly 1,000 scored edges. The combined
+non-dominated envelope of the colored strategies is dominated by the
+degree-constrained spanning forest, top-down rebuild, and terminal-only
+rebuild.}
+\label{fig:ce_full_tree_collective}
+\end{figure}
+\end{document}

@@ -1,11 +1,11 @@
 # Publication-figure handoff
 
-Updated 2026-08-26. This repository-level document hands completed publication
-work from `terminal_pareto/` to the next analysis in `full_tree_pareto/`. The
-older plan in `task.md` predates the accepted terminal-cell figure sequence;
-use the deliverable names and numbering below unless the authors explicitly
-revise them. The manuscript draft `paper/paperv2.tex` is reference context and
-should not be edited as part of a figure-only task.
+Updated 2026-09-02. This repository-level document records completed
+publication work in `terminal_pareto/` and the current full-tree candidates in
+`full_tree_pareto/`. The older plan in `task.md` predates the accepted figure
+sequence; use the deliverable names and numbering below unless the authors
+explicitly revise them. The manuscript draft `paper/paperv2.tex` is reference
+context and should not be edited as part of a figure-only task.
 
 ## Current status
 
@@ -29,6 +29,18 @@ treated as release candidates rather than exploratory layouts.
 
 The authoritative scientific and production record for the complete
 terminal-cell analysis is `terminal_pareto/README.md`.
+
+The first full-tree implementation adds two candidate main figures. They have
+passed numerical validation, panel-level visual review, and standalone PDF
+assembly, but have not yet received author editorial review.
+
+| Item | Role | TeX/PDF stem | LaTeX label |
+|---|---|---|---|
+| Figure 7 | Layerwise full-tree assignment | `fig7_ce_full_tree_layerwise` | `ce_full_tree_layerwise` |
+| Figure 8 | Collective heuristic envelope | `fig8_ce_full_tree_collective` | `ce_full_tree_collective` |
+
+The authoritative record for Figures 7--8 is
+`full_tree_pareto/README.md`.
 
 ## Fixed Figures 2--6 analysis configuration
 
@@ -228,52 +240,88 @@ better presented as a supplementary robustness result than as a new main-text
 claim. See `terminal_pareto/README.md` for the complete matching decision,
 analysis record, and regeneration workflow.
 
-## Next work: full-tree Pareto analysis
+## Full-tree Pareto analysis (candidate Figures 7--8)
 
-The immediate next publication task moves to `full_tree_pareto/`. It will test
-Pareto organization across the complete embryonic lineage, including internal
-and terminal cells, rather than extending the terminal-only assignment model.
-Begin with the *C. elegans* protein configuration and optimize the full tree
-layer by layer. The resulting analysis is intended to support the next main
-publication figure.
+The *C. elegans* protein configuration is now implemented for the represented
+full tree: 500 internal cells, 504 terminal cells, four measured roots, and
+1,000 evaluated edges. P0, AB, and P1 remain construction anchors with zeroed
+unmeasured state and do not enter the scored forest. The implementation writes
+cell- and layer-level manifests before rendering.
 
-Start with a code-and-data audit before designing panels:
+Figure 7 optimizes eight asynchronous bottom-up contraction rounds containing
+504, 230, 126, 68, 38, 19, 10, and 5 edges. These rounds partition the 1,000
+evaluated edges exactly. They must not be described as uniform developmental
+depths because tracked branches end at different lineage depths. Each round
+uses a matched parent-slot permutation null and biological-parent edge
+retention. The eight fronts are then summed at common weights to form the
+aggregate full-tree front.
 
-1. Inventory the existing full-tree runners, optimization variables, cached
-   `embryo1_prot` results, and legacy assumptions in
-   `full_tree_pareto/full_tree_pareto.ipynb`.
-2. Define precisely what one optimization layer contains: the cells being
-   reassigned, their admissible parents, the fixed state inherited from earlier
-   layers, and how a layer contributes to whole-tree travel and cell-state
-   costs.
-3. Build a layer manifest containing cell identities, lineage depths,
-   measurement availability, candidate-parent counts, and exclusions. Validate
-   that each natural edge is admissible before running optimization.
-4. Establish a reproducible *C. elegans* protein baseline, then generate and
-   validate the layer-by-layer Pareto results before selecting the scientific
-   story or figure layout.
+Figure 8 compares six valid reconstruction strategies and takes their
+non-dominated union as a collective sampled envelope. It includes every null
+model carried by the full-tree notebook. The first-cousin null and fixed-topology
+parametric Brownian reference share the main axes; only the three broad random models require
+an inset. The envelope is not an exact global Pareto front and should not be
+described as one. The collective black line was dropped because it duplicated
+the colored strategy lines; the per-strategy fronts are plotted directly so the
+shared envelope is visible without a redundant overlay. Repeated
+strategy-contribution dots and separate minimum-cost endpoint symbols were also
+removed because they duplicated the line encoding and made isolated markers
+look like additional solutions.
 
-Carry forward the norms that generalize from `terminal_pareto/`:
+The degree-constrained spanning forest and top-down rebuild trace nearly the
+same front. Both are greedy reconstructions over the same combined cost matrix
+`alpha*xyz + (1-alpha)*exp` with the same structural constraints, so they
+differ by only a few cost units at matched weights and overlap on the main
+axes.
 
-- keep travel and cell-state objectives separate and avoid describing a linear
-  combination as a biological efficiency score;
-- record the exact measurement space, optimization scope, null model, random
-  seed, sweep resolution, and cache schema;
-- distinguish attainable sampled assignments from interpolated display
-  geometry;
-- retain natural-lineage, objective-endpoint, and structural-retention
-  landmarks where their full-tree definitions remain valid;
-- use deterministic validation, manuscript color semantics, sentence-case
-  labels, canonical PDF panels, and standalone LaTeX assembly; and
-- place expensive generated results under `full_tree_pareto/output/` without
-  coupling them to or modifying the accepted terminal-only pipeline.
+The audit rejected and removed the notebook's historical MST cache. The saved
+cache contains full internal-plus-terminal costs, but its unconstrained graph
+forms one unrooted component, does not preserve the four biological roots, and
+allows more than two children per parent. Separately, the current legacy
+`mst_rebuild` implementation has an early-return bug and reports terminal costs
+only, so it cannot regenerate that cache consistently. Figure 8 replaces it
+with a four-root, degree-constrained spanning forest that validates 496 internal
+edges, 504 terminal edges, and at most two children per parent at every sampled
+weight. Its publication cache is `ce_full_tree_spanning_forest.csv`; do not
+reintroduce `mst_rebuild.npz` into a publication comparison.
 
-Do not copy terminal-specific normalization, cousin-shuffle constraints, or
-edge-retention definitions without checking that they remain meaningful for a
-sequential full-tree reconstruction. Document any full-tree replacement next
-to the implementation. The existing `full_tree_pareto/README.md` describes the
-current runners and cache layout; update it as the audited design becomes the
-new authoritative record for that module.
+The audit also rejected `phylo_bm.npz`. It belongs to the older 10-PC/raw-cost
+experiment and is on the scale visible in the earlier exploratory figure, not
+the current top-20 z-scored protein analysis. The old implementation also used
+tree IDs as measurement-row IDs—wrong for all 504 terminals here—and sampled
+ancestral nodes independently, breaking Brownian parent--child covariance. The
+replacement maps biological identities explicitly and fits a full 23-by-23
+rate covariance from all 1,000 observed branch-standardized increments. It
+fixes the four optimization-root states and simulates every scored descendant
+down the measured topology, producing 10,000 deterministic draws and a marked
+1,000-draw display subset. This is a geometric reference for asking where
+simple neutral diffusion on the fixed topology falls relative to the natural
+lineage and sampled Pareto envelope. Its assumptions are not strongly grounded
+in embryogenesis, so it must not be presented as a realistic biological null
+or used for strong process-level inference.
+
+The 10,000-draw reference averages approximately 4,831 travel and 5,241
+cell-state cost, versus 4,466 and 3,102 for the natural lineage. Its very large
+cell-state displacement is accompanied by strong observed rate heterogeneity:
+the top 5% of branch-standardized cell-state increments contribute about 56%
+of the fitted squared rate. Treat that separation as a warning about the
+common-rate Brownian assumptions, not as a precise biological-efficiency
+effect size.
+
+Backlog: review this offset with the authors before revising the reference.
+Block-diagonalizing travel and protein state leaves their marginal nulls
+unchanged, and treating the 20 proteins as independent moves the cell-state
+mean slightly farther away. The next technical sensitivity should instead test
+heterogeneous rates, such as layer-specific covariance, a heavy-tailed scale
+mixture, or a branch-stratified empirical residual bootstrap. The detailed
+diagnostics and fixed comparison requirements are recorded in
+`full_tree_pareto/README.md`.
+
+The next immediate step is author review of the candidate scientific story,
+panel hierarchy, captions, and numbering. If the figures are accepted, update
+the manuscript integration and treat the validated CSV caches and standalone
+wrappers as the release path. Preserve the separation between full-tree and
+terminal-only pipelines.
 
 ## Later work
 

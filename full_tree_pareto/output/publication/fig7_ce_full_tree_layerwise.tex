@@ -1,0 +1,35 @@
+\documentclass[10pt]{article}
+\usepackage[margin=12mm]{geometry}
+\usepackage{graphicx}
+\usepackage{caption}
+\pagestyle{empty}
+\captionsetup{font=small,labelfont=bf}
+
+\begin{document}
+\begin{figure}[p]
+\centering
+\includegraphics[width=0.92\textwidth]{fig7A_ce_full_tree_layerwise_rounds.pdf}
+\vspace{-2mm}
+\includegraphics[width=0.92\textwidth]{fig7B_ce_full_tree_layerwise_aggregate.pdf}
+\caption{\textbf{Full-tree Pareto structure emerges across bottom-up
+assignment rounds.} The measured \emph{C.\@ elegans} protein lineage was
+represented as a four-root forest containing 500 internal and 504 terminal
+cells, with 1,000 evaluated parent--child edges. (A) Starting from the terminal
+cells, each round assigns the current child identities to the multiset of their
+natural parent slots by minimum-cost bipartite matching over 301 weightings of
+travel and protein-state distance. The asynchronous contraction rounds contain
+504, 230, 126, 68, 38, 19, 10, and 5 edges; because measured branches terminate
+at different lineage depths, rounds are bottom-up wavefronts rather than uniform
+developmental layers. Each objective is expressed in standard deviations of
+1,000 random permutations of the same round's parent slots and translated so
+the natural assignment (black cross) is at the origin. Blue encodes retention
+of the biological parent identity, so exchanges between duplicate slots of one
+parent remain retained. Outlined circles mark the maximum-retention sampled
+assignment. (B) Summing the eight independently optimized rounds at the same
+weight produces the aggregate full-tree front. Its matched null (inset) sums
+independent parent-slot permutations across rounds. The natural lineage is
+sampled-dominated in the aggregate assignment space; the maximum-retention
+aggregate preserves 49.9\% of natural edges.}
+\label{fig:ce_full_tree_layerwise}
+\end{figure}
+\end{document}

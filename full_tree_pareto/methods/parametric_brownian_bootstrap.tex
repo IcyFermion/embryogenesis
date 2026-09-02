@@ -1,0 +1,524 @@
+\documentclass[10pt]{article}
+
+\usepackage[margin=23mm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+
+\definecolor{linkblue}{HTML}{1F5A7A}
+\definecolor{softblue}{HTML}{EAF3F7}
+\definecolor{softgrey}{HTML}{F3F3F3}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=linkblue,
+  urlcolor=linkblue,
+  citecolor=linkblue,
+  pdftitle={Parametric Brownian Bootstrap for the Full C. elegans Lineage},
+  pdfauthor={Embryogenesis Pareto analysis project}
+}
+
+\setlist{nosep,leftmargin=5mm}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.15}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Full-tree Pareto analysis}
+\rhead{Brownian parametric bootstrap}
+\cfoot{\thepage}
+\setlength{\headheight}{14pt}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\Cov}{\operatorname{Cov}}
+\newcommand{\Normal}{\mathcal{N}}
+\newcommand{\Tobs}{T_{\mathrm{obs}}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\title{\textbf{A Parametric Brownian Bootstrap for the\\
+Full \textit{C. elegans} Lineage}\\[2mm]
+\large Technical rationale, model, algorithm, validation, and interpretation}
+\author{Embryogenesis Pareto analysis project}
+\date{1 September 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This note specifies a Brownian-motion parametric bootstrap for evaluating the
+travel and protein-state edge costs of the measured \textit{C. elegans}
+lineage.  It is written for the current full-tree publication configuration:
+four measured roots, 500 internal cells, 504 terminal cells, 1,000 evaluated
+edges, three spatial coordinates, and 20 z-scored protein features.  The key
+distinction is between \emph{ancestral-state reconstruction}, which infers
+unobserved internal states conditional on terminal observations, and a
+\emph{generative null}, which simulates complete observable lineages and
+compares exactly the same statistics with the natural lineage.  The latter is
+the appropriate role for a Brownian reference distribution in Figure~8.
+\end{abstract}
+
+\setcounter{tocdepth}{1}
+\tableofcontents
+\newpage
+
+\section{The scientific question}
+
+The full-tree analysis observes a state vector for every measured cell,
+\[
+  \mathbf{x}_v =
+  \bigl(x_v,y_v,z_v,p_{v1},\ldots,p_{v20}\bigr)^\top \in \R^{23},
+\]
+where the first three entries are spatial coordinates and the remaining 20 are
+z-scored protein features.  The natural forest contains four earliest measured
+roots and a common set $E$ of 1,000 scored parent--child edges.
+
+The proposed null asks:
+
+\begin{quote}
+If cell states changed by neutral, constant-rate Gaussian diffusion along the
+same measured branches, what total travel and protein-state costs would be
+observed?
+\end{quote}
+
+This is a model-adequacy question.  It holds the measured forest and branch
+durations fixed, generates complete alternative state histories under a fitted
+Brownian model, and evaluates the same two statistics used for the natural
+lineage.  Simulation-based tests on a fixed phylogeny have a long history
+\cite{garland1993}; modern phylogenetic Monte Carlo and model-adequacy
+frameworks emphasize fitting an explicit evolutionary model and checking its
+predictions on the particular tree and statistic of interest
+\cite{boettiger2012,pennell2015}.
+
+\subsection{What this null does and does not test}
+
+\begin{itemize}
+  \item It tests neutral \emph{state dynamics} on the fixed natural forest.
+  \item It does not randomize lineage topology, parent identities, branch
+        durations, measurement availability, or the number of scored edges.
+  \item It therefore complements, rather than replaces, the assignment,
+        cousin-shuffle, and reconstruction nulls in the Pareto analysis.
+  \item A result outside the bootstrap distribution rejects this particular
+        Brownian description; it does not by itself identify selection or a
+        unique biological mechanism.
+\end{itemize}
+
+\section{Why the former method answers a different question}
+
+The historical implementation begins with terminal states, estimates
+Brownian rates from them, and infers internal states conditional on those
+terminals.  In probability notation it targets
+\[
+ p\!\left(
+   \mathbf{X}_{\mathrm{internal}}
+   \mid \mathbf{X}_{\mathrm{terminal}},\mathcal{T},\widehat{\boldsymbol\Sigma}
+ \right).
+\]
+This is ancestral-state reconstruction.  It is appropriate when the internal
+states are missing and the goal is to predict them.  Studies with independently
+observed ancestral nodes use those observations to evaluate the reconstructions
+rather than treating reconstructed values as new neutral data
+\cite{polly2001}.
+
+In the present experiment, however, the 500 internal cells are observed.  If
+they are discarded and replaced by terminal-conditioned estimates, those
+estimates act as smooth interpolants.  Comparing their edge lengths with the
+irregular measured trajectory gives the reconstruction an intrinsic smoothness
+advantage.  It answers ``what smooth ancestral history explains these tips?''
+rather than ``what complete lineage would neutral Brownian dynamics generate?''
+
+\subsection{Three additional problems in the historical code}
+
+\begin{enumerate}
+  \item \textbf{Identity indexing.} Tree IDs encode topology; lineage IDs index
+        measurement arrays.  None of the 504 terminal tree IDs in the current
+        configuration equals its biological measurement-row ID.  Directly
+        indexing the data by tree ID assigns the wrong cell states to every tip.
+
+  \item \textbf{Independent node draws.} Marginal ancestral distributions were
+        sampled independently.  A Brownian parent and child are positively
+        correlated.  For adjacent states $P$ and $C$,
+        \[
+          \Var(C-P)=\Var(C)+\Var(P)-2\Cov(C,P).
+        \]
+        Dropping the positive covariance inflates edge variation.
+
+  \item \textbf{Unequal scopes.} The former sampler summed 1,006 represented
+        edges, including early construction edges.  Natural and heuristic
+        costs use the 1,000 edges below the four measured roots.
+\end{enumerate}
+
+The old 10-PC experiment illustrates the combined effect.  Its natural
+expression cost is 93,661.  The historical calculation with incorrect
+identity indexing yields about 106,857, reproducing the old plotted cloud.
+Correct identity mapping lowers the same marginal-node method to about 70,338;
+exact joint conditioning lowers it to about 67,464.  The low value is not a
+numerical accident: it is the expected smoothness of terminal-conditioned
+ancestral reconstruction.
+
+\section{Generative Brownian model}
+
+Let $e=(u\rightarrow v)$ denote a directed edge from parent $u$ to child $v$,
+and let $t_e>0$ be its tracking-time duration.  A multivariate Brownian model
+assumes
+\begin{equation}
+  \mathbf{x}_v = \mathbf{x}_u + \boldsymbol\epsilon_e,
+  \qquad
+  \boldsymbol\epsilon_e \sim
+  \Normal\!\left(\mathbf{0},t_e\boldsymbol\Sigma\right),
+  \label{eq:brownian}
+\end{equation}
+with independent increments on distinct edges.  The $23\times23$ positive
+semidefinite matrix $\boldsymbol\Sigma$ describes change per unit branch time,
+including feature variances and cross-feature covariances.  Under Brownian
+motion, variance accumulates in direct proportion to elapsed branch time, the
+central assumption behind independent contrasts and phylogenetic generalized
+least squares \cite{felsenstein1985,freckleton2012}.
+
+Equation~\eqref{eq:brownian} is a zero-drift model: the expected increment is
+zero.  A directional extension is
+\[
+  \boldsymbol\epsilon_e \sim
+  \Normal(t_e\boldsymbol\mu,t_e\boldsymbol\Sigma),
+\]
+but drift should be added only as a prespecified robustness analysis.  With
+many correlated protein features, an unconstrained drift vector can absorb
+developmental trends and materially change the biological null.
+
+\subsection{Role of the topology}
+
+Simulating absolute node states requires the tree: a terminal state is the sum
+of all increments along its root-to-tip path, and related cells share early
+increments.  This produces the standard phylogenetic covariance structure.
+
+For the particular statistic used here---a sum of norms of individual edge
+increments---the distribution depends on the collection of branch durations
+and the fitted increment covariance, but not on how edges are connected.  The
+topology becomes essential again for terminal covariances, clade summaries,
+subtree statistics, or any statistic involving nonadjacent cells.  Stating
+this explicitly prevents overinterpreting the bootstrap as a topology test.
+
+\section{Parameter estimation from the measured forest}
+
+For each of the same 1,000 scored edges, calculate the observed increment
+\[
+  \boldsymbol\Delta_e = \mathbf{x}_v-\mathbf{x}_u
+\]
+and its branch-standardized form
+\[
+  \mathbf{z}_e = \frac{\boldsymbol\Delta_e}{\sqrt{t_e}}.
+\]
+Under Equation~\eqref{eq:brownian}, the $\mathbf{z}_e$ are independent draws
+from $\Normal(\mathbf{0},\boldsymbol\Sigma)$.  The zero-drift maximum-likelihood
+estimate is therefore
+\begin{equation}
+  \widehat{\boldsymbol\Sigma}
+    = \frac{1}{|E|}\sum_{e\in E}
+      \frac{\boldsymbol\Delta_e\boldsymbol\Delta_e^\top}{t_e}.
+  \label{eq:sigmahat}
+\end{equation}
+
+This uses the internal observations rather than treating them as missing.
+Because $|E|=1{,}000$ and the state dimension is 23, the full empirical
+covariance is estimable, but its eigenvalues and condition number must still be
+reported.
+
+\subsection{Covariance specifications to compare}
+
+\begin{center}
+\begin{tabular}{L{28mm}L{50mm}L{72mm}}
+\toprule
+Specification & Structure & Interpretation \\
+\midrule
+Diagonal & 23 variances & Reproduces the historical feature-independence
+assumption; simplest but discards correlated protein changes. \\
+Two-block & Full $3\times3$ spatial and $20\times20$ protein blocks & Preserves
+correlation within each objective while preventing cross-objective covariance
+from influencing the generative model. \\
+Full & Full $23\times23$ covariance & Preserves spatial--protein coupling as
+well as within-objective covariance; preferred primary model if numerically
+stable and scientifically intended. \\
+Shrinkage & Regularized full covariance & Useful if eigenvalues are unstable;
+the shrinkage rule and intensity must be fixed and reported. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The diagonal, two-block, and full specifications form an important robustness
+analysis.  They should not be selected after inspecting which one makes the
+natural lineage look most extreme.
+
+\section{Bootstrap algorithm}
+
+Let $B$ be the number of replicates, preferably at least 10,000 for a
+publication null cloud and stable tail estimates.  Compute a matrix square root
+$\mathbf{L}$ such that
+\[
+  \mathbf{L}\mathbf{L}^\top=\widehat{\boldsymbol\Sigma}.
+\]
+Cholesky decomposition is appropriate for a positive-definite estimate;
+eigendecomposition with documented clipping or shrinkage is safer near the
+positive-semidefinite boundary.
+
+For replicate $b=1,\ldots,B$:
+
+\begin{enumerate}
+  \item Fix the four root states at their measured values.  Root values do not
+        affect edge-cost totals, but retaining them permits complete simulated
+        node-state output and later topology-aware diagnostics.
+  \item Traverse from roots toward tips.  For every scored edge $e$, draw
+        $\mathbf{g}_e^{(b)}\sim\Normal(\mathbf{0},\mathbf{I}_{23})$ and set
+        \[
+          \boldsymbol\Delta_e^{(b)}
+          = \sqrt{t_e}\,\mathbf{L}\mathbf{g}_e^{(b)},
+          \qquad
+          \mathbf{x}_v^{(b)}
+          = \mathbf{x}_u^{(b)}+\boldsymbol\Delta_e^{(b)}.
+        \]
+  \item Evaluate exactly the natural-lineage statistics:
+        \begin{align}
+          C_{xyz}^{(b)} &=
+            \sum_{e\in E}\left\|\boldsymbol\Delta_{e,1:3}^{(b)}\right\|_2,
+            \\
+          C_{protein}^{(b)} & =
+            \sum_{e\in E}\left\|\boldsymbol\Delta_{e,4:23}^{(b)}\right\|_2.
+        \end{align}
+  \item Store costs, the seed or replicate index, and any model-adequacy
+        summaries.  Do not store a million full node-state tensors unless a
+        later statistic requires them.
+\end{enumerate}
+
+\subsection{Reference pseudocode}
+
+\begin{verbatim}
+# Fit on exactly the evaluated 1,000 edges
+delta[e] = state[child[e]] - state[parent[e]]
+z[e]     = delta[e] / sqrt(branch_time[e])
+Sigma    = mean(outer(z[e], z[e]) for e in evaluated_edges)
+L        = matrix_square_root(Sigma)
+
+for b in range(B):
+    travel = 0
+    protein = 0
+    simulated_state[root_ids] = observed_state[root_ids]
+
+    for e in root_to_tip_edge_order:
+        increment = sqrt(branch_time[e]) * L @ normal_vector(23)
+        simulated_state[child[e]] = simulated_state[parent[e]] + increment
+        travel  += norm(increment[:3])
+        protein += norm(increment[3:])
+
+    save(b, travel, protein)
+\end{verbatim}
+
+For edge-additive costs alone, the absolute-state assignments may be omitted
+and independent increments accumulated directly.  Retaining the traversal is
+recommended in the reference implementation because it enables tests of
+terminal covariance and subtree behavior.
+
+\section{Inference from the bootstrap distribution}
+
+The observed statistics are
+\[
+  C_{xyz}^{obs}=4{,}465.55,
+  \qquad
+  C_{protein}^{obs}=3{,}102.41.
+\]
+If low cost is the prespecified direction of interest, finite-sample empirical
+$p$-values are
+\begin{align}
+ p_{xyz}^{low}
+  &= \frac{1+\sum_{b=1}^{B}
+       \mathbf{1}\!\left[C_{xyz}^{(b)}\le C_{xyz}^{obs}\right]}{B+1},\\
+ p_{protein}^{low}
+  &= \frac{1+\sum_{b=1}^{B}
+       \mathbf{1}\!\left[C_{protein}^{(b)}\le C_{protein}^{obs}\right]}{B+1}.
+\end{align}
+The $+1$ correction prevents an estimated probability of exactly zero.  Report
+the bootstrap mean, standard deviation, central interval, empirical percentile,
+Monte Carlo sample size, seed, and covariance specification alongside each
+$p$-value.
+
+Because the two costs are evaluated jointly, Figure~8 should also display the
+two-dimensional cloud.  A joint extremeness measure must be chosen before
+examining results.  Reasonable choices include a lower-left orthant probability
+or a Mahalanobis discrepancy in the bootstrap cost plane.  Neither should be
+silently substituted for the scientifically clearer pair of marginal results.
+
+\subsection{Parameter uncertainty}
+
+The primary plug-in bootstrap simulates from
+$\widehat{\boldsymbol\Sigma}$.  Parameter uncertainty can be assessed by an
+outer bootstrap over standardized measured increments, by a Bayesian posterior
+over $\boldsymbol\Sigma$, or by a nested parametric bootstrap.  These are
+valuable robustness checks, especially for tail probabilities, but they do not
+repair a structurally inadequate Brownian model.  The model must first pass
+basic adequacy diagnostics.
+
+\section{Model-adequacy checks required before interpretation}
+
+A small $p$-value means the observed statistic is unusual under the fitted
+model.  It is interpretable only after asking why the model failed.  Pennell
+et~al. emphasize that absolute adequacy is distinct from choosing the best
+model among several inadequate alternatives \cite{pennell2015}.
+
+The release analysis should include at least the following checks:
+
+\begin{enumerate}
+  \item \textbf{Standardized increments.} Examine
+        $\mathbf{z}_e=\boldsymbol\Delta_e/\sqrt{t_e}$ for mean trends,
+        skewness, heavy tails, and outliers.
+  \item \textbf{Rate homogeneity.} Compare squared standardized increments by
+        contraction round, developmental time, major lineage, and terminal
+        versus internal edge.  Constant-rate Brownian motion predicts no
+        systematic grouping.
+  \item \textbf{Branch-time calibration.} Test whether squared increment
+        magnitude is proportional to branch duration.  Tracking duration is a
+        modeling choice, not automatically an evolutionary clock.
+  \item \textbf{Feature covariance.} Report covariance eigenvalues, condition
+        number, effective rank, and results under diagonal, two-block, and full
+        models.
+  \item \textbf{Posterior-predictive summaries.} In addition to total cost,
+        compare maximum edge change, coefficient of variation of edge norms,
+        layerwise costs, subtree costs, and terminal covariance with their
+        simulated distributions.
+  \item \textbf{Monte Carlo convergence.} Repeat with at least two seeds and
+        show that means, intervals, and tail probabilities are stable.
+\end{enumerate}
+
+If the model fails because rates differ greatly across developmental layers,
+a prespecified multi-rate Brownian model may be appropriate.  If state changes
+show attraction to a developmental trajectory or optimum, an
+Ornstein--Uhlenbeck-like model may be considered.  If increments are
+heavy-tailed, a jump or robust diffusion model may be more credible.  These
+models answer different biological questions and should be motivated by
+diagnostics, not selected solely to move the null cloud.
+
+\section{Preliminary numerical audit and expected figure behavior}
+
+A 4,000-draw diagnostic run using the full $23\times23$ covariance estimated
+from all 1,000 observed increments produced:
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+ & Travel cost & Protein-state cost \\
+\midrule
+Natural lineage & 4,465.55 & 3,102.41 \\
+Brownian bootstrap mean & 4,831.30 & 5,241.96 \\
+Brownian bootstrap SD & 74.16 & 38.00 \\
+Mean / natural & 1.082 & 1.690 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+These values are an audit preview, not a release result.  They show why the new
+null is conceptually more plausible than terminal-conditioned reconstruction:
+the simulated lineages are complete observable histories, and the natural
+lineage is compared with the same 1,000-edge statistic.  They also suggest
+strong Brownian model inadequacy for protein-state cost.  Before interpreting
+that separation as biological organization, the constant-rate and Gaussian
+assumptions must be checked using the diagnostics above.
+
+In Figure~8 coordinates standardized by the first-cousin null, this bootstrap
+may lie far from the main Pareto region on the protein axis.  An inset is then
+appropriate, but its distance should be described as a model-adequacy result,
+not as evidence that Brownian motion is the uniquely correct neutral process.
+
+\newpage
+\section{Reproducibility and validation checklist}
+
+The implementation is ready for publication use only if all of the following
+are recorded and tested:
+
+\begin{itemize}
+  \item exact biological identity mapping for every parent and child;
+  \item exactly four roots, 1,000 unique evaluated edges, and no early-anchor
+        construction edges;
+  \item positive, explicitly defined branch durations for every edge;
+  \item the 3 spatial and 20 protein features in documented order and scale;
+  \item covariance specification, estimator, regularization, eigenvalues, and
+        condition number;
+  \item random-number generator, seed, replicate count, and cache schema;
+  \item deterministic agreement between vectorized and reference traversal
+        implementations on a small seed;
+  \item agreement of natural costs recomputed from the bootstrap edge manifest
+        with 4,465.55 and 3,102.41;
+  \item Monte Carlo convergence across seeds and replicate counts;
+  \item model-adequacy summaries, not only the final two cost coordinates; and
+  \item clear labeling as a parametric Brownian reference on a fixed topology,
+        not an ancestral reconstruction or a topology-randomization null.
+\end{itemize}
+
+\section{Recommended interpretation}
+
+The parametric bootstrap has a narrow, useful interpretation:
+
+\begin{quote}
+After calibrating a constant-rate multivariate Brownian process to the observed
+full-tree increments, does that process reproduce the natural lineage's total
+travel and protein-state edge costs on the same branch durations?
+\end{quote}
+
+Its advantages are scope matching, correct joint generation, explicit
+assumptions, direct simulation of the plotted statistics, and the ability to
+diagnose model failure.  Its limitations are equally important: the Brownian
+assumption may be poor for a deterministic developmental lineage; tracking
+time may not be the correct diffusion clock; feature scaling affects the
+covariance; and a fixed-topology test cannot establish that the natural parent
+assignment itself is special.
+
+Used with those qualifications, the bootstrap is a defensible reference model.
+Used without adequacy checks, it risks replacing one misleading phylogenetic
+cloud with another.
+
+\begin{thebibliography}{9}
+
+\bibitem{felsenstein1985}
+Felsenstein, J. (1985).
+Phylogenies and the comparative method.
+\textit{The American Naturalist}, 125(1), 1--15.
+\href{https://doi.org/10.1086/284325}{doi:10.1086/284325}.
+
+\bibitem{garland1993}
+Garland, T., Jr., Dickerman, A. W., Janis, C. M., and Jones, J. A. (1993).
+Phylogenetic analysis of covariance by computer simulation.
+\textit{Systematic Biology}, 42(3), 265--292.
+\href{https://doi.org/10.1093/sysbio/42.3.265}{doi:10.1093/sysbio/42.3.265}.
+
+\bibitem{polly2001}
+Polly, P. D. (2001).
+Paleontology and the comparative method: ancestral node reconstructions versus
+observed node values.
+\textit{The American Naturalist}, 157(6), 596--609.
+\href{https://doi.org/10.1086/320622}{doi:10.1086/320622}.
+
+\bibitem{boettiger2012}
+Boettiger, C., Coop, G., and Ralph, P. (2012).
+Is your phylogeny informative? Measuring the power of comparative methods.
+\textit{Evolution}, 66(7), 2240--2251.
+\href{https://doi.org/10.1111/j.1558-5646.2011.01574.x}%
+{doi:10.1111/j.1558-5646.2011.01574.x}.
+
+\bibitem{freckleton2012}
+Freckleton, R. P. (2012).
+Fast likelihood calculations for comparative analyses.
+\textit{Methods in Ecology and Evolution}, 3(5), 940--947.
+\href{https://doi.org/10.1111/j.2041-210X.2012.00220.x}%
+{doi:10.1111/j.2041-210X.2012.00220.x}.
+
+\bibitem{pennell2015}
+Pennell, M. W., FitzJohn, R. G., Cornwell, W. K., and Harmon, L. J. (2015).
+Model adequacy and the macroevolution of angiosperm functional traits.
+\textit{The American Naturalist}, 186(2), E33--E50.
+\href{https://doi.org/10.1086/682022}{doi:10.1086/682022}.
+
+\end{thebibliography}
+
+\end{document}

@@ -1,0 +1,367 @@
+\documentclass[10pt]{article}
+
+\usepackage[margin=24mm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+
+\definecolor{linkblue}{HTML}{1F5A7A}
+\definecolor{softblue}{HTML}{EAF3F7}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=linkblue,
+  urlcolor=linkblue,
+  citecolor=linkblue,
+  pdftitle={Why the Brownian Rate Estimate Is an Average Outer Product},
+  pdfauthor={Embryogenesis Pareto analysis project}
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\renewcommand{\arraystretch}{1.15}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Brownian covariance MLE}
+\rhead{Equation 2 derivation}
+\cfoot{\thepage}
+\setlength{\headheight}{14pt}
+
+\newcommand{\Normal}{\mathcal{N}}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\tr}{\operatorname{tr}}
+
+\title{\textbf{Why the Brownian Rate Estimate Is an\\Average Outer Product}\\[2mm]
+\large An intuitive and mathematical derivation of Equation 2 in the companion methods note}
+\author{Embryogenesis Pareto analysis project}
+\date{1 September 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Equation 2 of the companion parametric-bootstrap methods note states that, for
+a Brownian process observed on every parent--child edge, the branch-standardized
+increments are independent multivariate-normal observations.  Their
+maximum-likelihood covariance is their average outer product.  This note
+derives that result first in one dimension, then geometrically and algebraically
+in multiple dimensions, and finally reconnects it to branch durations in the
+full \textit{C. elegans} lineage analysis.
+\end{abstract}
+
+\section{The result in plain language}
+
+For edge $e$, let
+\[
+  \boldsymbol\Delta_e
+  = \mathbf{x}_{child(e)}-\mathbf{x}_{parent(e)}
+\]
+be its observed 23-dimensional state change, and let $t_e>0$ be the duration of
+the edge.  Brownian motion assumes
+\[
+  \boldsymbol\Delta_e
+  \sim \Normal\!\left(\mathbf 0,t_e\boldsymbol\Sigma\right).
+\]
+Longer edges have proportionally more variance.  Dividing by the square root
+of time removes that expected scaling:
+\[
+  \mathbf z_e=\frac{\boldsymbol\Delta_e}{\sqrt{t_e}}
+  \sim\Normal(\mathbf0,\boldsymbol\Sigma).
+\]
+
+The 1,000 vectors $\mathbf z_e$ are therefore 1,000 observations of the same
+zero-centered Gaussian cloud.  Maximum likelihood chooses the covariance
+matrix whose cloud has the same width, orientation, and elongation as the
+observed scatter.  Algebraically, that covariance is
+\setcounter{equation}{1}
+\begin{equation}
+  \widehat{\boldsymbol\Sigma}
+  =\frac{1}{E}\sum_{e=1}^{E}\mathbf z_e\mathbf z_e^\top
+  =\frac{1}{E}\sum_{e=1}^{E}
+    \frac{\boldsymbol\Delta_e\boldsymbol\Delta_e^\top}{t_e}.
+  \label{eq:target}
+\end{equation}
+
+The rest of the note explains why.
+
+\section{Begin with one dimension}
+
+Suppose an edge has only one standardized feature:
+\[
+  z_e\sim\Normal(0,\sigma^2).
+\]
+The density of one observation is
+\[
+  p(z_e\mid\sigma^2)
+  =\frac{1}{\sqrt{2\pi\sigma^2}}
+   \exp\!\left(-\frac{z_e^2}{2\sigma^2}\right).
+\]
+
+There are two competing penalties:
+
+\begin{itemize}
+  \item If $\sigma^2$ is too small, observed changes far from zero become very
+        unlikely because of the exponential term.
+  \item If $\sigma^2$ is too large, probability is spread over an unnecessarily
+        wide interval because of the $1/\sqrt{\sigma^2}$ term.
+\end{itemize}
+
+The maximum-likelihood variance balances those penalties.
+
+For $E$ independent edges, the likelihood is the product of their densities.
+Taking logarithms turns the product into a sum:
+\begin{align*}
+  \ell(\sigma^2)
+  &=\log L(\sigma^2)\\
+  &=-\frac{E}{2}\log(2\pi)
+    -\frac{E}{2}\log(\sigma^2)
+    -\frac{1}{2\sigma^2}\sum_{e=1}^{E}z_e^2.
+\end{align*}
+The first term is constant with respect to $\sigma^2$.  Differentiating the
+other terms gives
+\[
+  \frac{d\ell}{d\sigma^2}
+  =-\frac{E}{2\sigma^2}
+   +\frac{1}{2(\sigma^2)^2}\sum_e z_e^2.
+\]
+At the maximum this derivative is zero, so
+\[
+ -E\sigma^2+\sum_e z_e^2=0,
+ \qquad\text{and hence}\qquad
+ \boxed{\widehat{\sigma}^2=\frac{1}{E}\sum_e z_e^2.}
+\]
+
+Thus the best-fitting zero-centered Gaussian variance is the average squared
+distance from zero.  Small observations produce a narrow fitted Gaussian;
+large observations produce a broad one.
+
+\section{The multivariate version: outer products}
+
+For $p$ features, one standardized edge change is a column vector
+\[
+  \mathbf z_e=(z_{e1},\ldots,z_{ep})^\top.
+\]
+Instead of a single variance, the Gaussian requires a covariance matrix
+\[
+  \boldsymbol\Sigma=
+  \begin{pmatrix}
+    \Var(z_1) & \operatorname{Cov}(z_1,z_2) & \cdots\\
+    \operatorname{Cov}(z_2,z_1) & \Var(z_2) & \cdots\\
+    \vdots&\vdots&\ddots
+  \end{pmatrix}.
+\]
+
+The multivariate analogue of squaring $z_e$ is taking its \emph{outer
+product}.  In two dimensions,
+\[
+  \mathbf z_e=\begin{pmatrix}a\\b\end{pmatrix}
+  \quad\Longrightarrow\quad
+  \mathbf z_e\mathbf z_e^\top
+  =\begin{pmatrix}a^2&ab\\ab&b^2\end{pmatrix}.
+\]
+
+Each element has a direct interpretation:
+
+\begin{itemize}
+  \item $a^2$ records how much feature 1 varied on this edge;
+  \item $b^2$ records how much feature 2 varied;
+  \item $ab$ records whether they changed together.  It is positive when they
+        have the same sign and negative when they have opposite signs.
+\end{itemize}
+
+Averaging these matrices over edges therefore averages the observed variances
+and covariances simultaneously:
+\[
+  \widehat{\boldsymbol\Sigma}
+  =\frac{1}{E}\sum_e\mathbf z_e\mathbf z_e^\top.
+\]
+
+Geometrically, a multivariate Gaussian forms an ellipse or ellipsoid.  The
+diagonal entries determine its spread along the feature axes; off-diagonal
+entries rotate it toward directions in which features tend to change together.
+The average outer product is precisely the matrix describing the empirical
+ellipsoid of the observations around the known mean zero.
+
+\subsection{A concrete two-dimensional example}
+
+Consider three standardized edge changes:
+\[
+  \mathbf z_1=\begin{pmatrix}1\\2\end{pmatrix},\qquad
+  \mathbf z_2=\begin{pmatrix}-1\\0\end{pmatrix},\qquad
+  \mathbf z_3=\begin{pmatrix}0\\-2\end{pmatrix}.
+\]
+Their outer products are
+\[
+\begin{pmatrix}1&2\\2&4\end{pmatrix},\qquad
+\begin{pmatrix}1&0\\0&0\end{pmatrix},\qquad
+\begin{pmatrix}0&0\\0&4\end{pmatrix}.
+\]
+Their average is
+\[
+  \widehat{\boldsymbol\Sigma}
+  =\frac{1}{3}\begin{pmatrix}2&2\\2&8\end{pmatrix}
+  =\begin{pmatrix}0.67&0.67\\0.67&2.67\end{pmatrix}.
+\]
+Feature 2 has much greater variance than feature 1, and the positive
+off-diagonal entry indicates a positive association.  The fitted Gaussian is
+therefore elongated mainly in feature 2 and tilted toward changes in which the
+two features move together.
+
+\section{Why the outer-product average maximizes likelihood}
+
+The multivariate-normal log-likelihood is
+\begin{equation}
+  \ell(\boldsymbol\Sigma)
+  =-\frac{E}{2}\log|\boldsymbol\Sigma|
+   -\frac{1}{2}\sum_e
+      \mathbf z_e^\top\boldsymbol\Sigma^{-1}\mathbf z_e
+   +\text{constant}.
+  \label{eq:loglik}
+\end{equation}
+
+The first term penalizes an unnecessarily large Gaussian volume because
+$|\boldsymbol\Sigma|$ measures the squared volume scale of its covariance
+ellipsoid.  The second term penalizes a covariance that is too small or points
+in the wrong direction.  Its quadratic form is the squared Mahalanobis
+distance of an observation from zero under the proposed covariance.
+
+Define the empirical scatter matrix
+\[
+  \mathbf S=\frac{1}{E}\sum_e\mathbf z_e\mathbf z_e^\top.
+\]
+Using
+\[
+  \mathbf z_e^\top\boldsymbol\Sigma^{-1}\mathbf z_e
+  =\tr\!\left(\boldsymbol\Sigma^{-1}
+               \mathbf z_e\mathbf z_e^\top\right),
+\]
+Equation~\eqref{eq:loglik} becomes
+\[
+  \ell(\boldsymbol\Sigma)
+  =-\frac{E}{2}\left[
+      \log|\boldsymbol\Sigma|
+      +\tr(\boldsymbol\Sigma^{-1}\mathbf S)
+    \right]+\text{constant}.
+\]
+
+The relevant matrix derivatives are
+\[
+ \frac{\partial\log|\boldsymbol\Sigma|}{\partial\boldsymbol\Sigma}
+ =\boldsymbol\Sigma^{-1},
+ \qquad
+ \frac{\partial\tr(\boldsymbol\Sigma^{-1}\mathbf S)}
+      {\partial\boldsymbol\Sigma}
+ =-\boldsymbol\Sigma^{-1}\mathbf S\boldsymbol\Sigma^{-1}.
+\]
+Setting the derivative of the log-likelihood to zero gives
+\[
+ -\boldsymbol\Sigma^{-1}
+ +\boldsymbol\Sigma^{-1}\mathbf S\boldsymbol\Sigma^{-1}=0.
+\]
+Multiplying on both sides by $\boldsymbol\Sigma$ yields
+\[
+  \boxed{\boldsymbol\Sigma=\mathbf S.}
+\]
+Therefore the Gaussian whose covariance ellipsoid matches the empirical
+scatter is not only intuitive: it is exactly the maximum-likelihood solution.
+
+\section{Returning to branch durations}
+
+Because
+\[
+  \mathbf z_e=\frac{\boldsymbol\Delta_e}{\sqrt{t_e}},
+\]
+its outer product is
+\[
+  \mathbf z_e\mathbf z_e^\top
+  =\frac{\boldsymbol\Delta_e\boldsymbol\Delta_e^\top}{t_e}.
+\]
+Substitution into the average scatter matrix recovers Equation~\eqref{eq:target}:
+\[
+  \boxed{
+  \widehat{\boldsymbol\Sigma}
+  =\frac{1}{E}\sum_e
+    \frac{\boldsymbol\Delta_e\boldsymbol\Delta_e^\top}{t_e}.}
+\]
+
+In words: compute each edge's multivariate squared change per unit time,
+including how features change together, and average that information over all
+edges.
+
+\section{Why divide by $E$ rather than $E-1$?}
+
+The Brownian model fixes the expected increment at zero.  Because this mean is
+known rather than estimated from the edge increments, no degree of freedom is
+spent estimating it.  Consequently, division by $E$ is both the
+maximum-likelihood estimator and an unbiased estimator under the stated model.
+
+If a nonzero drift vector were estimated from the same increments, the
+maximum-likelihood covariance would still use an $E$ denominator, but a
+degrees-of-freedom-adjusted covariance estimator would be required for
+unbiasedness.  This is the same distinction as the familiar $n$ versus $n-1$
+denominator in elementary statistics.
+
+\section{Direct phylogenetic connection and assumptions}
+
+Revell and Collar derive the corresponding multivariate Brownian rate-matrix
+MLE for correlated tip observations \cite{revellcollar2009}:
+\[
+  \widehat{\mathbf R}
+  =\frac{(\mathbf X-\mathbf1\mathbf a^\top)^\top
+          \mathbf C^{-1}
+         (\mathbf X-\mathbf1\mathbf a^\top)}{n},
+\]
+where $\mathbf C$ is the covariance implied by shared ancestry.  In our
+fully-observed-edge setting, branch standardization transforms the data into
+independent increments, so the covariance structure becomes the identity and
+their expression reduces to $\mathbf Z^\top\mathbf Z/E$.  Felsenstein's
+independent-contrast construction provides the foundational connection between
+Brownian motion, branch-length standardization, and independent Gaussian
+changes \cite{felsenstein1985}.  Freckleton gives a clear likelihood treatment
+of Brownian rate estimation and the ML versus degrees-of-freedom denominators
+\cite{freckleton2012}.
+
+Equation~\eqref{eq:target} relies on the following assumptions:
+
+\begin{itemize}
+  \item the expected increment is zero unless drift is modeled explicitly;
+  \item Brownian increments are independent across edges conditional on their
+        observed parent states;
+  \item increment covariance is proportional to branch duration;
+  \item one common $\boldsymbol\Sigma$ applies to all scored edges; and
+  \item node states are observed without substantial measurement error.
+\end{itemize}
+
+The last condition matters.  If the observed state is
+$\mathbf y_v=\mathbf x_v+\boldsymbol\eta_v$, adjacent observed increments share
+the measurement error of their common node.  They are then correlated even if
+the latent Brownian increments are independent.  A publication analysis should
+therefore either justify negligible measurement error or extend the model to
+include an observation-error covariance.
+
+\begin{thebibliography}{9}
+
+\bibitem{felsenstein1985}
+Felsenstein, J. (1985).
+Phylogenies and the comparative method.
+\textit{The American Naturalist}, 125(1), 1--15.
+\href{https://doi.org/10.1086/284325}{doi:10.1086/284325}.
+
+\bibitem{revellcollar2009}
+Revell, L. J., and Collar, D. C. (2009).
+Phylogenetic analysis of the evolutionary correlation using likelihood.
+\textit{Evolution}, 63(4), 1090--1100.
+\href{https://doi.org/10.1111/j.1558-5646.2009.00616.x}%
+{doi:10.1111/j.1558-5646.2009.00616.x}.
+
+\bibitem{freckleton2012}
+Freckleton, R. P. (2012).
+Fast likelihood calculations for comparative analyses.
+\textit{Methods in Ecology and Evolution}, 3(5), 940--947.
+\href{https://doi.org/10.1111/j.2041-210X.2012.00220.x}%
+{doi:10.1111/j.2041-210X.2012.00220.x}.
+
+\end{thebibliography}
+
+\end{document}
