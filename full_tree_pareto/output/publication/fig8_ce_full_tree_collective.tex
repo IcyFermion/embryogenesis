@@ -1,5 +1,5 @@
 \documentclass[10pt]{article}
-\usepackage[margin=12mm]{geometry}
+\usepackage[letterpaper,margin=12mm]{geometry}
 \usepackage{graphicx}
 \usepackage{caption}
 \pagestyle{empty}
@@ -9,32 +9,43 @@
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{fig8_ce_full_tree_collective_panel.pdf}
-\caption{\textbf{Alternative full-tree reconstructions define a collective
-sampled Pareto envelope.} Six reconstruction strategies were evaluated for the
-same 1,000-edge \emph{C.\@ elegans} protein lineage: bottom-up optimization by
-lineage layer, independent layerwise parent assignment, paired bottom-up
-rebuilding, a degree-constrained spanning forest, top-down rebuilding, and a
-terminal-only rebuild without reuse of measured internal protein states. Thin
-colored curves retain the non-dominated solutions from each strategy's sampled
-weight sweep. Colored curves retain the identity of each reconstruction
-strategy. Costs are reported
+\caption{\textbf{Relaxing layerwise assignment constraints permits further
+reductions in full-tree reconstruction costs.} Two complementary strategies
+are compared for the measured 1,000-edge \emph{C.\@ elegans} protein lineage.
+Layerwise assignment (blue) solves an exact linear assignment within each
+bottom-up contraction round, preserving natural parent-slot multiplicities.
+The degree-constrained spanning forest (green) greedily rebuilds connections
+among measured internal cells and assigns terminals to the remaining openings.
+Both use measured states and preserve four roots and 1,000 scored edges; the
+forest enforces at most two children per parent. Curves retain non-dominated
+cost pairs from each method's 301 sampled weights, without claiming a global
+forest optimum. Costs are reported
 in first-cousin-shuffle standard deviations and translated so the natural
 lineage (black cross) is at the origin. The first-cousin null and fixed-topology
-parametric Brownian reference are shown on the main axes; the more distant
-internal-layer shuffle, full assignment shuffle, and random rebuild appear in
-the inset. The Brownian reference fits a full 23-dimensional rate covariance
-from all 1,000 measured branch-standardized increments, fixes four root states,
-and simulates all scored descendants down the same topology. It is included
-only as a geometric probe of proximity to the sampled Pareto envelope; its
-zero-drift, common-rate diffusion assumptions are not intended as a realistic
-model of embryogenesis. This replaces an incompatible historical 10-PC cache
-and independent-node ancestral-state sampler. The
-historical notebook's MST trace was also not comparable because it omitted
-internal spanning-tree edges; its publication replacement enforces four roots,
-at most two children per parent, and exactly 1,000 scored edges. The combined
-non-dominated envelope of the colored strategies is dominated by the
-degree-constrained spanning forest, top-down rebuild, and terminal-only
-rebuild.}
+separate-clock Gaussian reference accompany a broad random-rebuild null on
+continuous axes, without an inset or axis breaks. Random rebuild preserves
+the four roots and provides an unoptimized reconstruction comparison; the
+near-overlapping full-assignment shuffle and the internal-layer shuffle are
+shown in the supplementary comparison. The Gaussian reference fixes four
+measured root states and draws
+independent, zero-mean increments along all 1,000 scored edges. Spatial
+covariance scales with tracking duration; protein covariance is constant per
+canonical parent--child transition. Full covariance is fitted within the
+three-coordinate and 20-protein blocks, with zero covariance between blocks.
+Separate clocks avoid dividing aggregate atlas protein differences by short
+tracking intervals created by the $T\leq255$ cutoff: these protein states are
+not endpoint observations aligned to the tracking embryo. All scored edges
+span one canonical generation, and no additional clock parameter is fitted.
+The panel displays 1,000 of 10,000 simulated lineages (seed 242); plus signs
+mark reference-cloud means. The separate-clock mean protein cost is 3,604,
+compared with 3,102 observed and 5,241 under the former shared-time Brownian
+reference. The replacement is motivated by measurement-clock compatibility,
+not by matching the observed total. Residual heavy tails and differences
+between internal and terminal edges remain inadequately described; reference
+displacement is not a biological efficiency effect size. Additional heuristics
+and their constraint differences are documented in the supplementary figure
+and inventory table. The terminal-only cache is withheld from plots pending
+an edge-accounting and reconstruction-scope audit.}
 \label{fig:ce_full_tree_collective}
 \end{figure}
 \end{document}

@@ -37,7 +37,7 @@ assembly, but have not yet received author editorial review.
 | Item | Role | TeX/PDF stem | LaTeX label |
 |---|---|---|---|
 | Figure 7 | Layerwise full-tree assignment | `fig7_ce_full_tree_layerwise` | `ce_full_tree_layerwise` |
-| Figure 8 | Collective heuristic envelope | `fig8_ce_full_tree_collective` | `ce_full_tree_collective` |
+| Figure 8 | Layerwise versus constrained reconstruction | `fig8_ce_full_tree_collective` | `ce_full_tree_collective` |
 
 The authoritative record for Figures 7--8 is
 `full_tree_pareto/README.md`.
@@ -256,17 +256,27 @@ uses a matched parent-slot permutation null and biological-parent edge
 retention. The eight fronts are then summed at common weights to form the
 aggregate full-tree front.
 
-Figure 8 compares six valid reconstruction strategies and takes their
-non-dominated union as a collective sampled envelope. It includes every null
-model carried by the full-tree notebook. The first-cousin null and fixed-topology
-parametric Brownian reference share the main axes; only the three broad random models require
-an inset. The envelope is not an exact global Pareto front and should not be
-described as one. The collective black line was dropped because it duplicated
-the colored strategy lines; the per-strategy fronts are plotted directly so the
-shared envelope is visible without a redundant overlay. Repeated
-strategy-contribution dots and separate minimum-cost endpoint symbols were also
-removed because they duplicated the line encoding and made isolated markers
-look like additional solutions.
+Figure 8 now compares two methods: exact assignment within contraction rounds
+and the greedy degree-constrained spanning forest. This emphasizes relaxation
+of assignment constraints, with measured states, four roots and 1,000 edges
+validated for both. Curves are sampled within-method fronts, not a global
+optimum. First-cousin shuffle, the separate-clock Gaussian reference and one
+broad random-rebuild null share continuous axes without inset or breaks.
+Random rebuild preserves roots and nearly overlaps full-assignment shuffle;
+the latter and the distinct internal-layer shuffle move to the supplement.
+
+The supplementary figure (`full_tree_pareto/figs_ce_full_tree_heuristics.tex`)
+contains five curves and all five null/reference families. The inventory table
+(`full_tree_pareto/table_ce_full_tree_heuristics.tex`) lists all six methods,
+including terminal-only, which is held out of all plots. Code inspection and
+a controlled bookkeeping diagnostic found constructed internal spatial
+midpoints, unfixed measured roots, and omission of the last pair (998 scored
+edges) in its current generator. The saved optimized curve was not regenerated.
+Earlier statements that all six methods shared validated scope were too strong;
+moving a method to the supplement does not repair its scope. The table
+distinguishes pipeline-validated main methods, code-inspected comparisons and
+unverified historical caches. Six-method collective-nondominance flags remain
+only as historical cache metadata.
 
 The degree-constrained spanning forest and top-down rebuild trace nearly the
 same front. Both are greedy reconstructions over the same combined cost matrix
@@ -290,32 +300,40 @@ experiment and is on the scale visible in the earlier exploratory figure, not
 the current top-20 z-scored protein analysis. The old implementation also used
 tree IDs as measurement-row IDs—wrong for all 504 terminals here—and sampled
 ancestral nodes independently, breaking Brownian parent--child covariance. The
-replacement maps biological identities explicitly and fits a full 23-by-23
-rate covariance from all 1,000 observed branch-standardized increments. It
+initial replacement mapped biological identities explicitly and fitted a full
+23-by-23 covariance to tracking-time-standardized increments. On 2026-09-09,
+following the clock audit and author approval, the official Figure 8 reference
+changed to separate clocks: spatial covariance per tracking-time unit and
+protein covariance per canonical lineage transition, with full covariance
+within blocks and zero cross-block covariance. All 1,000 edges span one
+canonical generation, so this adds no fitted clock parameter. It
 fixes the four optimization-root states and simulates every scored descendant
 down the measured topology, producing 10,000 deterministic draws and a marked
 1,000-draw display subset. This is a geometric reference for asking where
-simple neutral diffusion on the fixed topology falls relative to the natural
+this simple Gaussian process on the fixed topology falls relative to the natural
 lineage and sampled Pareto envelope. Its assumptions are not strongly grounded
 in embryogenesis, so it must not be presented as a realistic biological null
 or used for strong process-level inference.
 
-The 10,000-draw reference averages approximately 4,831 travel and 5,241
-cell-state cost, versus 4,466 and 3,102 for the natural lineage. Its very large
-cell-state displacement is accompanied by strong observed rate heterogeneity:
-the top 5% of branch-standardized cell-state increments contribute about 56%
-of the fitted squared rate. Treat that separation as a warning about the
-common-rate Brownian assumptions, not as a precise biological-efficiency
-effect size.
+The rationale is measurement-clock compatibility. Protein atlas aggregates
+are not measured at the cutoff-truncated tracking endpoints; 49 of the top
+50 former protein rate outliers end at the tracking cutoff, with median
+duration 5. Dividing these differences by short tracking intervals inflates
+the common protein rate. Adoption removes this unsupported scaling rather
+than tuning the model to match the observed total.
 
-Backlog: review this offset with the authors before revising the reference.
-Block-diagonalizing travel and protein state leaves their marginal nulls
-unchanged, and treating the 20 proteins as independent moves the cell-state
-mean slightly farther away. The next technical sensitivity should instead test
-heterogeneous rates, such as layer-specific covariance, a heavy-tailed scale
-mixture, or a branch-stratified empirical residual bootstrap. The detailed
-diagnostics and fixed comparison requirements are recorded in
-`full_tree_pareto/README.md`.
+The adopted 10,000-draw reference (seed 242) averages approximately 4,832
+travel and 3,604 cell-state cost, versus 4,466 and 3,102 observed. The former
+shared-time reference averaged 4,831 and 5,241; it is retained only as a
+historical sensitivity comparison. The new model still misses observed
+protein tail concentration and internal/terminal differences. Its displacement
+must not be interpreted as a biological-efficiency effect size. Further
+heterogeneity models remain backlog work subject to diagnostics and held-out
+evaluation. The decision, diagnostics and regeneration commands are recorded
+in `full_tree_pareto/README.md`, and the authoritative specification is
+`full_tree_pareto/methods/separate_clock_reference.tex`. The Figure 8 caption
+records both the cutoff rationale and remaining limitations. Publication
+covariance and diagnostics now use `ce_full_tree_separate_clock_*.csv`.
 
 The next immediate step is author review of the candidate scientific story,
 panel hierarchy, captions, and numbering. If the figures are accepted, update

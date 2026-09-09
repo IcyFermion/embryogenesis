@@ -46,13 +46,24 @@
 Full \textit{C. elegans} Lineage}\\[2mm]
 \large Technical rationale, model, algorithm, validation, and interpretation}
 \author{Embryogenesis Pareto analysis project}
-\date{1 September 2026}
+\date{1 September 2026; superseded for Figure 8 on 9 September 2026}
 
 \begin{document}
 \maketitle
 
+\section*{Historical specification: superseded for Figure 8}
+The shared-tracking-time model documented below is retained for historical
+comparison. Figure 8 now uses the model specified in
+\texttt{separate\_clock\_reference.tex}: tracking-time spatial covariance
+and protein covariance per canonical lineage transition, with independent
+blocks. Aggregate protein states are not aligned to cutoff-truncated tracking
+endpoints, so division by short tracking durations can inflate their fitted
+rate. Adoption on 9 September 2026 was based on this measurement-clock
+mismatch, not on tuning the reference to observed costs. Statements below
+about the proposed Figure 8 reference refer to the superseded specification.
+
 \begin{abstract}
-This note specifies a Brownian-motion parametric bootstrap for evaluating the
+This historical note specifies the former Brownian-motion parametric bootstrap for evaluating the
 travel and protein-state edge costs of the measured \textit{C. elegans}
 lineage.  It is written for the current full-tree publication configuration:
 four measured roots, 500 internal cells, 504 terminal cells, 1,000 evaluated

@@ -1,0 +1,38 @@
+\documentclass[10pt,letterpaper]{article}
+\usepackage[landscape,margin=12mm]{geometry}
+\usepackage{booktabs,array,caption}
+\pagestyle{empty}
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.3}
+\captionsetup{font=small,labelfont=bf}
+\renewcommand{\thetable}{S\arabic{table}}
+\begin{document}
+\begin{table}[p]
+\centering
+\small
+\caption{\textbf{Full-tree heuristic inventory and audit status.}
+All six methods are listed, including the held terminal-only method. Status
+distinguishes structural checks performed by the publication pipeline from
+code-inspection findings and unverified scalar-cost caches. ``Measured''
+identifies the source of states; it does not imply fixed identities or
+equivalent reconstruction constraints.}
+\label{tab:ce_full_tree_heuristic_inventory}
+\IfFileExists{full_tree_pareto/output/publication/ce_full_tree_heuristic_inventory_rows.tex}{%
+\input{full_tree_pareto/output/publication/ce_full_tree_heuristic_inventory_rows.tex}}{%
+\input{output/publication/ce_full_tree_heuristic_inventory_rows.tex}}
+
+\vspace{3mm}
+\begin{minipage}{0.98\textwidth}
+\footnotesize
+The terminal-only bookkeeping diagnostic replaces optimization with valid
+deterministic pairings to isolate scoring behavior; it yields 499 scored
+merges (998 edges). This is not a regeneration of the saved optimized curve.
+Moving a method to the supplement does not resolve a scope or implementation
+issue. The historical six-method collective-nondominance flags are retained
+in numerical caches for provenance only and are not used as a publication
+ranking. Source cache names and sampled-weight counts are available in
+ce\_full\_tree\_heuristic\_inventory.csv. Supplementary numbering
+is provisional until manuscript integration.
+\end{minipage}
+\end{table}
+\end{document}

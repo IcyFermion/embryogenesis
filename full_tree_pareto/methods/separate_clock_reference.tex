@@ -1,0 +1,182 @@
+\documentclass[10pt,letterpaper]{article}
+\usepackage[margin=23mm]{geometry}
+\usepackage{amsmath,amssymb,booktabs,hyperref}
+\hypersetup{colorlinks=true,urlcolor=blue,
+  pdftitle={Separate-clock Gaussian reference for the full C. elegans lineage}}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\newcommand{\Normal}{\mathcal N}
+\title{\textbf{Separate-clock Gaussian reference for the full
+  \textit{C. elegans} lineage}}
+\author{Embryogenesis Pareto analysis project}
+\date{Adopted for Figure 8: 9 September 2026}
+\begin{document}
+\maketitle
+
+\section{Publication decision and scope}
+
+Figure 8 uses a fixed-topology Gaussian reference with tracking-time scaling
+for spatial changes and one unit per canonical lineage transition for protein
+changes. This replaces the audited model that used tracking duration for all
+23 features. The reason for adoption is compatibility between measurement
+windows and the assumed clocks, not agreement with the observed total cost.
+The earlier shared-time model remains available as a sensitivity comparison.
+
+The configuration is unchanged: three spatial coordinates from tracking
+embryo 1 through $T\leq255$, scaled by 0.1625; 20 selected z-scored protein
+features from the aggregate atlas; four fixed measured roots; 500 internal and
+504 terminal measured cells; and exactly 1,000 scored parent--child edges.
+P0, AB and P1 are construction anchors and contribute no scored edges.
+The selected features, preprocessing, natural costs, optimization strategies
+and first-cousin-null plotting scales are unchanged by this decision.
+
+\section{Why the protein clock was changed}
+
+Tracking duration on an edge $e=(u\to v)$ is
+$t_e=t^{\rm last}_v-t^{\rm last}_u$, after truncation at 255. Of the 504
+terminal cells, 492 reach that cutoff. The protein states are separately
+aggregated atlas measurements, not observations at these tracking endpoints.
+There is therefore no basis for assuming that their squared differences
+shrink in proportion to the remaining tracking interval.
+
+In the former model the fitted covariance was
+\[
+ \widehat\Sigma_{\rm old}=\frac1{1000}\sum_e
+   \frac{\Delta\mathbf x_e\Delta\mathbf x_e^\top}{t_e}.
+\]
+A large protein difference assigned a short interval contributes strongly
+to this common per-time rate, which is then applied to every simulated edge.
+The audit found that 49 of the 50 largest time-standardized protein changes
+end at the cutoff, with median duration 5. The 118 edges with $t_e\leq10$
+contribute 63.9\% of the fitted squared protein rate. The largest 5\% of
+time-standardized increments contribute 56.0\% of that rate but only 10.8\%
+of the observed sum of protein edge lengths.
+
+For example, the edge \texttt{ABprpapppa} to \texttt{ABprpapppap} is assigned
+tracking duration $255-250=5$, while its dominant reporter ZAG-1 observes
+the daughter at 67 times on a different timeline. These raw reporter times
+are provenance information, not replacement tracking durations. A cutoff
+alone would not invalidate a Brownian model if the states were measured at
+the corresponding endpoints; the concern is the mismatch of observation
+windows. Equal protein variance per transition removes that unsupported
+time scaling without introducing a fitted clock exponent or extra rate class.
+
+\section{Model and parameter estimation}
+
+For spatial state $\mathbf r_v\in\mathbb R^3$ and protein state
+$\mathbf p_v\in\mathbb R^{20}$, define measured increments
+$\Delta\mathbf r_e=\mathbf r_v-\mathbf r_u$ and
+$\Delta\mathbf p_e=\mathbf p_v-\mathbf p_u$. The reference assumes
+\begin{align}
+ \Delta\mathbf r_e &\sim \Normal(\mathbf0,t_e\Sigma_r),\\
+ \Delta\mathbf p_e &\sim \Normal(\mathbf0,\Sigma_p).
+\end{align}
+Increments are independent across edges, and the spatial and protein blocks
+are independent. Within-block feature correlations are retained. Zero drift
+is fixed; covariance fitting does not subtract a fitted mean.
+The maximum-likelihood estimates are
+\begin{align}
+ \widehat\Sigma_r &= \frac1N\sum_{e=1}^N
+     \frac{\Delta\mathbf r_e\Delta\mathbf r_e^\top}{t_e},\\
+ \widehat\Sigma_p &= \frac1N\sum_{e=1}^N
+     \Delta\mathbf p_e\Delta\mathbf p_e^\top,
+ \qquad N=1000.
+\end{align}
+The stored block-diagonal covariance is
+$\operatorname{diag}(\widehat\Sigma_r,\widehat\Sigma_p)$.
+Its blocks have different units: squared spatial units per tracking-time
+unit, and squared standardized protein units per canonical transition.
+Every evaluated edge is checked to span exactly one canonical generation;
+the implementation rejects a represented edge that skips generations.
+
+This is Brownian scaling for position and a discrete Gaussian random walk
+for protein state. It does not posit protein diffusion per minute. Setting
+cross-block covariance to zero leaves each marginal cost distribution
+unchanged when its within-block fit and clock are held fixed. Changing the
+protein clock is the substantive modification; the two total costs need
+not retain the former joint correlation.
+
+\section{Simulation, scoring and reproducibility}
+
+Fix the four root states at their observed values. Traverse the measured
+forest from roots toward tips. On each edge draw the two Gaussian increments
+above and add them to the simulated parent state. The implementation validates
+that reconstructed parent--child differences reproduce the drawn increments.
+For each replicate score
+\[
+ C_r=\sum_{e\in E}\|\Delta\mathbf r_e\|_2,
+ \qquad C_p=\sum_{e\in E}\|\Delta\mathbf p_e\|_2.
+\]
+These are the same edges and unsquared Euclidean norms used for the natural
+lineage. No topological assignments are randomized. Although topology
+determines shared ancestry of simulated states, these edge-additive costs
+under independent increments depend on edge scales and covariance, not on
+how the edges are connected. The reference is not a topology test.
+
+The publication run uses NumPy's default random generator with seed 242,
+10,000 replicates, batches of 100, and an eigendecomposition-based covariance
+square root. The first 1,000 replicates form the deterministic display subset;
+cloud means use all 10,000. Both covariance blocks must be positive definite.
+Plotting coordinates subtract the natural cost and divide each objective by
+its first-cousin-shuffle standard deviation. These plotting units are not
+standard deviations of the Gaussian reference distribution.
+
+\section{Results and remaining model inadequacy}
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+ & Travel & Protein state\\
+\midrule
+Observed & 4,465.55 & 3,102.41\\
+Former shared-time mean & 4,831.32 & 5,240.78\\
+Adopted separate-clock mean & 4,831.80 & 3,603.77\\
+Adopted standard deviation & 72.97 & 25.51\\
+Adopted central 95\% lower bound & 4,690.48 & 3,554.64\\
+Adopted central 95\% upper bound & 4,977.13 & 3,653.72\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Protein excess falls from 68.9\% to 16.2\%. A second 10,000-replicate run
+with seed 243 yields adopted means 4,831.11 and 3,603.97. Spatial marginal
+behavior is unchanged apart from Monte Carlo variation.
+
+The reference still poorly describes protein edge heterogeneity. Observed
+edge-length coefficient of variation is 0.644 versus simulated mean 0.221;
+the largest 5\% of raw squared increments contribute 30.6\% in the data
+versus 11.3\% in simulations. Mean observed internal- and terminal-edge
+lengths are 2.558 and 3.638, while the reference predicts about 3.604 for
+both. Some source values were zero-imputed before z-scoring; three of the
+top 50 historical rate outliers touch a missing selected-protein value.
+Raw observation-window audits and missingness flags accompany the sensitivity
+outputs, without changing preprocessing.
+
+The cloud is a geometric parametric reference, not a realistic model of
+embryogenesis. A smaller total-cost discrepancy alone does not validate the
+Gaussian assumption. Neither its residual displacement nor descriptive tail
+counts establish selection or biological efficiency. Plug-in simulations do
+not include parameter uncertainty, measurement error, feature-selection
+uncertainty or shared observation-error dependence between adjacent edges.
+Any future branch-class or heavy-tailed extension should be motivated by
+edgewise diagnostics and assessed using held-out subtrees before publication
+adoption. This follows the distinction between absolute adequacy and relative
+model fit described by \href{https://doi.org/10.1086/682022}{Pennell et al. (2015)}.
+
+\section{Implementation and archived specifications}
+
+The authoritative generator is \texttt{separate\_clock\_reference()} in
+\path{full_tree_pareto/publication_analysis.py}. The Figure 8 renderer
+requires the separate-clock model label and provenance. Covariance and
+diagnostic files use the \path{ce_full_tree_separate_clock_} prefix;
+the collective null and summary tables also identify the adopted model.
+The companion \path{clock_sensitivity.py} compares both models, records
+edge distributions and source windows, and generates diagnostic panels.
+
+\path{parametric_brownian_bootstrap.tex} documents the superseded
+shared-time model. \path{brownian_covariance_mle_derivation.tex}
+remains a valid general covariance derivation: apply it to spatial increments
+divided by $\sqrt{t_e}$ and separately to unscaled protein increments.
+Neither the earlier full 23-dimensional shared-time model nor the incompatible
+historical 10-PC ancestral-state cache should be reintroduced into Figure 8.
+\end{document}

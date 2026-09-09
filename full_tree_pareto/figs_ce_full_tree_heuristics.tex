@@ -1,0 +1,38 @@
+\documentclass[10pt,letterpaper]{article}
+\usepackage[margin=12mm]{geometry}
+\usepackage{graphicx,caption}
+\graphicspath{{full_tree_pareto/output/publication/}{output/publication/}}
+\pagestyle{empty}
+\captionsetup{font=small,labelfont=bf}
+\renewcommand{\thefigure}{S\arabic{figure}}
+\begin{document}
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{figs_ce_full_tree_heuristics_panel.pdf}
+\caption{\textbf{Additional reconstruction strategies and null comparisons.}
+Solid curves reproduce the two Figure 8 methods; dashed curves show three
+additional cached strategies. Each curve contains its own sampled
+non-dominated cost pairs; no cross-method union is presented as a common
+feasible-set optimum. Layerwise assignment and the degree-constrained forest
+use 301 weights; the additional cached methods use 1,001 weights. Top-down
+rebuilding nearly overlaps the forest. Bottom-up-by-layer assignment permits
+internal identities, including root identities, to move on a fixed topology.
+Paired bottom-up rebuilding does not explicitly fix biological root identities;
+its final coverage and component scope require a separate audit. These are
+algorithmic comparisons with differing constraints, not equally constrained
+alternatives certified by the publication pipeline. All five null/reference
+families are shown: first-cousin shuffle, internal-layer shuffle, full
+assignment shuffle, random rebuild and the adopted separate-clock Gaussian
+reference. Dots are deterministic display subsets; plus signs use the full
+available cost-distribution means. Coordinates use first-cousin-shuffle
+standard deviations and place the natural lineage at the origin, with
+continuous axes. The full-assignment and random-rebuild clouds nearly
+coincide. The six-method inventory table records constraints and audit status.
+The terminal-only method is listed there but omitted from this plot: it
+constructs internal spatial midpoints, does not fix measured root states,
+and its current implementation can omit the last scored pair. Its cached
+optimized curve has not been regenerated or certified. Supplementary numbering
+is provisional until manuscript integration.}
+\label{fig:ce_full_tree_heuristics_supplement}
+\end{figure}
+\end{document}

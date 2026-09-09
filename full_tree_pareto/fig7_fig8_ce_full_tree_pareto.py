@@ -19,6 +19,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from full_tree_pareto import publication_analysis as analysis
+from full_tree_pareto.heuristic_inventory import write_inventory
 from terminal_pareto import plot_style as ps
 
 
@@ -42,7 +43,7 @@ NULL_COLORS = {
     "Internal-layer shuffle": "#A6611A",
     "Full assignment shuffle": "#7B4F2C",
     "Random rebuild": "#6F3B5C",
-    "Parametric Brownian reference": "#6B6ECF",
+    analysis.PUBLICATION_REFERENCE_LABEL: "#6B6ECF",
 }
 
 
@@ -227,189 +228,85 @@ def plot_layerwise_aggregate(fronts: pd.DataFrame, nulls: pd.DataFrame):
     return fig
 
 
-def _null_inset(ax, frame: pd.DataFrame, models: list[str], title: str):
-    for model in models:
-        data = frame[frame["null_model"] == model]
-        ax.scatter(
-            data["travel_standardized"],
-            data["cell_state_standardized"],
-            s=4,
-            color=NULL_COLORS[model],
-            alpha=0.15,
-            edgecolors="none",
-            rasterized=True,
-        )
-        ax.scatter(
-            [data["travel_standardized"].mean()],
-            [data["cell_state_standardized"].mean()],
-            marker="+",
-            s=25,
-            color=NULL_COLORS[model],
-            lw=1.0,
-            zorder=4,
-        )
-    ax.set_title(title, fontsize=6.3, pad=2)
-    ax.set_xlabel("Travel (σ)", fontsize=5.5, labelpad=1)
-    ax.set_ylabel("Cell state (σ)", fontsize=5.5, labelpad=1)
-    ax.tick_params(labelsize=5.0, length=2, pad=1)
-    ax.grid(True, alpha=0.22)
+MAIN_HEURISTICS = ("Layerwise assignment", "Degree-constrained spanning forest")
+MAIN_NULLS = ("First-cousin shuffle", analysis.PUBLICATION_REFERENCE_LABEL, "Random rebuild")
+# The terminal-only cache is retained for provenance, not plotted: its current
+# generator changes internal positions and can omit the final scored pair.
+SUPPLEMENT_HEURISTICS = tuple(name for name in HEURISTIC_COLORS if name != "Terminal-only rebuild")
 
 
-def plot_collective(
-    heuristics: pd.DataFrame,
-    nulls: pd.DataFrame,
-):
-    """Figure 8: collective sampled front across validated heuristics."""
+def _plot_selected_comparison(heuristics, nulls, models, null_models, stem, summary=None):
+    reference = nulls[nulls["null_model"] == analysis.PUBLICATION_REFERENCE_LABEL]
+    if reference.empty or not reference["source"].eq(analysis.PUBLICATION_REFERENCE_SOURCE).all():
+        raise AssertionError("Figure 8 requires the separate-clock Gaussian reference")
+    if not set(models).issubset(set(heuristics["heuristic"])):
+        raise AssertionError("Selected heuristic is absent from the cache")
+    if not set(null_models).issubset(set(nulls["null_model"])):
+        raise AssertionError("Selected null is absent from the cache")
     fig, ax = plt.subplots(figsize=(7.15, 5.05))
     fig.subplots_adjust(left=0.115, right=0.98, bottom=0.14, top=0.96)
-
-    cousin = nulls[nulls["null_model"] == "First-cousin shuffle"]
-    ax.scatter(
-        cousin["travel_standardized"],
-        cousin["cell_state_standardized"],
-        s=8,
-        color=NULL_COLORS["First-cousin shuffle"],
-        alpha=0.17,
-        edgecolors="none",
-        rasterized=True,
-        zorder=1,
-    )
-    ax.scatter(
-        [cousin["travel_standardized"].mean()],
-        [cousin["cell_state_standardized"].mean()],
-        marker="+",
-        s=35,
-        color=NULL_COLORS["First-cousin shuffle"],
-        lw=1.1,
-        zorder=4,
-    )
-    brownian = nulls[nulls["null_model"] == "Parametric Brownian reference"]
-    brownian_display = brownian[brownian["displayed"]]
-    ax.scatter(
-        brownian_display["travel_standardized"],
-        brownian_display["cell_state_standardized"],
-        s=8,
-        color=NULL_COLORS["Parametric Brownian reference"],
-        alpha=0.14,
-        edgecolors="none",
-        rasterized=True,
-        zorder=1,
-    )
-    ax.scatter(
-        [brownian["travel_standardized"].mean()],
-        [brownian["cell_state_standardized"].mean()],
-        marker="+",
-        s=35,
-        color=NULL_COLORS["Parametric Brownian reference"],
-        lw=1.1,
-        zorder=4,
-    )
-
-    line_handles = []
-    for name in HEURISTIC_COLORS:
+    coordinates = [np.array([[0., 0.]])]
+    handles = []
+    for name in models:
         frame = heuristics[
-            (heuristics["heuristic"] == name)
-            & heuristics["within_heuristic_nondominated"]
+            (heuristics["heuristic"] == name) & heuristics["within_heuristic_nondominated"]
         ].sort_values("travel_standardized")
-        line, = ax.plot(
-            frame["travel_standardized"],
-            frame["cell_state_standardized"],
-            color=HEURISTIC_COLORS[name],
-            lw=1.25,
-            alpha=0.72,
-            label=name,
-            zorder=2,
-        )
-        line_handles.append(line)
-
-    natural = ax.scatter(
-        [0], [0], marker="X", s=72, color=ps.COLORS["black"],
-        edgecolor="white", lw=0.55, label="Natural lineage", zorder=8,
-    )
-    ax.axhline(0, color="#888888", lw=0.6, ls=":", zorder=0)
-    ax.axvline(0, color="#888888", lw=0.6, ls=":", zorder=0)
-
-    broad_models = [
-        "Internal-layer shuffle",
-        "Full assignment shuffle",
-        "Random rebuild",
-    ]
-    broad = ax.inset_axes([0.665, 0.70, 0.31, 0.25])
-    _null_inset(broad, nulls, broad_models, "Broad random nulls")
-    broad.text(
-        0.03, 0.08, "Internal layer", transform=broad.transAxes,
-        color=NULL_COLORS["Internal-layer shuffle"], fontsize=5.0,
-    )
-    broad.text(
-        0.97, 0.91, "Full assignment", transform=broad.transAxes,
-        color=NULL_COLORS["Full assignment shuffle"], fontsize=5.0,
-        ha="right", va="top",
-    )
-    broad.text(
-        0.97, 0.81, "Random rebuild", transform=broad.transAxes,
-        color=NULL_COLORS["Random rebuild"], fontsize=5.0,
-        ha="right", va="top",
-    )
-    cousin_handle = Line2D(
-        [0], [0], marker="o", ls="", markersize=4.5,
-        markerfacecolor=NULL_COLORS["First-cousin shuffle"],
-        markeredgecolor="none", alpha=0.75,
-        label="First-cousin shuffle",
-    )
-    brownian_handle = Line2D(
-        [0], [0], marker="o", ls="", markersize=4.5,
-        markerfacecolor=NULL_COLORS["Parametric Brownian reference"],
-        markeredgecolor="none", alpha=0.75,
-        label="Brownian reference (fixed topology)",
-    )
-    first_legend = ax.legend(
-        [natural, cousin_handle, brownian_handle] + line_handles,
-        [
-            "Natural lineage",
-            "First-cousin shuffle",
-            "Brownian reference (fixed topology)",
-        ] + list(HEURISTIC_COLORS),
-        loc="upper left",
-        fontsize=6.0,
-        frameon=True,
-        facecolor="white",
-        edgecolor="none",
-        framealpha=0.9,
-        borderpad=0.3,
-        labelspacing=0.22,
-        handletextpad=0.45,
-    )
-    ax.add_artist(first_legend)
-
-    main_x = np.concatenate(
-        [
-            heuristics.loc[
-                heuristics["within_heuristic_nondominated"],
-                "travel_standardized",
-            ].to_numpy(float),
-            cousin["travel_standardized"].to_numpy(float),
-            brownian_display["travel_standardized"].to_numpy(float),
-            np.array([0.0]),
-        ]
-    )
-    main_y = np.concatenate(
-        [
-            heuristics.loc[
-                heuristics["within_heuristic_nondominated"],
-                "cell_state_standardized",
-            ].to_numpy(float),
-            cousin["cell_state_standardized"].to_numpy(float),
-            brownian_display["cell_state_standardized"].to_numpy(float),
-            np.array([0.0]),
-        ]
-    )
-    ax.set_xlim(_padded_limits(main_x))
-    ax.set_ylim(_padded_limits(main_y))
+        xy = frame[["travel_standardized", "cell_state_standardized"]].to_numpy(float)
+        coordinates.append(xy)
+        line, = ax.plot(xy[:, 0], xy[:, 1], color=HEURISTIC_COLORS[name],
+                        lw=1.65 if name in MAIN_HEURISTICS else 1.1,
+                        ls="-" if name in MAIN_HEURISTICS else "--",
+                        alpha=0.95 if name in MAIN_HEURISTICS else 0.75,
+                        label=name, zorder=3)
+        handles.append(line)
+    for name in null_models:
+        group = nulls[nulls["null_model"] == name]
+        shown = group[group["displayed"]]
+        xy = shown[["travel_standardized", "cell_state_standardized"]].to_numpy(float)
+        coordinates.append(xy)
+        ax.scatter(xy[:, 0], xy[:, 1], s=8, alpha=.14, color=NULL_COLORS[name],
+                   edgecolors="none", rasterized=True, zorder=1)
+        if summary is None:
+            mean = group[["travel_standardized", "cell_state_standardized"]].mean().to_numpy()
+        else:
+            row = summary.set_index("null_model").loc[name]
+            mean = row[["travel_mean_standardized", "cell_state_mean_standardized"]].to_numpy(float)
+        coordinates.append(mean[None, :])
+        marker = ax.scatter(*mean, marker="+", s=40, color=NULL_COLORS[name],
+                            lw=1.15, label=name, zorder=4)
+        handles.append(marker)
+    natural = ax.scatter(0, 0, marker="X", s=72, color=ps.COLORS["black"],
+                         edgecolor="white", lw=.55, label="Natural lineage", zorder=8)
+    handles.append(natural)
+    ax.axhline(0, color="#888888", lw=.6, ls=":", zorder=0)
+    ax.axvline(0, color="#888888", lw=.6, ls=":", zorder=0)
+    xy = np.concatenate(coordinates)
+    ax.set_xlim(_padded_limits(xy[:, 0]))
+    ax.set_ylim(_padded_limits(xy[:, 1]))
     ax.set_xlabel("Travel distance (first-cousin-null σ; natural lineage = 0)")
     ax.set_ylabel("Cell-state distance\n(first-cousin-null σ; natural lineage = 0)")
-    ax.grid(True, alpha=0.28)
-    _save(fig, "fig8_ce_full_tree_collective_panel")
+    ax.grid(True, alpha=.22)
+    ax.legend(handles=handles, loc="upper left", fontsize=6.0, frameon=True,
+              facecolor="white", edgecolor="none", framealpha=.9,
+              borderpad=.3, labelspacing=.25, handletextpad=.45)
+    _save(fig, stem)
     return fig
+
+
+def plot_collective(heuristics, nulls, summary=None):
+    """Figure 8: two complementary reconstructions, three clouds, continuous axes."""
+    return _plot_selected_comparison(
+        heuristics, nulls, MAIN_HEURISTICS, MAIN_NULLS,
+        "fig8_ce_full_tree_collective_panel", summary,
+    )
+
+
+def plot_supplementary(heuristics, nulls, summary=None):
+    """Five cached comparisons and all nulls; terminal-only is inventory-only."""
+    return _plot_selected_comparison(
+        heuristics, nulls, SUPPLEMENT_HEURISTICS, tuple(NULL_COLORS),
+        "figs_ce_full_tree_heuristics_panel", summary,
+    )
 
 
 def report_findings(outputs: dict[str, pd.DataFrame]) -> None:
@@ -422,15 +319,11 @@ def report_findings(outputs: dict[str, pd.DataFrame]) -> None:
         f"maximum edge retention {aggregate['maximum_edge_retention']:.3f}; "
         f"natural dominated={bool(aggregate['natural_sampled_dominated'])}"
     )
-    print("Collective sampled-front contributions:")
+    print("Heuristic cache inventory (not a common-feasible-set ranking):")
     for name in HEURISTIC_COLORS:
-        count = int(
-            (
-                (heuristics["heuristic"] == name)
-                & heuristics["collective_nondominated"]
-            ).sum()
-        )
-        print(f"  {name}: {count}")
+        count = int((heuristics["heuristic"] == name).sum())
+        placement = "main" if name in MAIN_HEURISTICS else "supplement" if name in SUPPLEMENT_HEURISTICS else "held; table only"
+        print(f"  {name}: {count} cached weights; {placement}")
 
 
 def main() -> None:
@@ -443,6 +336,7 @@ def main() -> None:
     args = parser.parse_args()
     ps.configure()
     outputs = analysis.build_publication_caches()
+    write_inventory(outputs["ce_full_tree_collective_heuristics.csv"], OUT)
     report_findings(outputs)
     if args.analysis_only:
         return
@@ -457,6 +351,12 @@ def main() -> None:
     plot_collective(
         outputs["ce_full_tree_collective_heuristics.csv"],
         outputs["ce_full_tree_collective_nulls.csv"],
+        outputs["ce_full_tree_null_summary.csv"],
+    )
+    plot_supplementary(
+        outputs["ce_full_tree_collective_heuristics.csv"],
+        outputs["ce_full_tree_collective_nulls.csv"],
+        outputs["ce_full_tree_null_summary.csv"],
     )
     print(f"Publication panels written to {OUT}")
 

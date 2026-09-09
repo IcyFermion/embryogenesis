@@ -36,7 +36,8 @@ EARLY_ANCHORS = ("P0", "AB", "P1")
 ITERATION = 300
 N_WEIGHTS = ITERATION + 1
 N_LAYER_NULL = 1_000
-N_BROWNIAN_REFERENCE = 10_000
+N_PARAMETRIC_REFERENCE = 10_000
+N_BROWNIAN_REFERENCE = N_PARAMETRIC_REFERENCE  # Historical sampler API.
 N_DISPLAY_NULL = 1_000
 SEED = 42
 EXPECTED_TREE_NODES = 1_007
@@ -45,6 +46,9 @@ EXPECTED_INTERNAL = 500
 EXPECTED_TERMINAL = 504
 EXPECTED_EDGES = 1_000
 EXPECTED_LAYER_SIZES = (504, 230, 126, 68, 38, 19, 10, 5)
+PUBLICATION_REFERENCE_LABEL = "Separate-clock Gaussian reference"
+PUBLICATION_REFERENCE_SOURCE = "fixed-topology Gaussian bootstrap; tracking-time spatial / per-transition protein"
+PUBLICATION_REFERENCE_SEED = SEED + 200
 
 
 HEURISTIC_SPECS = (
@@ -63,7 +67,7 @@ NULL_SPECS = (
     ("Random rebuild", "random_rebuild.npz"),
     # The historical phylo_bm.npz cache was generated for the older 10-PC
     # experiment and is not compatible with the top-20 z-scored analysis.
-    ("Parametric Brownian reference", None),
+    (PUBLICATION_REFERENCE_LABEL, None),
 )
 
 
@@ -93,7 +97,12 @@ class FullTreeContext:
 
 @dataclass(frozen=True)
 class BrownianReference:
-    """All-edge plug-in Brownian simulations and their fitted covariance."""
+    """All-edge Gaussian simulations; covariance units depend on the clocks.
+
+    For separate clocks the spatial block is per tracking-time unit and the
+    protein block is per canonical transition. Optional edge norms use columns
+    in evaluated_tree_ids order and rows in replicate order.
+    """
 
     travel_cost: np.ndarray
     cell_state_cost: np.ndarray
@@ -101,6 +110,8 @@ class BrownianReference:
     evaluated_tree_ids: np.ndarray
     root_tree_ids: np.ndarray
     seed: int
+    edge_travel: np.ndarray | None = None
+    edge_cell_state: np.ndarray | None = None
 
 
 def _canonical_maps(lineage_data: dict) -> tuple[dict[str, str | None], dict[str, int]]:
@@ -810,6 +821,8 @@ def parametric_brownian_reference(
     context: FullTreeContext,
     n_samples: int = N_BROWNIAN_REFERENCE,
     seed: int = SEED + 200,
+    *,
+    capture_edge_norms: bool = False,
 ) -> BrownianReference:
     """Generate an all-edge plug-in Brownian reference on the fixed topology.
 
@@ -819,6 +832,42 @@ def parametric_brownian_reference(
     every scored edge.  This is a parametric reference for Pareto geometry,
     not an ancestral-state reconstruction or a realistic embryogenesis model.
     """
+    return _gaussian_reference(
+        context, n_samples, seed, separate_clocks=False,
+        capture_edge_norms=capture_edge_norms,
+    )
+
+
+def separate_clock_reference(
+    context: FullTreeContext,
+    n_samples: int = N_PARAMETRIC_REFERENCE,
+    seed: int = PUBLICATION_REFERENCE_SEED,
+    *,
+    capture_edge_norms: bool = False,
+) -> BrownianReference:
+    """Tracking-time spatial / per-transition protein Gaussian reference.
+
+    Zero drift and independent edges are retained. The spatial covariance is
+    fitted to delta_xyz / sqrt(time), the protein covariance to raw delta_exp.
+    Cross-block covariance is zero. Every scored edge must span exactly one
+    canonical generation; no protein clock parameter is fitted.
+    """
+    return _gaussian_reference(
+        context, n_samples, seed, separate_clocks=True,
+        capture_edge_norms=capture_edge_norms,
+    )
+
+
+def _gaussian_reference(
+    context: FullTreeContext,
+    n_samples: int,
+    seed: int,
+    *,
+    separate_clocks: bool,
+    capture_edge_norms: bool,
+) -> BrownianReference:
+    if n_samples < 1:
+        raise ValueError("n_samples must be positive")
     tree = context.tree
     opt = context.optimization
     evaluated_tree_ids = np.sort(
@@ -831,6 +880,8 @@ def parametric_brownian_reference(
         raise AssertionError("Brownian reference scope does not match Figure 8")
     if set(evaluated_tree_ids) & set(root_tree_ids):
         raise AssertionError("Brownian roots must not also be scored descendants")
+    if len(set(evaluated_tree_ids)) != EXPECTED_EDGES:
+        raise AssertionError("Gaussian reference contains duplicate scored edges")
 
     tree_to_lineage = np.asarray(tree.lineage_id_mapping, dtype=int)
     values = np.hstack(
@@ -857,8 +908,22 @@ def parametric_brownian_reference(
     if not np.isclose(direct_cell_state, opt.lineage_exp_cost):
         raise AssertionError("Brownian edge manifest does not reproduce cell-state cost")
 
-    standardized = measured_increment / np.sqrt(evaluated_time)[:, None]
+    if separate_clocks:
+        _, depths = _canonical_maps(context.lineage_data)
+        names = [context.names[i] for i in tree_to_lineage]
+        if any(
+            depths[names[child]] - depths[names[parent]] != 1
+            for child, parent in zip(evaluated_tree_ids, parent_tree_ids)
+        ):
+            raise AssertionError("Per-transition protein clock requires single-generation edges")
+        standardized = measured_increment.copy()
+        standardized[:, :3] /= np.sqrt(evaluated_time)[:, None]
+    else:
+        standardized = measured_increment / np.sqrt(evaluated_time)[:, None]
     covariance = standardized.T @ standardized / len(standardized)
+    if separate_clocks:
+        covariance[:3, 3:] = 0.0
+        covariance[3:, :3] = 0.0
     covariance = (covariance + covariance.T) / 2.0
     eigenvalues, eigenvectors = np.linalg.eigh(covariance)
     tolerance = np.finfo(float).eps * n_features * eigenvalues[-1]
@@ -876,6 +941,8 @@ def parametric_brownian_reference(
     rng = np.random.default_rng(seed)
     travel_cost = np.empty(n_samples, dtype=float)
     cell_state_cost = np.empty(n_samples, dtype=float)
+    edge_travel = np.empty((n_samples, len(evaluated_tree_ids))) if capture_edge_norms else None
+    edge_cell_state = np.empty_like(edge_travel) if capture_edge_norms else None
     batch_size = min(100, n_samples)
     for start in range(0, n_samples, batch_size):
         stop = min(start + batch_size, n_samples)
@@ -884,16 +951,27 @@ def parametric_brownian_reference(
         states[root_tree_ids] = values[root_tree_ids, None, :]
         batch_travel = np.zeros(batch)
         batch_cell_state = np.zeros(batch)
-        for tree_id in evaluated_tree_ids:
+        for edge_index, tree_id in enumerate(evaluated_tree_ids):
             parent_id = tree.parent_list[tree_id]
             if not np.isfinite(states[parent_id]).all():
                 raise AssertionError("Brownian simulation order is not root-to-tip")
-            increment = (
-                rng.normal(size=(batch, n_features)) @ covariance_factor.T
-            ) * np.sqrt(branch_length[tree_id])
+            increment = rng.normal(size=(batch, n_features)) @ covariance_factor.T
+            if separate_clocks:
+                increment[:, :3] *= np.sqrt(branch_length[tree_id])
+            else:
+                increment *= np.sqrt(branch_length[tree_id])
             states[tree_id] = states[parent_id] + increment
-            batch_travel += np.linalg.norm(increment[:, :3], axis=1)
-            batch_cell_state += np.linalg.norm(increment[:, 3:], axis=1)
+            # Validate the reconstructed parent-child history before scoring.
+            reconstructed = states[tree_id] - states[parent_id]
+            if not np.allclose(reconstructed, increment, rtol=1e-10, atol=1e-12):
+                raise AssertionError("Simulated states do not reproduce edge increments")
+            travel_norm = np.linalg.norm(increment[:, :3], axis=1)
+            protein_norm = np.linalg.norm(increment[:, 3:], axis=1)
+            batch_travel += travel_norm
+            batch_cell_state += protein_norm
+            if capture_edge_norms:
+                edge_travel[start:stop, edge_index] = travel_norm
+                edge_cell_state[start:stop, edge_index] = protein_norm
         travel_cost[start:stop] = batch_travel
         cell_state_cost[start:stop] = batch_cell_state
 
@@ -906,6 +984,8 @@ def parametric_brownian_reference(
         evaluated_tree_ids=evaluated_tree_ids,
         root_tree_ids=root_tree_ids,
         seed=seed,
+        edge_travel=edge_travel,
+        edge_cell_state=edge_cell_state,
     )
 
 
@@ -914,7 +994,12 @@ def collective_analysis(
     layerwise_fronts: pd.DataFrame,
     spanning_forest: pd.DataFrame,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, BrownianReference]:
-    """Combine validated heuristic fronts and all notebook null models."""
+    """Combine regenerated fronts, historical heuristic caches and nulls.
+
+    Historical collective-nondominance flags are retained for provenance;
+    they do not certify common scope. The renderer selects the main methods
+    explicitly and excludes the held terminal-only curve from every plot.
+    """
     natural_xyz = context.optimization.lineage_xyz_cost
     natural_exp = context.optimization.lineage_exp_cost
     cousin = np.load(DATA_ROOT / "null" / "random_cousin.npz")
@@ -960,16 +1045,18 @@ def collective_analysis(
         pd.concat(heuristic_frames, ignore_index=True)
     )
 
-    brownian = parametric_brownian_reference(context)
+    reference = separate_clock_reference(
+        context, n_samples=N_PARAMETRIC_REFERENCE, seed=PUBLICATION_REFERENCE_SEED
+    )
     null_frames = []
     null_summary = []
     for null_index, (name, filename) in enumerate(NULL_SPECS):
-        if name == "Parametric Brownian reference":
-            x = brownian.travel_cost
-            y = brownian.cell_state_cost
+        if name == PUBLICATION_REFERENCE_LABEL:
+            x = reference.travel_cost
+            y = reference.cell_state_cost
             sample_idx = np.arange(len(x))
             displayed = sample_idx < min(N_DISPLAY_NULL, len(x))
-            source = "all-edge fixed-topology parametric bootstrap"
+            source = PUBLICATION_REFERENCE_SOURCE
         else:
             cache = np.load(DATA_ROOT / "null" / filename)
             x = np.asarray(cache["xyz"], dtype=float)
@@ -1010,7 +1097,7 @@ def collective_analysis(
     nulls = pd.concat(null_frames, ignore_index=True)
     summary = pd.DataFrame(null_summary)
     validate_collective(heuristics, nulls, summary)
-    return heuristics, nulls, summary, brownian
+    return heuristics, nulls, summary, reference
 
 
 def validate_collective(
@@ -1038,15 +1125,15 @@ def validate_collective(
         raise AssertionError("Collective heuristic cache contains non-finite values")
     if not heuristics["collective_nondominated"].any():
         raise AssertionError("Collective sampled front is empty")
-    brownian = nulls[nulls["null_model"] == "Parametric Brownian reference"]
+    reference = nulls[nulls["null_model"] == PUBLICATION_REFERENCE_LABEL]
     if not (
-        brownian["source"] == "all-edge fixed-topology parametric bootstrap"
+        reference["source"] == PUBLICATION_REFERENCE_SOURCE
     ).all():
-        raise AssertionError("Collective analysis reused the legacy Brownian cache")
-    if len(brownian) != N_BROWNIAN_REFERENCE:
-        raise AssertionError("Parametric Brownian reference has the wrong draw count")
-    if int(brownian["displayed"].sum()) != N_DISPLAY_NULL:
-        raise AssertionError("Parametric Brownian display subsample has the wrong size")
+        raise AssertionError("Collective analysis did not use the separate-clock reference")
+    if len(reference) != N_PARAMETRIC_REFERENCE:
+        raise AssertionError("Separate-clock reference has the wrong draw count")
+    if int(reference["displayed"].sum()) != min(N_DISPLAY_NULL, N_PARAMETRIC_REFERENCE):
+        raise AssertionError("Separate-clock display subsample has the wrong size")
     # The audited replacement must not silently fall back to the historical
     # partial-cost MST cache.
     if heuristics["source_cache"].astype(str).str.contains("mst_rebuild").any():
@@ -1065,17 +1152,18 @@ def build_publication_caches(
         context, iteration=iteration, n_null=n_layer_null
     )
     spanning = degree_constrained_spanning_forest(context, iteration=iteration)
-    heuristics, collective_nulls, null_summary, brownian = collective_analysis(
+    heuristics, collective_nulls, null_summary, reference = collective_analysis(
         context, layer_fronts, spanning
     )
     covariance = pd.DataFrame(
-        brownian.covariance,
+        reference.covariance,
         index=context.feature_names,
         columns=context.feature_names,
     ).rename_axis("feature").reset_index()
-    eigenvalues = np.linalg.eigvalsh(brownian.covariance)
+    covariance.insert(1, "clock", ["tracking time"] * 3 + ["canonical transition"] * 20)
+    eigenvalues = np.linalg.eigvalsh(reference.covariance)
     evaluated_time = np.asarray(context.tree.branch_time_length, dtype=float)[
-        brownian.evaluated_tree_ids
+        reference.evaluated_tree_ids
     ]
     tree_to_lineage = np.asarray(context.tree.lineage_id_mapping, dtype=int)
     measured_state = np.hstack(
@@ -1085,12 +1173,13 @@ def build_publication_caches(
         )
     )
     evaluated_parent = np.asarray(
-        [context.tree.parent_list[int(i)] for i in brownian.evaluated_tree_ids]
+        [context.tree.parent_list[int(i)] for i in reference.evaluated_tree_ids]
     )
     standardized_increment = (
-        measured_state[brownian.evaluated_tree_ids]
+        measured_state[reference.evaluated_tree_ids]
         - measured_state[evaluated_parent]
-    ) / np.sqrt(evaluated_time)[:, None]
+    )
+    standardized_increment[:, :3] /= np.sqrt(evaluated_time)[:, None]
     travel_rate_sq = np.square(standardized_increment[:, :3]).sum(axis=1)
     cell_state_rate_sq = np.square(standardized_increment[:, 3:]).sum(axis=1)
 
@@ -1098,20 +1187,24 @@ def build_publication_caches(
         count = max(1, int(np.ceil(fraction * len(values))))
         return float(np.sort(values)[-count:].sum() / values.sum())
 
-    brownian_diagnostics = pd.DataFrame(
+    reference_diagnostics = pd.DataFrame(
         [
-            ("generator", "all-edge fixed-topology parametric bootstrap"),
+            ("generator", PUBLICATION_REFERENCE_SOURCE),
+            ("model", PUBLICATION_REFERENCE_LABEL),
+            ("spatial_clock", "tracking time"),
+            ("protein_clock", "one canonical transition per scored edge"),
+            ("cross_block_covariance", "zero"),
             ("interpretation", "geometric reference; not a realistic embryogenesis model"),
-            ("draws", len(brownian.travel_cost)),
+            ("draws", len(reference.travel_cost)),
             ("displayed_draws", N_DISPLAY_NULL),
-            ("seed", brownian.seed),
-            ("evaluated_edges", len(brownian.evaluated_tree_ids)),
-            ("fixed_roots", len(brownian.root_tree_ids)),
-            ("features", brownian.covariance.shape[0]),
-            ("covariance_rank", np.linalg.matrix_rank(brownian.covariance)),
+            ("seed", reference.seed),
+            ("evaluated_edges", len(reference.evaluated_tree_ids)),
+            ("fixed_roots", len(reference.root_tree_ids)),
+            ("features", reference.covariance.shape[0]),
+            ("covariance_rank", np.linalg.matrix_rank(reference.covariance)),
             ("covariance_min_eigenvalue", eigenvalues[0]),
             ("covariance_max_eigenvalue", eigenvalues[-1]),
-            ("covariance_condition_number", np.linalg.cond(brownian.covariance)),
+            ("covariance_condition_number", np.linalg.cond(reference.covariance)),
             ("minimum_branch_time", evaluated_time.min()),
             ("maximum_branch_time", evaluated_time.max()),
             (
@@ -1135,13 +1228,13 @@ def build_publication_caches(
             ("top_10pct_cell_state_rate_sq_share", top_share(cell_state_rate_sq, 0.10)),
             ("natural_travel_cost", context.optimization.lineage_xyz_cost),
             ("natural_cell_state_cost", context.optimization.lineage_exp_cost),
-            ("reference_travel_mean", brownian.travel_cost.mean()),
-            ("reference_travel_std", brownian.travel_cost.std()),
-            ("reference_cell_state_mean", brownian.cell_state_cost.mean()),
-            ("reference_cell_state_std", brownian.cell_state_cost.std()),
+            ("reference_travel_mean", reference.travel_cost.mean()),
+            ("reference_travel_std", reference.travel_cost.std()),
+            ("reference_cell_state_mean", reference.cell_state_cost.mean()),
+            ("reference_cell_state_std", reference.cell_state_cost.std()),
             (
                 "reference_cost_correlation",
-                np.corrcoef(brownian.travel_cost, brownian.cell_state_cost)[0, 1],
+                np.corrcoef(reference.travel_cost, reference.cell_state_cost)[0, 1],
             ),
         ],
         columns=["metric", "value"],
@@ -1155,8 +1248,8 @@ def build_publication_caches(
         "ce_full_tree_collective_heuristics.csv": heuristics,
         "ce_full_tree_collective_nulls.csv": collective_nulls,
         "ce_full_tree_null_summary.csv": null_summary,
-        "ce_full_tree_brownian_covariance.csv": covariance,
-        "ce_full_tree_brownian_diagnostics.csv": brownian_diagnostics,
+        "ce_full_tree_separate_clock_covariance.csv": covariance,
+        "ce_full_tree_separate_clock_diagnostics.csv": reference_diagnostics,
     }
     for filename, frame in outputs.items():
         frame.to_csv(CACHE_ROOT / filename, index=False)
