@@ -407,3 +407,19 @@ done
 
 Python dependencies are defined in `environment.yml`. Tectonic compiles the
 standalone publication figures.
+
+## Cross-dataset terminal pilot (2026-09-09)
+
+`pilot_cross_dataset.py` implements an unnumbered comparison of C. elegans
+protein, C. elegans RNA, and two AF16 C. briggsae RNA/tracking configurations
+on 188 shared terminal edges. See `PILOT_CROSS_DATASET.md` for findings,
+endpoint tie handling, regeneration, and calibration/provenance limitations.
+The four-page review and caches are in `output/pilot_cross_dataset/`.
+This pilot includes existing-3D and XY-only views plus coverage and cell-set
+sensitivities; it is not an accepted publication figure.
+
+Paused by author request on 2026-09-14. The pilot record includes the review
+clarifications (coverage is not edge retention), the CE depth diagnostic,
+validation status, and an ordered resume checklist. Preserve the current
+ignored output directory before rerunning; generated plots/caches are local,
+not included in the source commit. No publication promotion is authorized.

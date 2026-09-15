@@ -341,6 +341,35 @@ the manuscript integration and treat the validated CSV caches and standalone
 wrappers as the release path. Preserve the separation between full-tree and
 terminal-only pipelines.
 
+## Paused cross-dataset terminal pilot (2026-09-14)
+
+The unnumbered CE protein / CE RNA / CB AF16 RNA pilot is implemented and now
+paused by author request. Its authoritative checkpoint and resume checklist
+are in `terminal_pareto/PILOT_CROSS_DATASET.md`; the dedicated implementation
+and captioned wrapper are `terminal_pareto/pilot_cross_dataset.py` and
+`terminal_pareto/pilot_cross_dataset.tex`. No accepted terminal figure or
+full-tree analysis is changed by this pilot.
+
+Four curves use 188 common terminal edges, with separate existing-3D and
+XY-only views, exact first-cousin null moments, checked endpoint tie handling,
+and a denser sweep sensitivity. The four-page review, two-page captioned
+comparison, numerical caches and input hashes remain locally in
+`terminal_pareto/output/pilot_cross_dataset/`. Generated files are Git-ignored;
+the source commit is not a backup of these artifacts or their source data.
+
+Review established that fourth-page panel A reports matched/available coverage
+relative to the original CE protein set, not optimized retention. A cached
+CE nearest-parent diagnostic supports depth disambiguation as an explanation
+for increased 3D retention, without establishing biological optimization.
+CB relative axial calibration, stage alignment, RNA measurement provenance,
+selective coverage and nonidentical protein/RNA panels still limit inference.
+There is no geometry-independent species ranking established by this pilot.
+
+To resume, preserve and verify the checkpoint first, follow the pilot record's
+provenance/calibration checklist, then decide the intended scientific claim
+with the authors. Clarify the coverage label on the next rendering pass.
+Do not silently overwrite the baseline or promote it into numbered figures.
+
 ## Later work
 
 After the full-tree *C. elegans* protein figure, later candidates include the

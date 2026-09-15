@@ -1,0 +1,45 @@
+\documentclass[10pt]{article}
+\usepackage[letterpaper,landscape,margin=9mm]{geometry}
+\usepackage{graphicx}
+\usepackage{caption}
+\pagestyle{empty}
+\graphicspath{{output/pilot_cross_dataset/}}
+\captionsetup{font=small,labelfont=bf}
+\begin{document}
+\begin{figure}[p]
+\centering
+\includegraphics[width=0.94\textwidth]{comparison_existing_3d.pdf}
+\caption*{\textbf{Pilot: terminal parentage across molecular representations,
+existing 3D coordinate convention.} All curves use the same 188 natural
+terminal parent--child edges. C. elegans embryo 1 uses cutoff 255; the two
+AF16 C. briggsae embryos use cutoffs 148 and 156. Protein uses the frozen
+top-20 z-scored features; RNA uses the frozen shared 20 TFs with cosine
+distance on stored values. Panel A normalizes each objective by its own
+endpoint span; crosses mark natural lineages and circles their nearest
+sampled assignments. Panel B shows biological-parent retention along
+canonical front position. The first-cousin null supplies exact moments;
+$d_{NP}$ uses its mean and the same assignment selected by $d_{LP}$.
+Endpoints minimize the other objective within numerical primary-optimum
+tolerance. Lines connect sampled solutions, and retention maxima are observed
+maxima. \textbf{C. briggsae axial calibration is unresolved; this is not a
+publication-ready species comparison.}}
+\end{figure}
+\clearpage
+\begin{figure}[p]
+\centering
+\includegraphics[width=0.94\textwidth]{comparison_xy.pdf}
+\caption*{\textbf{Pilot sensitivity: the same terminal comparison using XY
+positions only.} Molecular matrices, natural edges, parent-slot
+multiplicities, and feature panels are held fixed. Only the travel matrix
+changes, after which null moments, the assignment sweep, endpoints, and
+canonical coordinates are recomputed. The smaller retention differences and
+changed proximity ordering show sensitivity to spatial geometry. XY
+projection does not establish a calibrated 3D species effect. The analysis
+uses 301 weights; a nested 1,201-weight sweep preserves the reported proximity
+and maximum-retention values to numerical precision. The matched set retains
+only 1 of 32 programmed-death cells in the original protein analysis;
+coverage and full-set comparisons are included in the separate four-page
+\texttt{pilot\_review.pdf}. Both tracking replicates use the same C. briggsae
+RNA matrix, so their spread does not estimate RNA measurement uncertainty.}
+\end{figure}
+\end{document}
