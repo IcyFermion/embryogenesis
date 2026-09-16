@@ -9,7 +9,7 @@
 \title{\textbf{Separate-clock Gaussian reference for the full
   \textit{C. elegans} lineage}}
 \author{Embryogenesis Pareto analysis project}
-\date{Adopted for Figure 8: 9 September 2026}
+\date{Adopted: 9 September 2026; reaffirmed: 16 September 2026}
 \begin{document}
 \maketitle
 
@@ -21,6 +21,12 @@ changes. This replaces the audited model that used tracking duration for all
 23 features. The reason for adoption is compatibility between measurement
 windows and the assumed clocks, not agreement with the observed total cost.
 The earlier shared-time model remains available as a sensitivity comparison.
+
+The final manuscript review retains the root-fixed, leaf-unconstrained
+reference. Covariance is estimated from all internal and terminal edges;
+forward simulation then generates all descendants without requiring the
+observed leaf outcomes. Conditioning on those outcomes with the same fitted
+covariance is mathematically valid, but asks a different question.
 
 The configuration is unchanged: three spatial coordinates from tracking
 embryo 1 through $T\leq255$, scaled by 0.1625; 20 selected z-scored protein
@@ -98,7 +104,8 @@ not retain the former joint correlation.
 
 \section{Simulation, scoring and reproducibility}
 
-Fix the four root states at their observed values. Traverse the measured
+Fix only the four root states at their observed values; do not fix leaf states.
+Traverse the measured
 forest from roots toward tips. On each edge draw the two Gaussian increments
 above and add them to the simulated parent state. The implementation validates
 that reconstructed parent--child differences reproduce the drawn increments.
@@ -164,6 +171,18 @@ adoption. This follows the distinction between absolute adequacy and relative
 model fit described by \href{https://doi.org/10.1086/682022}{Pennell et al. (2015)}.
 
 \section{Implementation and archived specifications}
+
+Two reproducible side analyses were reviewed but not adopted for manuscript
+figures. A lognormal protein branch multiplier gives mean protein cost about
+2,988, but still misses seven of eight held-out subtree total intervals.
+Joint root-and-leaf conditioning gives mean travel 4,066 and protein 2,936;
+it reduces uncertainty and permits smoothed internal configurations without
+developmental feasibility constraints. Lower or closer costs alone do not
+establish adequacy or biological efficiency. The full specifications, results
+and reproduction commands are in
+\path{full_tree_pareto/BRANCH_VARIABILITY_SENSITIVITY.md} and
+\path{full_tree_pareto/LEAF_CONDITIONED_REFERENCE.md}.
+Neither changes the adopted reference or its publication caches.
 
 The authoritative generator is \texttt{separate\_clock\_reference()} in
 \path{full_tree_pareto/publication_analysis.py}. The Figure 8 renderer

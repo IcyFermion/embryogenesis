@@ -27,11 +27,12 @@ continuous axes, without an inset or axis breaks. Random rebuild preserves
 the four roots and provides an unoptimized reconstruction comparison; the
 near-overlapping full-assignment shuffle and the internal-layer shuffle are
 shown in the supplementary comparison. The Gaussian reference fixes four
-measured root states and draws
+measured root states, leaves terminal states unconstrained, and draws
 independent, zero-mean increments along all 1,000 scored edges. Spatial
 covariance scales with tracking duration; protein covariance is constant per
 canonical parent--child transition. Full covariance is fitted within the
-three-coordinate and 20-protein blocks, with zero covariance between blocks.
+three-coordinate and 20-protein blocks using all 1,000 observed internal and
+terminal edges, with zero covariance between blocks.
 Separate clocks avoid dividing aggregate atlas protein differences by short
 tracking intervals created by the $T\leq255$ cutoff: these protein states are
 not endpoint observations aligned to the tracking embryo. All scored edges

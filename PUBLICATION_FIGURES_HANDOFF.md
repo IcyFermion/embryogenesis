@@ -328,12 +328,28 @@ shared-time reference averaged 4,831 and 5,241; it is retained only as a
 historical sensitivity comparison. The new model still misses observed
 protein tail concentration and internal/terminal differences. Its displacement
 must not be interpreted as a biological-efficiency effect size. Further
-heterogeneity models remain backlog work subject to diagnostics and held-out
-evaluation. The decision, diagnostics and regeneration commands are recorded
+heterogeneity models require diagnostics and held-out evaluation. The decision,
+diagnostics and regeneration commands are recorded
 in `full_tree_pareto/README.md`, and the authoritative specification is
 `full_tree_pareto/methods/separate_clock_reference.tex`. The Figure 8 caption
 records both the cutoff rationale and remaining limitations. Publication
 covariance and diagnostics now use `ce_full_tree_separate_clock_*.csv`.
+
+Final reference review (2026-09-16): retain the **root-fixed, leaf-unconstrained
+separate-clock Gaussian** in the manuscript. Its covariance is estimated from
+all 1,000 internal and terminal edges, then used for forward simulation of all
+descendants, without requiring the observed leaf outcomes. Two side analyses
+are preserved in `full_tree_pareto/BRANCH_VARIABILITY_SENSITIVITY.md` and
+`full_tree_pareto/LEAF_CONDITIONED_REFERENCE.md`, with their generators and tests.
+The lognormal branch multiplier moves protein cost to about 2,988 but still
+misses seven of eight held-out subtree total intervals. Jointly fixing root
+and leaf states instead gives travel about 4,066 and protein about 2,936,
+while permitting unconstrained internal configurations. Leaf conditioning is
+mathematically valid with an all-edge covariance fit, but answers a different
+endpoint-constrained question. Neither closer totals nor these lower costs
+justify model adoption or biological-efficiency claims. Neither alternative
+is an input to the main or supplementary manuscript figures; retain the
+existing reference label, numerical cloud and plotting scales.
 
 The next immediate step is author review of the candidate scientific story,
 panel hierarchy, captions, and numbering. If the figures are accepted, update

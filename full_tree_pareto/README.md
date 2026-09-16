@@ -1,6 +1,6 @@
 # Full-tree Pareto analysis
 
-Updated 2026-09-09. This module extends the terminal-cell analysis to the
+Updated 2026-09-16. This module extends the terminal-cell analysis to the
 measured *C. elegans* lineage containing both internal and terminal cells. The
 publication pipeline produces two candidate main figures:
 
@@ -274,6 +274,17 @@ efficiency effect size.
 
 ### Official separate-clock Gaussian reference (adopted 2026-09-09)
 
+**Manuscript decision reaffirmed 2026-09-16:** retain the root-fixed,
+leaf-unconstrained separate-clock Gaussian. Both covariance blocks are fitted
+to all 1,000 observed internal and terminal edges, then the fitted process
+generates all descendants without requiring the observed leaf outcomes.
+The branch-variability and leaf-conditioned alternatives remain reproducible
+side analyses, not inputs to the main or supplementary manuscript figures.
+Conditioning on leaves with an all-edge covariance estimate is mathematically
+valid, but asks a different endpoint-constrained question; it is not rejected
+as an implementation error. No model is selected merely for proximity to the
+natural total, and none establishes biological efficiency.
+
 Following the clock audit and author approval, Figure 8 now uses
 `publication_analysis.separate_clock_reference()`, with comparisons evaluated
 by `clock_sensitivity.py`. The decision is based on compatibility between the
@@ -340,7 +351,50 @@ least one missing selected-protein value in `s3.csv`, which was zero-filled
 before z-scoring. These flags concern upstream provenance; the sensitivity
 does not change preprocessing. Reporter `Time` and tracking `t` must not be
 substituted for one another without alignment. Heavy-tailed or class-specific
-extensions remain deferred pending these diagnostics and held-out evaluation.
+extensions were initially deferred pending these diagnostics and held-out evaluation.
+The one-parameter branch-variability sensitivity below now provides that first
+evaluation; it does not replace the official reference.
+
+### Branch-variability sensitivity (2026-09-10; not adopted)
+
+`branch_variability_sensitivity.py` adds a mean-one lognormal protein variance
+multiplier per edge, with one fitted variability parameter. Covariance remains
+the training-edge second moment; the new parameter is fitted by conditional
+20-dimensional increment likelihood, not by matching total cost. Spatial draws
+and the 1,000-edge, four-root scope are unchanged.
+
+The fitted parameter is 1.22525. With 10,000 draws, the protein mean falls from
+3,604 to 2,988 versus 3,102 observed, but edge CV increases to 0.724 versus
+0.644 observed and top-5% squared-change share to 36.3% versus 30.6%. Held-out
+vector log density improves in all eight depth-three subtrees, while seven of
+eight mixture total prediction intervals still miss the observation. A closer
+pooled total therefore masks remaining lineage-specific discrepancies.
+
+Figure 8 remains unchanged. See [BRANCH_VARIABILITY_SENSITIVITY.md](BRANCH_VARIABILITY_SENSITIVITY.md)
+for model specification, results, source audit, held-out protocol, limitations
+and reproduction commands. Outputs are isolated in `output/branch_variability/`.
+
+### Leaf-conditioned Gaussian sensitivity (2026-09-10; not adopted)
+
+`leaf_conditioned_reference.py` conditions the separate-clock Gaussian on all
+504 measured leaf positions and protein profiles, in addition to the four
+roots. The remaining 496 internal states are sampled jointly through the
+weighted tree precision matrix. Covariance calibration is unchanged; this is
+not a lognormal-mixture extension or a held-out parameter fit.
+
+With 10,000 draws, expected travel falls to 4,065.82 versus 4,465.55 observed,
+and protein cost to 2,935.67 versus 3,102.41 observed. A second seed reproduces
+the result. Fixing endpoints reduces uncertainty and smooths internal states;
+it does not necessarily increase scored travel. The model still fails edge-
+heterogeneity and internal/terminal checks, and allows internal configurations
+without developmental feasibility constraints. Neither these costs nor costs
+at conditional mean states establish biological inefficiency or an exact optimum.
+
+Figure 8 remains unchanged. See [LEAF_CONDITIONED_REFERENCE.md](LEAF_CONDITIONED_REFERENCE.md)
+for the conditioning equations, results, limitations, checks and reproduction
+commands. Outputs are isolated in `output/leaf_conditioned/`.
+
+### Reproducing the original clock comparison
 
 Run the standalone comparison without recomputing Pareto optimizations:
 
