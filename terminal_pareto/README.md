@@ -234,6 +234,28 @@ The remaining S3 caches are `ce_tracking_replicate_fronts.csv`,
 `ce_tracking_replicate_null_clouds.csv`, and
 `ce_tracking_replicate_major_metrics.csv`.
 
+### Tracking geometry propagated through terminal assignments
+
+The original geometry-transfer backlog has a reproducible global-P0
+investigation in `TRACKING_GEOMETRY_SENSITIVITY.md`. It supersedes the earlier
+read-only estimates for interpretation: biological parent identity, rather
+than duplicate slot identity, defines agreement. Across 301 matched weights,
+median biological-parent agreement is 75.6--78.9%, falling to 49.1--56.0% at
+the travel endpoint; ten-nearest-parent overlap averages 78.7--79.5%.
+
+All six transferred travel endpoints lose essentially all of their travel
+saving over the target natural lineage. Joint optimization nevertheless finds
+common assignments with modest improvement in both objectives across all
+three geometries. With no increase in cell-state cost, travel savings are
+2.41%, 2.32%, and 2.28%; with at least 1% cell-state improvement they are
+1.51%, 1.49%, and 1.47%. Optimality is conditional on the documented minimax
+criterion and solver tolerances; it is not held-out biological validation.
+
+**Paused for manuscript writing on 2026-09-16.** The author considers the
+underlying investigation sufficient for now, while S3 presentation and the
+manuscript narrative remain unfinished. The record separates completed P0
+results from remaining cell-set, subtree, and held-out sensitivity work.
+
 ## Reproducible biological findings
 
 1. The natural terminal assignment is exactly sampled-Pareto-optimal in 16 of
@@ -423,3 +445,25 @@ clarifications (coverage is not edge retention), the CE depth diagnostic,
 validation status, and an ordered resume checklist. Preserve the current
 ignored output directory before rerunning; generated plots/caches are local,
 not included in the source commit. No publication promotion is authorized.
+
+## CE tracking-variance amendment candidate (checkpoint 2026-09-16)
+
+The CE-only investigation and common-assignment results are documented in
+`TRACKING_GEOMETRY_SENSITIVITY.md`. The two-page Figure S3 amendment candidate
+is `output/tracking_s3_amendment/figS3_ce_tracking_amended_review.pdf`.
+It retains the global-front and subtree evidence from panels A--B and adds
+biological-parent agreement,
+neighborhood overlap, directed transfer penalties, and common assignments
+that improve both objectives across all three tracking geometries.
+The 2026-09-16 revision adds three zooms to candidate panel A showing those
+common assignments directly below and to the left of the natural lineage
+in each embryo's own cost space.
+The author chose to keep this figure C. elegans only; the AF16 extension was
+stopped. Accepted publication outputs are unchanged. The candidate renderer
+and caption are `figS3_ce_tracking_variance_amendment.py` and
+`figS3_ce_tracking_variance_amendment.tex`; regeneration and validation details
+are in the investigation record. The author has explicitly deferred further
+presentation work while drafting the manuscript. Rendering and numerical
+validation do not mean the layout, caption, or narrative has been accepted.
+Source is committed; generated caches, assignments, and figures remain local
+and Git-ignored. Preserve them before resuming analysis or rendering.

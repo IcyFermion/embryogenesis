@@ -370,6 +370,46 @@ provenance/calibration checklist, then decide the intended scientific claim
 with the authors. Clarify the coverage label on the next rendering pass.
 Do not silently overwrite the baseline or promote it into numbered figures.
 
+## CE tracking-variance checkpoint for manuscript writing (2026-09-16)
+
+The author considers the underlying CE tracking-variance investigation
+sufficient for now and is moving to manuscript drafting. **S3 presentation
+still needs revision; the amendment and its narrative are not accepted.**
+The numerical checkpoint, interpretation boundaries, validation, and resume
+instructions are in `terminal_pareto/TRACKING_GEOMETRY_SENSITIVITY.md`.
+
+On 275 matched terminal edges with fixed protein costs, similar global fronts
+coexist with variable biological parent assignments and conserved candidate
+neighborhoods. Individually optimized travel endpoints transfer poorly, but
+joint minimax optimization yields common assignments improving both objectives
+in all three geometries. With no increase in cell-state cost, travel improves
+by 2.41%, 2.32%, and 2.28%; requiring at least 1% cell-state improvement leaves
+travel improvements of 1.51%, 1.49%, and 1.47%. These are in-sample results
+under the terminal assignment model, not estimates of isolated tracking error,
+population uncertainty, or a biological objective function.
+
+The two-page candidate is
+`terminal_pareto/output/tracking_s3_amendment/figS3_ce_tracking_amended_review.pdf`.
+It preserves the accepted subtree evidence, adds common-assignment zooms to
+candidate panel A, and includes assignment/transfer diagnostics on page 2.
+Rendering checks passed, but panel selection, hierarchy, and caption should
+be revised around the manuscript's eventual claim. Accepted S3 files remain
+intact; no manuscript files are changed by this checkpoint.
+
+Source files are `tracking_geometry_sensitivity.py`,
+`common_tracking_assignment.py`, and
+`figS3_ce_tracking_variance_amendment.py`/`.tex` in `terminal_pareto/`.
+Generated caches, actual assignments, PDFs, and provenance remain locally in
+`output/tracking_geometry_sensitivity/`, `output/common_tracking_assignment/`,
+and `output/tracking_s3_amendment/`; they are ignored by Git. Preserve these
+directories before rerunning. Only the 0%, 0.5%, and 1% expression-budget
+common solutions were completed. The CE-only scope is deliberate: the author
+stopped the AF16 extension after confirming only two available replicates.
+
+Next action: draft the manuscript, use the investigation record for qualified
+numerical statements, and return to S3 presentation once the narrative is
+clearer. Further numerical extensions remain backlog work.
+
 ## Later work
 
 After the full-tree *C. elegans* protein figure, later candidates include the

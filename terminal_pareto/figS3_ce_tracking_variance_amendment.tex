@@ -1,0 +1,43 @@
+\documentclass[10pt,letterpaper]{article}
+\usepackage[margin=12mm]{geometry}
+\usepackage{graphicx}
+\usepackage{caption}
+\pagestyle{empty}
+\captionsetup{font=small,labelfont=bf}
+\begin{document}
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{output/tracking_s3_amendment/figS3C_G_ce_tracking_variance.pdf}
+\caption*{\textbf{Figure S3 (continued). Assignment stability, transfer costs, and common improvements across tracking replicates.}
+All panels use the same 275 matched terminal cells, parent capacities, and fixed
+top-20 protein representation as panels A--B. Optimization uses 301
+endpoint-inclusive weights; travel weight 0 minimizes cell-state cost and
+weight 1 minimizes travel. Weighted sweeps scale travel and cell-state costs
+separately by exact first-cousin-null standard deviations.
+\textbf{(C)} Agreement in biological parent identity at corresponding weights.
+Exchanging slots of the same parent is not an edge change. Colors identify
+replicate pairs in C--F. Correspondence by canonical front position gives
+similar median agreement (76.0--79.6\%).
+\textbf{(D)} Mean overlap of each child's nearest distinct candidate-parent
+sets. The dotted line is the expectation for independent uniformly chosen sets
+from 172 parents; it is not a spatial null or significance test.
+\textbf{(E)} Excess target-geometry weighted cost of a transferred source
+assignment, divided by the target optimum at the same weight. Solid and dashed
+curves distinguish transfer directions. This is an optimization diagnostic,
+not a biological combined-efficiency score.
+\textbf{(F)} At the pure-travel endpoint, excess target travel divided by the
+target's natural-to-optimal travel saving. Values at or above 100\% erase that
+saving; this is a travel-axis statement, not two-objective dominance by nature.
+\textbf{(G)} Joint integer optimization maximizes the smallest percentage travel
+reduction across embryos while requiring at least 0\%, 0.5\%, or 1\% reduction
+in shared cell-state cost. Each group of three markers evaluates one common
+assignment; the x-coordinate shows its achieved cell-state reduction. Dashed
+segments guide the eye and are not additional feasible assignments. All three
+solutions improve both objectives in all three geometries and are certified
+optimal within numerical solver tolerances under the stated minimax criterion.
+They were fitted to these three embryos; held-out generalization is untested.
+Replicate differences combine biological variation, tracking error, and residual
+stage differences. No population uncertainty or isolated tracking-error variance
+is inferred.}
+\end{figure}
+\end{document}
