@@ -37,9 +37,16 @@ if str(REPO_ROOT) not in sys.path:
 from terminal_pareto import data_loader as dl
 from terminal_pareto import lineage_metrics as lm
 from terminal_pareto import plot_style as ps
-from terminal_pareto.subtree_analysis import build_type_map
+from terminal_pareto.subtree_analysis import (
+    build_type_map,
+    load_validated_subtree_summary,
+)
+from terminal_pareto.analysis_context import (
+    DEFAULT_OUTPUT_ROOT,
+    build_analysis_context,
+)
 
-OUT = Path(__file__).resolve().parent / "output" / "publication"
+OUT = Path(__file__).resolve().parent / "output" / "legacy" / "rebuild" / "publication"
 ANALYSIS_OUT = Path(__file__).resolve().parent / "output"
 
 # Terminal fate palette (sentence-case type -> hex color).
@@ -460,18 +467,43 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--min-cells", type=int, default=12,
                         help="Minimum usable terminal cells (default 12).")
+    parser.add_argument(
+        "--profile",
+        choices=("embryo1_legacy", "embryo1_matched", "pooled_tracking_v1"),
+        help="Opt into an isolated profile-aware run (omission keeps legacy paths).",
+    )
+    parser.add_argument("--run-id")
+    parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
+    parser.add_argument("--out", type=Path)
     args = parser.parse_args(argv)
     ps.configure()
 
-    lineage = dl.load_json(dl._REPO_ROOT + "/data/cell_lineage.json")
-    xyz_ce, valid_ce = dl.load_elegans_tracking(dl.T_CE)
-    protein_exp = dl.load_protein_expression()
-    v_prot = [n for n in valid_ce if n in protein_exp.index]
-    tn, tp = dl.collect_terminals(lineage, v_prot)
+    analysis_out = ANALYSIS_OUT
+    out = args.out or OUT
+    context = None
+    if args.profile is None:
+        lineage = dl.load_json(dl._REPO_ROOT + "/data/cell_lineage.json")
+        _xyz_ce, valid_ce = dl.load_elegans_tracking(dl.T_CE)
+        protein_exp = dl.load_protein_expression()
+        v_prot = [n for n in valid_ce if n in protein_exp.index]
+        tn, _tp = dl.collect_terminals(lineage, v_prot)
+    else:
+        context = build_analysis_context(
+            args.profile, run_id=args.run_id, output_root=args.output_root)
+        lineage = context.lineage
+        tn = context.terminal_nodes
+        analysis_out = context.run_paths.analysis
+        if args.out is None:
+            out = context.run_paths.display("endpoint")
     type_map = build_type_map(tn)
     usable = set(tn)
 
-    df = pd.read_csv(ANALYSIS_OUT / f"subtree_summary_min{args.min_cells}.csv")
+    # Validate the existing run and cache-specific identity before loading the
+    # table or allowing context.write() to refresh provenance.
+    df = load_validated_subtree_summary(
+        analysis_out, args.min_cells, context)
+    if context is not None:
+        context.write()
     qualifying = set(df["subtree"])
     on_front = set(df[df["natural_on_front"].astype(bool)]["subtree"])
     summary_by_name = df.set_index("subtree")
@@ -486,9 +518,9 @@ def main(argv=None):
         nd["n"] = sum(nd["composition"].values())
         nd["max_er"] = float(summary_by_name.loc[name, "max_er"])
 
-    OUT.mkdir(parents=True, exist_ok=True)
+    out.mkdir(parents=True, exist_ok=True)
     emit_figure(nodes, edges, args.min_cells,
-                OUT / "fig4_ce_subtree_map_panel")
+                out / "fig4_ce_subtree_map_panel")
     print(f"Subtrees: {len(nodes)}, edges: {len(edges)}, "
           f"on-front: {len(on_front)}")
 

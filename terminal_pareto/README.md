@@ -1,469 +1,198 @@
-# Terminal-cell lineage Pareto analysis
-
-Updated 2026-08-26. This directory contains the complete analysis and
-publication pipeline for the terminal-cell portion of the project. This README
-is the authoritative module record: it combines the analysis conventions,
-figure decisions, reproducible findings, caveats, and production instructions
-for Figures 2--6, Figures S1--S3, and Table 1.
-
-The analysis tests whether terminal-cell parentage in nematode embryogenesis is
-Pareto optimal with respect to two competing objectives:
-
-- **travel distance**, derived from embryo cell tracking; and
-- **cell-state distance**, derived from protein or RNA expression profiles.
-
-Terminal-cell identities, final positions, and molecular states are held fixed.
-Alternative lineages are reconstructed by assigning terminal cells to candidate
-parents with minimum-cost bipartite matching across a sweep of objective
-weights. The primary publication analysis uses *C. elegans* protein expression
-and embryo-1 tracking. Comparative analyses cover RNA expression, tracking
-replicates, subtrees, two-dimensional tracking, z-noise controls, edge
-perturbations, and random-feature controls.
-
-## Publication status
-
-The selected manuscript outputs are release candidates. They have dedicated
-renderers, split panel assets where appropriate, standalone LaTeX wrappers, and
-compiled one-page PDFs.
-
-| Item | Role | TeX/PDF stem | LaTeX label |
-|---|---|---|---|
-| Figure 2 | Terminal Pareto front and null models | `fig2_ce_terminal_pareto_main` | `ce_terminal_pareto_main` |
-| Figure 3 | Null schematic and structural support | `fig3_ce_terminal_pareto_supporting` | `ce_terminal_pareto_supporting` |
-| Figure 4 | Investigated-subtree lineage map | `fig4_ce_subtree_map` | `ce_subtree_map` |
-| Figure 5 | Canonical subtree proximity summary | `fig5_ce_canonical_summary` | `ce_canonical_summary` |
-| Figure 6 | Cell-type retention and restricted fronts | `fig6_ce_cell_types` | `ce_cell_types` |
-| Figure S1 | Cousin-null-relative sensitivity | `figS1_ce_canonical_summary_cousin_r` | `ce_canonical_summary_cousin_r` |
-| Figure S2 | Cell-type endpoint cost ledger | `figS2_ce_cell_type_cost_gain` | `ce_cell_type_cost_gain` |
-| Figure S3 | Three-tracking-replicate robustness | `figS3_ce_tracking_robustness` | `ce_tracking_robustness` |
-| Table 1 | Per-subtree statistics | `table1_ce_subtree_statistics` | `ce_subtree_statistics` |
-
-The repository-level `PUBLICATION_FIGURES_HANDOFF.md` records the transition
-from this completed module to the next publication analysis.
-
-## Fixed analysis conventions
-
-The accepted Figures 2--6 configuration is:
-
-- *C. elegans* embryo 1, three-dimensional tracking through `T <= 255`;
-- top-20 protein features with cosine cell-state distance;
-- terminal cells only;
-- first-cousin assignment shuffling with seed 42 as the main null;
-- at least 12 usable biological terminal cells per subtree, giving 43 nested
-  investigated subtrees; and
-- a 300-weight Pareto sweep for the established publication pipeline.
-
-Figures 2--3 additionally show second-cousin, third-cousin, and full-random
-assignment shuffles. The superseded 2014 *C. briggsae* tracking series
-(`1407...`) is excluded from final replicate comparisons.
-
-Travel and cell-state costs are reported in standard-deviation units from the
-first-cousin-shuffle null distribution where a common embryo-wide scale is
-needed. In Figures 2--3, displayed coordinates are translated so the natural
-lineage is at `(0, 0)`. Translation changes only the presentation origin; it
-does not change assignments, fronts, rankings, or relative-Pareto statistics.
-
-Subtree null means, variances, and covariance are computed in closed form.
-Random draws are used only for displayed null clouds and for optimality
-frequencies when exact enumeration is infeasible. A non-positive null standard
-deviation raises before division.
-
-## Canonical subtree metrics
-
-For each subtree, let `T*` be its travel-minimizing assignment, `S*` its
-cell-state-minimizing assignment, and `L` its natural assignment. The two
-objectives are normalized separately using only the endpoint spans:
-
-\[
-D_1(a)=\frac{T(a)-T(T^*)}{T(S^*)-T(T^*)},\qquad
-D_2(a)=\frac{S(a)-S(S^*)}{S(T^*)-S(S^*)}.
-\]
-
-The natural-lineage distance to the sampled front is
-
-\[
-d_{LP}(L)=\min_{p\in\mathcal P_{\mathrm{sampled}}}
-\left\|D(L)-D(p)\right\|_2.
-\]
-
-The minimum is evaluated over actual sampled assignments, never an interpolated
-segment. Coordinates are not clipped to the endpoint box. The canonical
-position `u_L` is normalized arc length along the front, from the travel
-optimum (`u=0`) to the cell-state optimum (`u=1`), evaluated at the same nearest
-assignment.
-
-The endpoint-normalized distance from the first-cousin null mean `N` to that
-selected assignment `P*` is
-
-\[
-d_{NP}=\left\|D(N)-D(P^*)\right\|_2.
-\]
-
-The older cousin-relative statistic `r` uses separately null-standardized
-geometry. It is a sensitivity measure, not a scale factor: `d_NP * r` must not
-be asserted to equal `d_LP`. Table 1 retains both metrics; Figure 5 uses
-`d_LP`/`d_NP`, while Figure S1 shows `r`.
-
-## Figure records
-
-### Figures 2--3: global terminal-cell analysis
-
-Figure 2 shows the global Pareto front, natural assignment, and increasingly
-permissive null models. The full-random cloud remains in an inset because it
-lies far from the biologically relevant range.
-
-Figure 3B uses mean lineage-tree distance among changed edges. The all-edge
-definition remains a diagnostic mode, not a publication panel. Figure 3C
-reports the structural price of pursuing the last 5% of attainable distance
-reduction from the maximum-edge-retention compromise toward either
-single-objective endpoint.
-
-Principal structural metrics are:
-
-- **edge retention:** fraction of natural terminal parent--child edges
-  preserved;
-- **mean lineage-tree distance:** mean tree separation between natural and
-  reconstructed parent assignments;
-- **TWER:** tree-distance-weighted edge retention; and
-- **local perturbation tests:** pair and triple edge swaps that test whether
-  both objectives can be improved near the natural lineage.
-
-### Figure 4: investigated-subtree map
-
-Figure 4 places all 43 qualifying subtrees in lineage order, with P0 at the
-top. Each pie summarizes the fate composition of the exact usable terminal set
-used in that subtree's Pareto analysis. Radius scales with `sqrt(n)`. A solid
-circumference means the natural assignment occurs on the sampled front; a
-dashed circumference means it does not. Edges connect each displayed subtree
-to its nearest qualifying descendant, and non-qualifying nodes are omitted.
-Subtree names and cell counts use sequential blue to encode maximum natural-edge
-retention. The accepted layout has no measured label collisions.
-
-### Figure 5, Figure S1, and Table 1: canonical subtree summary
-
-Figure 5A defines `u`, `d_LP`, and `d_NP`. Figure 5B reports `d_LP` and `d_NP`
-for P0, AB, ABa, ABp, and P1. Figure 5C places all 43 subtrees in `(u, d_LP)`
-space and overlays the five major-subtree `d_NP` references. Larger subtrees
-receive higher z-order so major lineages are not hidden by smaller markers.
-Maximum edge retention is deliberately omitted so each marker communicates
-canonical position and proximity only; retention remains in Figures 2--4 and
-6 and in Table 1.
-
-Figure S1 preserves cousin-relative `r` as a null-model sensitivity analysis.
-Across the 43 subtrees, `d_LP` and `r` have Spearman correlation 0.95, so the
-broad proximity ranking does not depend on the first-cousin normalization.
-
-### Figure 6 and Figure S2: terminal cell types
-
-Cell types are loaded from `data/2023-06-29_entropy_cell_key_V2.csv`, joined on
-`wormweb.lineage`, and consolidated with `MERGE_MAP`. The 32 terminal cells
-absent from that key exactly match `data/apoptotic_cells.txt` and are typed as
-programmed death. The separately annotated dying tail hypodermal cells
-`ABplppppppa` and `ABprppppppa` remain distinct and enter the displayed
-`other (n<=4)` group.
-
-Figure 6A shows natural-edge retention by terminal fate across all 145 distinct
-assignments observed along the global Pareto sweep. Biological parent identity
-defines retention, so swapping assignment slots belonging to the same parent
-retains both natural edges. Weighted cell-type retention is asserted to
-recompose the global curve exactly at every cached assignment. The accepted
-maximum-retention assignment has global retention 0.819398. Irregular front
-positions are resampled to a uniform canonical-position grid and narrowly
-averaged for display only; exact assignments, keypoints, and statistics remain
-unsmoothed.
-
-Figures 6B--C repeat the optimization after forbidding assignments across
-terminal cell-type groups. Six sufficiently large types receive individual
-fronts in shared embryo-wide first-cousin-null standard-deviation units per
-cell. This null supplies a common scale only; assignments are constrained by
-cell type, not cousin relationships. The aggregate type-preserving front is
-then compared with the unrestricted front. At the corresponding
-single-objective endpoints, type restriction retains 3.101 standard deviations
-more travel distance and 15.073 standard deviations more cell-state distance.
-It realizes 16.8% of the unrestricted travel saving and 63.0% of the
-unrestricted cell-state saving.
-
-Figure S2 is the complementary endpoint ledger: signed per-cell travel and
-cell-state changes at the travel optimum, maximum-retention compromise, and
-cell-state optimum. The objectives remain on separate axes and are never
-combined linearly.
-
-### Figure S3: three-replicate tracking robustness
-
-Figure S3 is generated independently of the accepted Figures 2--6 pipeline.
-Numerical time points are not equated across embryos because developmental
-timing differs. The analysis retains the predefined stage-matched cutoffs and
-constructs a strict intersection of natural terminal parent--child edges. Both
-the terminal and its natural parent must be tracked and have the fixed protein
-representation.
-
-| Replicate | Cutoff | Usable terminal edges | Strictly matched | Retained |
-|---|---:|---:|---:|---:|
-| embryo 1 | 255 | 299 | 275 | 92.0% |
-| embryo 2 | 247 | 301 | 275 | 91.4% |
-| embryo 3 | 225 | 298 | 275 | 92.3% |
-
-The matched set leaves 42 qualifying subtrees at `n >= 12`. All replicates use
-the same 275 edges, top-20 protein features, cosine cell-state distance,
-first-cousin shuffle with seed 42, exact null moments, 1,000 displayed null
-draws, and a 300-interval endpoint-inclusive sweep containing 301 weights.
-
-Panel A overlays the matched P0 fronts in replicate-specific
-first-cousin-null-SD coordinates, with each natural lineage translated to the
-origin. Panel B reports `u_L`, `d_LP`, and maximum edge retention for P0, AB,
-ABa, ABp, and P1. Equal-length horizontal marks are centered on each subtree's
-categorical position, match the replicate colors in Panel A, and use uniform
-transparency so coincident values visibly blend. Marker shape does not encode
-replicate identity. `d_NP` remains cached but is omitted from the panel.
-
-The fronts are closely aligned globally. For P0, replicate ranges are 0.009
-for `u_L`, 0.016 for `d_LP`, and 0.044 for maximum edge retention. ABa shows
-the largest local spread: 0.127 for `u_L`, 0.054 for `d_LP`, and 0.156 for
-maximum edge retention. The largest `d_NP` spread is instead P1 at 0.042. The
-result supports global tracking robustness while preserving genuine local
-replicate dependence; it does not establish that every subtree is replicate
-invariant.
-
-The matching decision is recorded in:
-
-- `output/ce_tracking_replicate_cell_manifest.csv`;
-- `output/ce_tracking_replicate_audit.csv`; and
-- `output/ce_tracking_replicate_subtree_manifest.csv`.
-
-The remaining S3 caches are `ce_tracking_replicate_fronts.csv`,
-`ce_tracking_replicate_null_clouds.csv`, and
-`ce_tracking_replicate_major_metrics.csv`.
-
-### Tracking geometry propagated through terminal assignments
-
-The original geometry-transfer backlog has a reproducible global-P0
-investigation in `TRACKING_GEOMETRY_SENSITIVITY.md`. It supersedes the earlier
-read-only estimates for interpretation: biological parent identity, rather
-than duplicate slot identity, defines agreement. Across 301 matched weights,
-median biological-parent agreement is 75.6--78.9%, falling to 49.1--56.0% at
-the travel endpoint; ten-nearest-parent overlap averages 78.7--79.5%.
-
-All six transferred travel endpoints lose essentially all of their travel
-saving over the target natural lineage. Joint optimization nevertheless finds
-common assignments with modest improvement in both objectives across all
-three geometries. With no increase in cell-state cost, travel savings are
-2.41%, 2.32%, and 2.28%; with at least 1% cell-state improvement they are
-1.51%, 1.49%, and 1.47%. Optimality is conditional on the documented minimax
-criterion and solver tolerances; it is not held-out biological validation.
-
-**Paused for manuscript writing on 2026-09-16.** The author considers the
-underlying investigation sufficient for now, while S3 presentation and the
-manuscript narrative remain unfinished. The record separates completed P0
-results from remaining cell-set, subtree, and held-out sensitivity work.
-
-## Reproducible biological findings
-
-1. The natural terminal assignment is exactly sampled-Pareto-optimal in 16 of
-   43 investigated subtrees, all with at most 35 terminal cells. Exact recovery
-   becomes less frequent among larger subtrees, but continuous size
-   relationships are modest: size versus on-front status has Spearman rho
-   `-0.35`, versus front proximity `+0.30`, versus cousin-relative distance
-   `+0.18`, and versus maximum retention `-0.06`.
-2. Exact recovery is not explained by small assignment spaces. Full-random
-   assignments are on the front in 0/1000 draws for every subtree. The
-   cousin-shuffle fraction is usually zero and reaches 33% only in the small,
-   exactly enumerable MSpa assignment space.
-3. Apparent relationships between attainable reductions and subtree depth or
-   fate diversity disappear after per-cell normalization (`|rho| < 0.2`).
-   Subtree size and median depth are strongly confounded (`rho = 0.90`).
-4. True-sibling contrasts are at chance level: 8 of 14 informative pairs agree
-   with the proposed direction, with three distance ties excluded.
-5. Per-cell endpoint contributions differ by fate. Programmed-death cells have
-   the largest cell-state improvement at the cell-state optimum
-   (`-0.25 sigma/cell`); epithelium pays the largest travel price there
-   (`+0.47 sigma/cell`); muscle pays the largest cell-state price at the travel
-   optimum (`+0.22 sigma/cell`). Neurons dominate totals primarily because
-   they are abundant.
-
-## Interpretation and statistical caveats
-
-- Nested subtrees are descriptive observations, not independent replicates.
-  EMS/MS, ABplpp/ABplppp, and ABprpp/ABprppp can share identical cousin-group
-  terminal sets and therefore identical null moments.
-- Do not report regression p-values that treat the 43 subtree points as
-  independent.
-- `d_LP` is an endpoint-normalized geometric display statistic, not a
-  biological weighted sum of travel and cell-state distances.
-- Cousin-relative `r` is a two-dimensional Euclidean distance in separately
-  null-standardized axes, not a conventional one-dimensional z-score.
-- Equal weighting of standardized objectives must not be described as a
-  biologically balanced cost; the objectives are not linearly comparable.
-- Within-type cell-state gains are not uniformly negligible. Attributing them
-  to expression noise requires an independent replicate or stability analysis.
-
-## Shared visual semantics
-
-- sequential blue: natural-edge retention;
-- teal: travel direction or travel-minimizing assignment;
-- vermillion: cell-state direction or cell-state-minimizing assignment;
-- charcoal or neutral gray: canonical position `u` and tree geometry;
-- purple: natural-lineage-to-front distance `d_LP`;
-- gold: first-cousin null and `d_NP`;
-- warm earth-tone sequence: ordered null-model family; and
-- local categorical colors: cell types or replicates, always identified in the
-  panel or legend.
-
-Use sentence case for axes, keep the natural-lineage cross visually dominant,
-label every displayed null, and use PDF as the canonical output.
-
-## Code and output layout
-
-```text
-terminal_pareto/
-├── README.md                              # This authoritative module record
-├── data_loader.py                         # Tracking, expression, and lineage I/O
-├── pareto_engine.py                       # Assignment and null-model methods
-├── lineage_metrics.py                     # Retention and tree-distance metrics
-├── plot_style.py                          # Shared publication style
-├── main.py                                # Complete Marimo analysis notebook
-├── subtree_analysis.py                    # Per-subtree summaries and exact nulls
-├── subtree_explore.py                     # Cell-type decomposition helpers
-├── fig2_fig3_ce_terminal_pareto.py        # Figures 2--3
-├── fig4_ce_subtree_map.py                 # Figure 4
-├── fig5_table1_ce_canonical_metrics.py    # Figure 5 metrics and Table 1
-├── fig5_figs1_ce_canonical_summary.py     # Figure 5 and Figure S1
-├── fig6a_figs2_ce_cell_types.py           # Figure 6A and Figure S2
-├── fig6bc_ce_within_type.py               # Figure 6B--C
-├── figS3_ce_tracking_robustness.py        # Figure S3
-└── output/
-    ├── ce_protein/                        # Configuration diagnostics
-    ├── ce_rna/
-    ├── cb_rna/
-    └── publication/                       # Panels, wrappers, and final PDFs
-```
-
-Generated output is ignored by Git. Publication TeX wrappers are intentionally
-versioned because they contain captions and layout, so a new ignored wrapper
-requires `git add -f`. Do not restore abandoned layouts, combined pre-split
-canvases, or threshold-test caches unless a new analysis question needs them.
-
-Accepted component stems in `output/publication/` are:
-
-- Figure 2: `fig2_ce_terminal_pareto_front`;
-- Figure 3: `fig3A_ce_null_models`,
-  `fig3B_ce_edge_retention_tree_distance`, and
-  `fig3C_ce_structural_retention`;
-- Figure 4: `fig4_ce_subtree_map_panel`;
-- Figure 5: `fig5A_ce_canonical_definition`,
-  `fig5B_ce_canonical_major_subtrees`, and
-  `fig5C_ce_canonical_all_subtrees`;
-- Figure 6: `fig6A_ce_retention_heatmap`,
-  `fig6B_ce_within_type_fronts`, and
-  `fig6C_ce_type_restricted_aggregate`;
-- Figure S1: `figS1A_ce_cousin_r_definition`,
-  `figS1B_ce_cousin_r_major_subtrees`, and
-  `figS1C_ce_cousin_r_all_subtrees`;
-- Figure S2: `figS2_ce_cell_type_cost_gain_panel`; and
-- Figure S3: `figS3A_ce_tracking_replicate_fronts` and
-  `figS3B_ce_tracking_replicate_metrics`.
-
-Authoritative numerical caches in `output/` are:
-
-- `subtree_summary_min12.csv`;
-- `ce_subtree_canonical_metrics.csv` and
-  `ce_subtree_canonical_curves.npz`;
-- `global_front_retention_by_cell_type.csv` and
-  `global_front_by_cell_type.csv`;
-- `within_type_fronts.csv`, `within_type_summary.csv`, and
-  `type_preserving_aggregate_front.csv`; and
-- the six `ce_tracking_replicate_*.csv` files listed in the Figure S3 section.
-
-## Regeneration
-
-Run from the repository root using the `dev` Conda environment:
+# Terminal-cell Pareto analysis
+
+**Current release, 2026-09-23:** C. elegans protein analysis using pooled travel
+from three embryos and endpoint-normalized Pareto displays. This replaces the
+single-embryo publication set. [HANDOFF.md](HANDOFF.md) records current status,
+validation, remaining manuscript work, and the short development history.
+These are the module's two maintained Markdown documents.
+
+## Start here
+
+- **Manuscript figures:** `output/publication/` (frozen published copy).
+- **Published identity:** `output/publication/release_manifest.json` (profile,
+  run, rendered-file hashes, and analysis-cache hashes).
+- **Working run:** `output/runs/pooled_tracking_v1/migration_candidate_20260920/`.
+  The historical run ID is retained to preserve cache identity; it is now the
+  source of the release, not an unapproved scientific alternative.
+- **Previous figures:** `output/legacy/embryo1/publication/`.
+- **Older diagnostic plots:** `output/legacy/diagnostics/`.
+- **Archived prototypes/pilots:** compact source and output archives described
+  in the handoff. They are outside the active build.
+
+Run commands from the repository root in the `dev` Conda environment.
 
 ```bash
-env MPLCONFIGDIR=/tmp/embryogenesis_mpl_cache conda run -n dev \
-  python terminal_pareto/fig2_fig3_ce_terminal_pareto.py
-env MPLCONFIGDIR=/tmp/embryogenesis_mpl_cache conda run -n dev \
-  python terminal_pareto/subtree_analysis.py --min-cells 12
-env MPLCONFIGDIR=/tmp/embryogenesis_mpl_cache conda run -n dev \
-  python terminal_pareto/fig4_ce_subtree_map.py --min-cells 12
-env MPLCONFIGDIR=/tmp/embryogenesis_mpl_cache conda run -n dev \
-  python terminal_pareto/fig5_table1_ce_canonical_metrics.py --min-cells 12
-env MPLCONFIGDIR=/tmp/embryogenesis_mpl_cache conda run -n dev \
-  python terminal_pareto/fig5_figs1_ce_canonical_summary.py
-env MPLCONFIGDIR=/tmp/embryogenesis_mpl_cache conda run -n dev \
-  python terminal_pareto/fig6a_figs2_ce_cell_types.py --iteration 300
-env MPLCONFIGDIR=/tmp/embryogenesis_mpl_cache conda run -n dev \
-  python terminal_pareto/fig6bc_ce_within_type.py --iteration 300
-env MPLCONFIGDIR=/tmp/embryogenesis_mpl_cache conda run -n dev \
-  python terminal_pareto/figS3_ce_tracking_robustness.py
+# Verify the published bundle without rebuilding.
+python terminal_pareto/publication_release.py --verify
+
+# Rebuild layout from validated caches in the working run.
+python terminal_pareto/publication_build.py --layout-only
+
+# Validate, compile, then publish a revised layout; preserve the previous release.
+python terminal_pareto/publication_build.py --layout-only --publish
+
+# Full pooled pipeline (includes downstream analysis/rendering).
+python terminal_pareto/publication_build.py
+
+# Validate scientific results, source identity, and the legacy regression baseline.
+python terminal_pareto/validate_pooled_migration.py
+python terminal_pareto/test_analysis_context.py
+python -m unittest terminal_pareto.test_publication_release
 ```
 
-For the complete notebook analysis, run `python terminal_pareto/main.py`; use
-`marimo edit terminal_pareto/main.py` for an interactive session.
+A build writes into its run directory. Publication is explicit via `--publish`
+or `publication_release.py`; it validates first, checks compiled one-page
+wrappers, stages a copy, preserves the previous publication, and writes the
+release manifest. Editing working figures does not silently change the release.
+Generated PDFs, arrays, and local output archives are Git-ignored and need the
+project's external backup. Versioned wrapper templates and source archives do
+not replace those data backups.
 
-Compile wrappers from `terminal_pareto/output/publication/`:
+## Analysis conventions
 
-```bash
-for stem in \
-  fig2_ce_terminal_pareto_main \
-  fig3_ce_terminal_pareto_supporting \
-  fig4_ce_subtree_map \
-  fig5_ce_canonical_summary \
-  fig6_ce_cell_types \
-  figS1_ce_canonical_summary_cousin_r \
-  figS2_ce_cell_type_cost_gain \
-  figS3_ce_tracking_robustness \
-  table1_ce_subtree_statistics
-do
-  conda run -n dev tectonic "${stem}.tex"
-done
-```
+Terminal identities, measured positions, molecular states, and parent-slot
+multiplicities are fixed. Hungarian bipartite matching assigns children to
+parent slots across 301 weights (300 intervals including both endpoints).
+These are sampled optimal assignments, not enumeration of the complete discrete
+Pareto set. Duplicate slots of one biological parent are interchangeable;
+edge retention/agreement compares biological parent identity.
 
-## Validation before handoff or commit
+The primary cohort is the strict intersection of **275 natural terminal
+parent–child edges** across embryo 1 (cutoff 255), embryo 2 (247), and embryo 3
+(225). Both endpoints require tracking and the fixed protein representation.
+Cutoffs are predefined stage matches, not equal elapsed developmental times.
+At least 12 usable terminal cells gives **42 qualifying subtrees**.
 
-1. Run `python -m py_compile` on every changed Python source.
-2. Run the canonical self-test:
-   `conda run -n dev python terminal_pareto/fig5_table1_ce_canonical_metrics.py --min-cells 12 --selftest`.
-3. Regenerate each changed renderer and inspect its PNG/PDF output.
-4. Compile each affected standalone wrapper with Tectonic.
-5. Run `git diff --check` and inspect `git status --short`.
-6. Confirm no unrelated files or expensive full-tree caches are staged.
+Cell-state cost is cosine dissimilarity of the selected top-20 z-scored protein
+features from `data/protein/aggregated_all/s3_zscore.csv`, with selection in
+`expression_embedding/results/elegans_protein_linear_baseline/top20_protein_names.csv`.
+Travel is Euclidean displacement between the retained parent/child positions,
+not integrated trajectory length or measured metabolic energy.
 
-Python dependencies are defined in `environment.yml`. Tectonic compiles the
-standalone publication figures.
+For embryo r, let T_r(L) be the natural lineage's total travel on the global
+matched cohort. Pooled edge cost is
 
-## Cross-dataset terminal pilot (2026-09-09)
+\[
+\bar d_{ij}=\frac{1}{3}\sum_{r=1}^{3}\frac{d^{(r)}_{ij}}{T_r(L)}.
+\]
 
-`pilot_cross_dataset.py` implements an unnumbered comparison of C. elegans
-protein, C. elegans RNA, and two AF16 C. briggsae RNA/tracking configurations
-on 188 shared terminal edges. See `PILOT_CROSS_DATASET.md` for findings,
-endpoint tie handling, regeneration, and calibration/provenance limitations.
-The four-page review and caches are in `output/pilot_cross_dataset/`.
-This pilot includes existing-3D and XY-only views plus coverage and cell-set
-sensitivities; it is not an accepted publication figure.
+The same global denominators are used for every subtree and null assignment.
+Pooled natural total is one. Coordinates are not averaged into a synthetic
+embryo. Pooling remains additive over edges and optimizes the equal-weight
+mean of the three observed normalized geometries.
 
-Paused by author request on 2026-09-14. The pilot record includes the review
-clarifications (coverage is not edge retention), the CE depth diagnostic,
-validation status, and an ordered resume checklist. Preserve the current
-ignored output directory before rerunning; generated plots/caches are local,
-not included in the source commit. No publication promotion is authorized.
+Profiles remain explicit: `pooled_tracking_v1` (primary, 275 edges/42 subtrees),
+`embryo1_matched` (coverage control, 275/42), and `embryo1_legacy` (299/43).
+Low-level loaders retain historical defaults for reproducibility. The main
+publication command defaults to the pooled profile. Historical no-profile
+figure commands write to `output/legacy/rebuild/publication/`, not the current
+release or the frozen old figures.
 
-## CE tracking-variance amendment candidate (checkpoint 2026-09-16)
+First-cousin assignment shuffling is the primary null, with seed 42 and 1,000
+visualization draws. Figures 2–3 also use second-/third-cousin and full-random
+shuffles. Pooled/matched subtree means, variances, and covariance use exact
+first-cousin moments. Nonpositive null SDs and invalid endpoint spans are
+handled explicitly. Optimizer scaling and display normalization are separate.
 
-The CE-only investigation and common-assignment results are documented in
-`TRACKING_GEOMETRY_SENSITIVITY.md`. The two-page Figure S3 amendment candidate
-is `output/tracking_s3_amendment/figS3_ce_tracking_amended_review.pdf`.
-It retains the global-front and subtree evidence from panels A--B and adds
-biological-parent agreement,
-neighborhood overlap, directed transfer penalties, and common assignments
-that improve both objectives across all three tracking geometries.
-The 2026-09-16 revision adds three zooms to candidate panel A showing those
-common assignments directly below and to the left of the natural lineage
-in each embryo's own cost space.
-The author chose to keep this figure C. elegans only; the AF16 extension was
-stopped. Accepted publication outputs are unchanged. The candidate renderer
-and caption are `figS3_ce_tracking_variance_amendment.py` and
-`figS3_ce_tracking_variance_amendment.tex`; regeneration and validation details
-are in the investigation record. The author has explicitly deferred further
-presentation work while drafting the manuscript. Rendering and numerical
-validation do not mean the layout, caption, or narrative has been accepted.
-Source is committed; generated caches, assignments, and figures remain local
-and Git-ignored. Preserve them before resuming analysis or rendering.
+## Display coordinates and canonical metrics
+
+Let A minimize travel and B minimize cell-state cost. For any assignment a,
+
+\[
+D_1(a)=\frac{T(a)-T(A)}{T(B)-T(A)},\qquad
+D_2(a)=\frac{S(a)-S(B)}{S(A)-S(B)}.
+\]
+
+A maps to (0, 1), B to (1, 0). Natural lineage and null samples use the same
+anchors and can fall outside the endpoint box; they are not clipped. Competing
+assignment sets in one panel share that panel's reference endpoints. Separate
+subtree/type endpoint scales support shape comparisons, not absolute cost
+comparisons between groups. Percentage and null-SD views remain diagnostics;
+Figure S1 and the Figure S2 ledger retain their specifically defined scales.
+
+P* is the closest **attained sampled assignment** to natural lineage L in
+endpoint coordinates. Canonical distance d_LP is its Euclidean distance to L;
+d_NP measures from first-cousin-null mean N to that same P*. Position u is
+normalized front arc length from A to P*. No interpolated lineage is used.
+The maximum-edge-retention assignment highlighted in Figure 2 need not be P*.
+The cousin-relative statistic r uses separately null-standardized geometry;
+it is a sensitivity statistic, and d_NP multiplied by r need not equal d_LP.
+
+## Published figures
+
+All wrapper stems below are in `output/publication/` as PDF and TeX unless
+specified otherwise. Panel PDF/PNG assets, S3 SVG and projection data, and
+provenance accompany the wrappers.
+
+| Item | Wrapper stem | Content |
+|---|---|---|
+| Figure 1 amendment | `fig1_ce_endpoint_normalization_amendment` | Endpoint/canonical schematic; co-author integration pending |
+| Figure 2 | `fig2_ce_terminal_pareto_main` | Single pooled front, null clouds, natural lineage and maximum retention |
+| Figure 3 | `fig3_ce_terminal_pareto_supporting` | Null schematic, changed-edge tree distance and structural trade-off |
+| Figure 4 | `fig4_ce_subtree_map` | 42 subtrees, fate composition, on-front status and retention |
+| Figure 5 | `fig5_ce_canonical_summary` | Major-subtree and all-subtree canonical summaries, A–B |
+| Figure 6 | `fig6_ce_cell_types` | Fate retention, within-type fronts and restricted aggregate |
+| Figure S1 | `figS1_ce_canonical_summary_cousin_r` | Cousin-relative sensitivity |
+| Figure S2 | `figS2_ce_cell_type_cost_gain` | Separate per-cell cost changes at three selected assignments |
+| Figure S3 | `figS3_ce_tracking_robustness` | Four travel geometries, full fronts with near-natural insets |
+| Table 1 | `table1_ce_subtree_statistics.tex` | Canonical and null-relative metrics |
+
+Figure 5 separates two questions. Panel A pairs natural-lineage and
+first-cousin-null-mean distances to each major subtree's closest assignment
+P*, using named rows and purple/gold points. Panel B shows all 42 subtrees
+once in branch-grouped rows, with separate columns for canonical position
+u (gray) and natural-lineage distance d_LP (purple). Column scales are shared
+between groups; bold names link the five major subtrees across panels.
+Branch names replace the former shape key, and every subtree is directly
+labelled. The layout-only build regenerates these panels from the validated
+canonical table without changing analysis caches or Figure S1.
+
+S3 measures travel in embryos 1–3 (A–C) and the pooled geometry (D). Color
+identifies the source of optimization, solid lines the native front, dashed
+lines transferred assignments, and X natural lineage. Every panel evaluates
+all four saved 301-solution sweeps unchanged; its inset uses the same
+coordinates. The 4,816 projections are replay-validated. Overall front shapes
+are similar; near natural lineage, pooled assignments form a compromise closer
+to each native front than assignments transferred from another embryo.
+The pooled optimum's advantage in its own objective alone is not independent
+support for pooling.
+
+## Source map and reproducibility
+
+| Files | Role |
+|---|---|
+| `publication_build.py`, `publication_release.py`, `publication_wrappers.py` | Build, validated promotion and wrapper templates |
+| `analysis_context.py`, `global_analysis.py`, `front_coordinates.py` | Profiles, identity-checked caches, display transforms |
+| `fig1_endpoint_amendment.py`, `fig2_fig3_*.py`, `fig4_*.py`, `fig5_*.py`, `fig6*.py`, `figS3_cross_geometry.py` | Current figure renderers |
+| `data_loader.py`, `pareto_engine.py`, `lineage_metrics.py`, `subtree_analysis.py`, `subtree_explore.py`, `plot_style.py` | Shared analysis/rendering support |
+| `tracking_geometry_sensitivity.py`, `figS3_ce_tracking_robustness.py` | Saved tracking sweeps and historical tracking audit support |
+| `main.py` | Historical exploratory CLI, not the primary publication coordinator |
+| `assets/fig3A_ce_null_models.tex` | Versioned common null schematic; no dependency on retired figure outputs |
+| `validate_pooled_migration.py`, `test_analysis_context.py`, `test_publication_release.py` | Scientific, cache, and promotion checks |
+| `legacy/development_sources_20260923.tar.gz` and `.json` | Exact pre-consolidation sources/docs, hashes, original paths |
+
+Required local inputs beyond source datasets are the working run's `analysis/`
+cache, `output/tracking_geometry_sensitivity/` (S3 assignments/provenance), and
+`output/tracking_metric_comparison/` (audited pooled matrices and matched-subtree
+validation fixtures). `output/runs/baseline_legacy_20260920/` is the immutable
+numerical regression baseline. Keep these when clearing generated output.
+Cache reuse checks profile, cohort/order, context identity, sweep, schema and
+hashes. To change a scientific configuration, use a new explicit run/profile;
+do not rename a run directory or rewrite manifests to force reuse.
+Loose root-level CSV/NPZ tables are historical no-profile analysis caches,
+retained for those entrypoints; the primary pooled tables are in the run's
+`analysis/` directory and are identified by the published release manifest.
+
+## Interpretation
+
+Distances are geometric and expression proxies, not direct energetic or
+regulatory work. Three embryos mix biological and tracking variation; they do
+not estimate population variability or isolate measurement error. Pooled travel
+summarizes those three geometries. It does not establish denoising or
+out-of-sample improvement: the earlier leave-one-geometry-out comparison
+improved held-out travel in only 2 of 12 settings for each method.
+Small cost margins can coexist with large changes in exact parent assignments.
+Do not infer biological parent agreement from slot permutations or front shape.
+Full-tree analysis has different costs and references and remains a separate
+pipeline. Paused cross-species findings require acquisition/calibration and
+expression-provenance review before scientific interpretation.

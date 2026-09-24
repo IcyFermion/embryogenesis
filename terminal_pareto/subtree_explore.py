@@ -23,7 +23,7 @@ from terminal_pareto.subtree_analysis import first_cousin_null_summary
 
 def decompose_global_front_by_type(lineage, v_prot, tn, tp, xyz_ce, protein_exp,
                                    prot_sel, type_map, tree_index, gp_map,
-                                   iteration=300):
+                                   iteration=300, prepared_matrices=None):
     """Per-cell-type edge retention and cost deltas along the global front.
 
     The preferred cell-type analysis: assignments are those of the single
@@ -42,7 +42,11 @@ def decompose_global_front_by_type(lineage, v_prot, tn, tp, xyz_ce, protein_exp,
     both total and per-cell cost contributions. Small categories (n <= 4) are
     flagged via ``small``.
     """
-    xm, em, _ = pe.build_cost_matrices(tn, tp, xyz_ce, protein_exp, prot_sel)
+    if prepared_matrices is None:
+        xm, em, _ = pe.build_cost_matrices(
+            tn, tp, xyz_ce, protein_exp, prot_sel)
+    else:
+        xm, em = prepared_matrices
     # Closed-form first-cousin null moments for the sigma scaling (identical
     # to the summary table); the cousin groups here are the ancestor-based
     # groups used for the first-cousin definition in the publication pipeline.
@@ -103,7 +107,7 @@ def decompose_global_front_by_type(lineage, v_prot, tn, tp, xyz_ce, protein_exp,
 
 def decompose_global_front_retention_by_type(
         lineage, v_prot, tn, tp, xyz_ce, protein_exp, prot_sel, type_map,
-        tree_index, gp_map, iteration=300):
+        tree_index, gp_map, iteration=300, prepared_matrices=None):
     """Cell-type natural-edge retention at every distinct front assignment.
 
     This is the full-front companion to :func:`decompose_global_front_by_type`.
@@ -116,7 +120,11 @@ def decompose_global_front_retention_by_type(
     Returns a tidy table with one row per (distinct front assignment, type).
     No interpolation between assignments is performed.
     """
-    xm, em, _ = pe.build_cost_matrices(tn, tp, xyz_ce, protein_exp, prot_sel)
+    if prepared_matrices is None:
+        xm, em, _ = pe.build_cost_matrices(
+            tn, tp, xyz_ce, protein_exp, prot_sel)
+    else:
+        xm, em = prepared_matrices
     rs = first_cousin_null_summary(xm, em, tn, gp_map, seed=42)["_raw"]
     xs = xm / rs["xyz_std"]
     es = em / rs["exp_std"]

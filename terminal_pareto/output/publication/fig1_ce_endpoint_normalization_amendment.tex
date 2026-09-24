@@ -1,0 +1,28 @@
+\documentclass[10pt]{article}
+\usepackage[margin=0.55in]{geometry}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{amsmath}
+\usepackage{tikz}
+\captionsetup{font=small,labelfont=bf}
+\pagestyle{empty}
+\begin{document}
+\renewcommand{\thefigure}{1 amendment}
+\begin{figure}[p]
+\centering
+\includegraphics[width=0.82\textwidth]{fig1_endpoint_normalization_amendment.pdf}
+\caption{\textbf{Endpoint coordinates and canonical metrics.} The travel
+optimum maps to $(0,1)$ and the cell-state optimum to $(1,0)$. Travel cost
+$T$ and cell-state cost $S$ are normalized by the spans between these two
+attained endpoint assignments. The natural lineage $L$ and the first-cousin
+null mean $N$ use the same anchors. $P^*$ is the closest attained sampled-front
+assignment to $L$ in these coordinates; $d_{LP}$ and $d_{NP}$ are measured
+from $L$ and $N$ to this same assignment. Canonical position $u$ is the
+fraction of front arc length from the travel optimum to $P^*$. Each subtree
+uses its own endpoints for shape summaries, while assignment comparisons
+within a cost space share one reference. This display transformation leaves
+the optimization and selected assignments unchanged. This independent
+component awaits integration into the co-author's Figure~1.}
+\label{fig:ce_endpoint_normalization_amendment}
+\end{figure}
+\end{document}

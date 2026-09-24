@@ -22,6 +22,7 @@ a silent replacement for a degenerate cousin null.
 """
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -45,9 +46,18 @@ from terminal_pareto.subtree_analysis import (
     exact_cousin_stats,
     first_cousin_null_summary,
 )
+from terminal_pareto.analysis_context import (
+    DEFAULT_OUTPUT_ROOT,
+    AnalysisContext,
+    build_analysis_context,
+)
+from terminal_pareto.front_coordinates import (
+    DegenerateEndpointSpan,
+    EndpointTransform,
+)
 
 
-OUT = Path(__file__).resolve().parent / "output" / "publication"
+OUT = Path(__file__).resolve().parent / "output" / "legacy" / "rebuild" / "publication"
 ANALYSIS_OUT = Path(__file__).resolve().parent / "output"
 ITERATION = 300
 MIN_DISPLAY_N = 12
@@ -69,7 +79,16 @@ UNRESTRICTED_COLOR = "#444444"
 TYPE_RESTRICTED_COLOR = ps.COLORS["orange"]
 
 
-def load_primary_data():
+def load_primary_data(context: AnalysisContext | None = None):
+    if context is not None:
+        tn, tp = context.terminal_nodes, context.terminal_parents
+        return dict(
+            lineage=context.lineage, tree_index=context.tree_index,
+            xyz=None, expression=context.protein_exp,
+            features=context.prot_sel, tn=tn, tp=tp,
+            type_map=build_type_map(tn), gp_map=context.gp_map,
+            prepared_matrices=context.cost_matrices(),
+        )
     lineage = dl.load_json(dl._REPO_ROOT + "/data/cell_lineage.json")
     tree_index = lm.build_lineage_tree_index(lineage)
     xyz_ce, valid_ce = dl.load_elegans_tracking(dl.T_CE)
@@ -81,6 +100,7 @@ def load_primary_data():
         lineage=lineage, tree_index=tree_index, xyz=xyz_ce,
         expression=protein_exp, features=prot_sel, tn=tn, tp=tp,
         type_map=build_type_map(tn), gp_map=pe.build_grandparent_map(lineage),
+        prepared_matrices=None,
     )
 
 
@@ -137,11 +157,14 @@ def solve_block_sweep(xs, es, groups, lineage_x, lineage_e, iteration):
     return travel, state
 
 
-def analyze(iteration=ITERATION):
-    data = load_primary_data()
+def analyze(iteration=ITERATION, *, context: AnalysisContext | None = None):
+    data = load_primary_data(context)
     tn, tp = data["tn"], data["tp"]
-    xm, em, _ = pe.build_cost_matrices(
-        tn, tp, data["xyz"], data["expression"], data["features"])
+    if data["prepared_matrices"] is None:
+        xm, em, _ = pe.build_cost_matrices(
+            tn, tp, data["xyz"], data["expression"], data["features"])
+    else:
+        xm, em = data["prepared_matrices"]
     global_null = first_cousin_null_summary(
         xm, em, tn, data["gp_map"], seed=42)["_raw"]
     xstd, estd = global_null["xyz_std"], global_null["exp_std"]
@@ -181,10 +204,40 @@ def analyze(iteration=ITERATION):
             xsb, esb, {cell_type: list(range(n))}, lx, le, iteration)
         local_x /= n
         local_e /= n
-        for step, (dx, de) in enumerate(zip(local_x, local_e)):
+        reference_id = (f"{context.cache_key}:{cell_type}"
+                        if context is not None else f"legacy:{cell_type}")
+        try:
+            local_transform = EndpointTransform.from_endpoints(
+                reference_analysis_id=reference_id,
+                travel_optimum_assignment_id=f"{cell_type}:sweep:{iteration}",
+                state_optimum_assignment_id=f"{cell_type}:sweep:0",
+                travel_optimum_costs=(local_x[-1], local_e[-1]),
+                state_optimum_costs=(local_x[0], local_e[0]),
+            )
+            local_endpoint_x, local_endpoint_y = local_transform.transform(
+                local_x, local_e)
+            local_natural_x, local_natural_y = local_transform.transform(
+                np.asarray([0.0]), np.asarray([0.0]))
+            endpoint_valid = True
+            display_reference = reference_id
+        except DegenerateEndpointSpan:
+            # Preserve the analysis and report an explicit null-SD fallback;
+            # never divide by zero or silently invent another endpoint span.
+            local_endpoint_x, local_endpoint_y = local_x.copy(), local_e.copy()
+            local_natural_x = local_natural_y = np.asarray([0.0])
+            endpoint_valid = False
+            display_reference = f"{reference_id}:null_sd_fallback"
+        for step, (dx, de, endpoint_x, endpoint_y) in enumerate(zip(
+                local_x, local_e, local_endpoint_x, local_endpoint_y)):
             front_rows.append(dict(
                 type=cell_type, n=n, step=step, alpha=step / iteration,
                 travel_sigma_per_cell=dx, state_sigma_per_cell=de,
+                endpoint_travel=float(endpoint_x),
+                endpoint_state=float(endpoint_y),
+                endpoint_natural_travel=float(local_natural_x[0]),
+                endpoint_natural_state=float(local_natural_y[0]),
+                endpoint_reference=display_reference,
+                endpoint_valid=endpoint_valid,
             ))
 
         tnodes = [tn[i] for i in ix]
@@ -211,6 +264,8 @@ def analyze(iteration=ITERATION):
             cousin_relative_distance=cousin_rec["relative_distance"],
             cousin_natural_on_front=cousin_rec["natural_on_front"],
             full_random_relative_distance=random_rec["relative_distance"],
+            endpoint_display_valid=endpoint_valid,
+            endpoint_display_reference=display_reference,
             shared_scale_closest_per_cell=closest,
             travel_reduction_per_cell=-float(local_x[-1]),
             state_reduction_per_cell=-float(local_e[0]),
@@ -224,6 +279,21 @@ def analyze(iteration=ITERATION):
         "restricted_travel_sigma": restricted_x,
         "restricted_state_sigma": restricted_e,
     })
+    shared_transform = EndpointTransform.from_endpoints(
+        reference_analysis_id=(context.cache_key if context is not None
+                               else "legacy_global_unrestricted"),
+        travel_optimum_assignment_id=f"unrestricted:sweep:{iteration}",
+        state_optimum_assignment_id="unrestricted:sweep:0",
+        travel_optimum_costs=(global_x[-1], global_e[-1]),
+        state_optimum_costs=(global_x[0], global_e[0]),
+    )
+    aggregate["global_endpoint_travel"], aggregate["global_endpoint_state"] = (
+        shared_transform.transform(global_x, global_e))
+    (aggregate["restricted_endpoint_travel"],
+     aggregate["restricted_endpoint_state"]) = shared_transform.transform(
+         restricted_x, restricted_e)
+    natural_endpoint = shared_transform.transform(
+        np.asarray([0.0]), np.asarray([0.0]))
     endpoints = dict(
         travel_penalty_sigma=float(restricted_x[-1] - global_x[-1]),
         state_penalty_sigma=float(restricted_e[0] - global_e[0]),
@@ -231,6 +301,10 @@ def analyze(iteration=ITERATION):
         restricted_travel_reduction_sigma=float(-restricted_x[-1]),
         global_state_reduction_sigma=float(-global_e[0]),
         restricted_state_reduction_sigma=float(-restricted_e[0]),
+        endpoint_reference=shared_transform.reference_analysis_id,
+        endpoint_natural_travel=float(natural_endpoint[0][0]),
+        endpoint_natural_state=float(natural_endpoint[1][0]),
+        endpoint_metadata=shared_transform.metadata(clipping=False),
     )
     return pd.DataFrame(front_rows), pd.DataFrame(summary_rows), aggregate, endpoints
 
@@ -292,8 +366,39 @@ def save_panel_crops(fig, upper_axes, lower_ax, b_artists, c_artists,
         artist.set_visible(was_visible)
 
 
-def plot_within_type(front_df, summary_df, aggregate, endpoints, out_dir=OUT):
+def plot_within_type(front_df, summary_df, aggregate, endpoints, out_dir=OUT,
+                     display_mode="null_sd"):
     """Render the within-type panels used below the retention heatmap."""
+    if display_mode not in {"null_sd", "endpoint"}:
+        raise ValueError(f"Unsupported Figure 6 display mode: {display_mode}")
+    endpoint_display = display_mode == "endpoint"
+    if endpoint_display:
+        local_x, local_y = "endpoint_travel", "endpoint_state"
+        natural_x = "endpoint_natural_travel"
+        natural_y = "endpoint_natural_state"
+        local_xlabel = "Travel distance\n(own endpoint span)"
+        local_ylabel = "Cell-state distance\n(own endpoint span)"
+        global_x, global_y = "global_endpoint_travel", "global_endpoint_state"
+        restricted_x = "restricted_endpoint_travel"
+        restricted_y = "restricted_endpoint_state"
+        aggregate_natural = (
+            endpoints["endpoint_natural_travel"],
+            endpoints["endpoint_natural_state"],
+        )
+        aggregate_xlabel = "Travel distance (unrestricted endpoint span)"
+        aggregate_ylabel = "Cell-state distance\n(unrestricted endpoint span)"
+    else:
+        local_x, local_y = "travel_sigma_per_cell", "state_sigma_per_cell"
+        natural_x = natural_y = None
+        local_xlabel = "Travel-distance change\n(global null SD per cell)"
+        local_ylabel = "Cell-state-distance change\n(global null SD per cell)"
+        global_x, global_y = "global_travel_sigma", "global_state_sigma"
+        restricted_x = "restricted_travel_sigma"
+        restricted_y = "restricted_state_sigma"
+        aggregate_natural = (0.0, 0.0)
+        aggregate_xlabel = "Travel-distance change (global null SD)"
+        aggregate_ylabel = "Cell-state-distance change\n(global null SD)"
+
     fig = plt.figure(figsize=(7.15, 5.75))
     outer = fig.add_gridspec(2, 1, height_ratios=[1.55, 1.0], hspace=0.56)
     upper = outer[0].subgridspec(2, 3, hspace=0.58, wspace=0.34)
@@ -303,32 +408,39 @@ def plot_within_type(front_df, summary_df, aggregate, endpoints, out_dir=OUT):
         data = unique_front(front_df[front_df["type"] == cell_type])
         row = summary_df.set_index("type").loc[cell_type]
         color = TYPE_COLORS[cell_type]
-        ax.plot(data["travel_sigma_per_cell"], data["state_sigma_per_cell"],
+        ax.plot(data[local_x], data[local_y],
                 color=color, lw=1.45, zorder=2)
-        ax.scatter(data["travel_sigma_per_cell"], data["state_sigma_per_cell"],
+        ax.scatter(data[local_x], data[local_y],
                    s=5, color=color, alpha=0.45, edgecolors="none", zorder=3)
-        ax.scatter([0], [0], marker="X", s=34, color="#222222",
+        local_natural_x = (float(data.iloc[0][natural_x])
+                           if natural_x is not None else 0.0)
+        local_natural_y = (float(data.iloc[0][natural_y])
+                           if natural_y is not None else 0.0)
+        ax.scatter([local_natural_x], [local_natural_y],
+                   marker="X", s=34, color="#222222",
                    edgecolor="white", lw=0.5, zorder=5)
-        ax.scatter([data.iloc[-1]["travel_sigma_per_cell"]],
-                   [data.iloc[-1]["state_sigma_per_cell"]],
+        ax.scatter([data.iloc[-1][local_x]],
+                   [data.iloc[-1][local_y]],
                    marker="o", s=22, facecolor=TRAVEL_COLOR,
                    edgecolor="#222222", lw=0.45, zorder=5)
-        ax.scatter([data.iloc[0]["travel_sigma_per_cell"]],
-                   [data.iloc[0]["state_sigma_per_cell"]],
+        ax.scatter([data.iloc[0][local_x]],
+                   [data.iloc[0][local_y]],
                    marker="s", s=22, facecolor=CELL_STATE_COLOR,
                    edgecolor="#222222", lw=0.45, zorder=5)
         ax.axhline(0, color="#999999", lw=0.55, ls=":")
         ax.axvline(0, color="#999999", lw=0.55, ls=":")
         title = cell_type.replace("_", " ")
+        if endpoint_display and not bool(data.iloc[0]["endpoint_valid"]):
+            title += "\n(null-SD fallback; degenerate endpoints)"
         ax.set_title(f"{title} (n={int(row['n'])})", fontsize=7.4,
                      color="#222222")
         ax.grid(True, alpha=0.22)
         ax.tick_params(labelsize=6.1)
 
     for ax in axes[3:]:
-        ax.set_xlabel("Travel change\n(global σ per cell)", fontsize=6.7)
+        ax.set_xlabel(local_xlabel, fontsize=6.7)
     for ax in (axes[0], axes[3]):
-        ax.set_ylabel("Cell-state change\n(global σ per cell)", fontsize=6.7)
+        ax.set_ylabel(local_ylabel, fontsize=6.7)
     b_letter = fig.text(0.012, 0.975, "B", fontsize=10, fontweight="bold",
                         ha="left", va="top")
     b_heading = fig.text(
@@ -336,20 +448,19 @@ def plot_within_type(front_df, summary_df, aggregate, endpoints, out_dir=OUT):
         fontsize=9.2, fontweight="semibold", ha="left", va="top")
 
     ax = fig.add_subplot(outer[1])
-    ax.plot(aggregate["global_travel_sigma"], aggregate["global_state_sigma"],
+    ax.plot(aggregate[global_x], aggregate[global_y],
             color=UNRESTRICTED_COLOR, lw=1.8,
             label="Unrestricted assignment",
             zorder=3)
-    ax.plot(aggregate["restricted_travel_sigma"],
-            aggregate["restricted_state_sigma"],
+    ax.plot(aggregate[restricted_x], aggregate[restricted_y],
             color=TYPE_RESTRICTED_COLOR, lw=1.8,
             label="Assignments restricted within cell type", zorder=3)
-    ax.scatter([0], [0], marker="X", s=48, color="#222222",
+    ax.scatter([aggregate_natural[0]], [aggregate_natural[1]],
+               marker="X", s=48, color="#222222",
                edgecolor="white", lw=0.55, zorder=5, label="Natural lineage")
     for xcol, ycol, color in [
-        ("global_travel_sigma", "global_state_sigma", UNRESTRICTED_COLOR),
-        ("restricted_travel_sigma", "restricted_state_sigma",
-         TYPE_RESTRICTED_COLOR),
+        (global_x, global_y, UNRESTRICTED_COLOR),
+        (restricted_x, restricted_y, TYPE_RESTRICTED_COLOR),
     ]:
         ax.scatter([aggregate.iloc[-1][xcol]], [aggregate.iloc[-1][ycol]],
                    marker="o", s=27, facecolor=color, edgecolor="#222222",
@@ -359,8 +470,8 @@ def plot_within_type(front_df, summary_df, aggregate, endpoints, out_dir=OUT):
                    lw=0.5, zorder=5)
     ax.axhline(0, color="#888888", lw=0.6, ls=":")
     ax.axvline(0, color="#888888", lw=0.6, ls=":")
-    ax.set_xlabel("Travel-distance change (global null σ)")
-    ax.set_ylabel("Cell-state-distance change\n(global null σ)")
+    ax.set_xlabel(aggregate_xlabel)
+    ax.set_ylabel(aggregate_ylabel)
     ax.set_title("Aggregate consequence of forbidding assignments across cell types",
                  loc="left", pad=7)
     ax.grid(True, alpha=0.25)
@@ -395,18 +506,69 @@ def plot_within_type(front_df, summary_df, aggregate, endpoints, out_dir=OUT):
     plt.close(fig)
 
 
-def main(argv=None):
+def build_parser():
+    """Build the CLI parser so legacy display defaults are regression-tested."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--iteration", type=int, default=ITERATION)
     parser.add_argument("--out", type=Path, default=OUT)
-    args = parser.parse_args(argv)
+    parser.add_argument(
+        "--profile",
+        choices=("embryo1_legacy", "embryo1_matched", "pooled_tracking_v1"),
+        help="Opt into an isolated profile-aware run (omission keeps legacy paths).",
+    )
+    parser.add_argument("--run-id")
+    parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
+    parser.add_argument(
+        "--display", choices=("null_sd", "endpoint"), default="null_sd",
+        help=("Figure coordinate system. Legacy-compatible null_sd is the "
+              "default; endpoint must be requested explicitly."),
+    )
+    return parser
+
+
+def main(argv=None):
+    args = build_parser().parse_args(argv)
     ps.configure()
-    fronts, summary, aggregate, endpoints = analyze(iteration=args.iteration)
-    fronts.to_csv(ANALYSIS_OUT / "within_type_fronts.csv", index=False)
-    summary.to_csv(ANALYSIS_OUT / "within_type_summary.csv", index=False)
-    aggregate.to_csv(ANALYSIS_OUT / "type_preserving_aggregate_front.csv",
+    context = None
+    analysis_out = ANALYSIS_OUT
+    if args.profile is not None:
+        context = build_analysis_context(
+            args.profile, run_id=args.run_id, output_root=args.output_root,
+            sweep_intervals=args.iteration)
+        context.write()
+        analysis_out = context.run_paths.analysis
+        if args.out == OUT:
+            args.out = context.run_paths.display(args.display)
+    analysis_out.mkdir(parents=True, exist_ok=True)
+    args.out.mkdir(parents=True, exist_ok=True)
+    fronts, summary, aggregate, endpoints = analyze(
+        iteration=args.iteration, context=context)
+    fronts.to_csv(analysis_out / "within_type_fronts.csv", index=False)
+    summary.to_csv(analysis_out / "within_type_summary.csv", index=False)
+    aggregate.to_csv(analysis_out / "type_preserving_aggregate_front.csv",
                      index=False)
-    plot_within_type(fronts, summary, aggregate, endpoints, out_dir=args.out)
+    display_manifest = {
+        "profile": context.profile if context is not None else "embryo1_legacy",
+        "display_mode": args.display,
+        "aggregate_reference": (
+            endpoints["endpoint_metadata"] if args.display == "endpoint"
+            else {
+                "display_mode": "null_sd",
+                "reference_analysis_id": (
+                    context.cache_key if context is not None
+                    else "legacy_global_first_cousin_null"),
+                "natural_lineage": [0.0, 0.0],
+            }
+        ),
+        "type_references": summary[[
+            "type", "endpoint_display_valid", "endpoint_display_reference"
+        ]].to_dict(orient="records"),
+    }
+    (args.out / "fig6bc_display_manifest.json").write_text(
+        json.dumps(display_manifest, indent=2, sort_keys=True) + "\n")
+    plot_within_type(
+        fronts, summary, aggregate, endpoints, out_dir=args.out,
+        display_mode=args.display)
     print(summary[["type", "n", "cousin_null_valid",
                    "cousin_relative_distance", "full_random_relative_distance",
                    "travel_reduction_per_cell", "state_reduction_per_cell"]]

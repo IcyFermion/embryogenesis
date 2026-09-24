@@ -1,6 +1,8 @@
 """Generate C. elegans terminal-cell Pareto Figures 2 and 3."""
 
 import argparse
+import hashlib
+import json
 from pathlib import Path
 import sys
 
@@ -17,10 +19,20 @@ from terminal_pareto import data_loader as dl
 from terminal_pareto import lineage_metrics as lm
 from terminal_pareto import pareto_engine as pe
 from terminal_pareto import plot_style as ps
+from terminal_pareto.analysis_context import (
+    DEFAULT_OUTPUT_ROOT,
+    build_analysis_context,
+)
+from terminal_pareto.front_coordinates import (
+    build_endpoint_transform,
+    null_sd_coordinates,
+    percent_natural_coordinates,
+)
+from terminal_pareto.global_analysis import get_or_compute_global_analysis
 
 
-OUT = Path(__file__).resolve().parent / "output" / "publication"
-DIAGNOSTIC_OUT = Path(__file__).resolve().parent / "output" / "ce_protein"
+OUT = Path(__file__).resolve().parent / "output" / "legacy" / "rebuild" / "publication"
+DIAGNOSTIC_OUT = Path(__file__).resolve().parent / "output" / "legacy" / "rebuild" / "ce_protein"
 EDGE_RETENTION_CMAP = LinearSegmentedColormap.from_list(
     "edge_retention_blue", ["#17365D", "#0072B2", "#72C7EC"]
 )
@@ -83,6 +95,93 @@ def _load_analysis():
     return twr, nulls
 
 
+def _profile_analysis(context, *, force=False):
+    """Load one cache-keyed numerical result and prepare its null-SD view."""
+    result = get_or_compute_global_analysis(context, force=force)
+    natural = result.natural_costs
+    stds = result.null_stds
+    key_map = {
+        1: "first_cousin",
+        2: "second_cousin",
+        3: "third_cousin",
+        "full": "full_random",
+    }
+    nulls = {
+        key: null_sd_coordinates(
+            *result.null_raw[cache_key], natural_costs=natural,
+            null_stds=stds)
+        for key, cache_key in key_map.items()
+    }
+    return result.twr, nulls, result
+
+
+def _display_data(twr, nulls, *, mode, result=None, context=None):
+    """Return plot coordinates without modifying saved numerical results."""
+    reference = context.cache_key if context is not None else "legacy"
+    if mode == "null_sd":
+        return dict(
+            x=np.asarray(twr["xyz_arr"], dtype=float),
+            y=np.asarray(twr["exp_arr"], dtype=float),
+            nulls=nulls,
+            natural=(0.0, 0.0),
+            xlabel=("Travel distance\n(null standard deviations; "
+                    "natural lineage = 0)"),
+            ylabel=("Cell-state distance\n(null standard deviations; "
+                    "natural lineage = 0)"),
+            metadata={"display_mode": "null_sd",
+                      "reference_analysis_id": reference},
+        )
+    if result is None or context is None:
+        raise ValueError(f"Display mode {mode!r} requires a saved profile result")
+    key_map = {
+        1: "first_cousin", 2: "second_cousin",
+        3: "third_cousin", "full": "full_random",
+    }
+    if mode == "endpoint":
+        transform = build_endpoint_transform(
+            result.raw_front_travel, result.raw_front_state,
+            travel_optimum_index=context.spec.sweep_intervals,
+            state_optimum_index=0,
+            reference_analysis_id=result.analysis_cache_key,
+            assignment_ids=[f"sweep:{index}" for index in range(
+                context.spec.sweep_intervals + 1)],
+        )
+        x, y = transform.transform(
+            result.raw_front_travel, result.raw_front_state)
+        natural_x, natural_y = transform.transform(
+            np.asarray([result.natural_costs[0]]),
+            np.asarray([result.natural_costs[1]]))
+        display_nulls = {
+            key: transform.transform(*result.null_raw[raw_key])
+            for key, raw_key in key_map.items()
+        }
+        return dict(
+            x=x, y=y, nulls=display_nulls,
+            natural=(float(natural_x[0]), float(natural_y[0])),
+            xlabel="Travel distance\n(fraction of endpoint cost span)",
+            ylabel="Cell-state distance\n(fraction of endpoint cost span)",
+            metadata=transform.metadata(clipping=False),
+        )
+    if mode == "percent_natural":
+        x, y = percent_natural_coordinates(
+            result.raw_front_travel, result.raw_front_state,
+            natural_costs=result.natural_costs)
+        display_nulls = {
+            key: percent_natural_coordinates(
+                *result.null_raw[raw_key], natural_costs=result.natural_costs)
+            for key, raw_key in key_map.items()
+        }
+        return dict(
+            x=x, y=y, nulls=display_nulls, natural=(0.0, 0.0),
+            xlabel="Travel-distance change from natural lineage (%)",
+            ylabel="Cell-state-distance change from natural lineage (%)",
+            metadata={"display_mode": "percent_natural",
+                      "reference_analysis_id": result.analysis_cache_key,
+                      "natural_costs": list(result.natural_costs)},
+        )
+    raise ValueError(f"Unsupported display mode: {mode}")
+
+
 def _save(fig, stem, dpi=400, out_dir=OUT, fixed_canvas=False):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -95,14 +194,34 @@ def _save(fig, stem, dpi=400, out_dir=OUT, fixed_canvas=False):
                 bbox_inches=bbox)
 
 
-def plot_main(twr, nulls):
+def proportional_limits(values, pad_fraction=0.12):
+    """Return finite data limits with padding proportional to their range."""
+    values = np.asarray(values, dtype=float)
+    finite = values[np.isfinite(values)]
+    if finite.size == 0:
+        raise ValueError("Cannot determine limits from non-finite data")
+    lo = float(finite.min())
+    hi = float(finite.max())
+    span = hi - lo
+    if span <= np.finfo(float).eps * max(abs(lo), abs(hi), 1.0):
+        span = max(abs(lo), abs(hi), 1.0)
+    pad = float(pad_fraction) * span
+    return lo - pad, hi + pad
+
+
+def plot_main(twr, nulls, *, display=None, out_dir=OUT,
+              panel_letter=None):
     """Full-width main figure: Pareto front and progressively relaxed nulls."""
-    x = np.asarray(twr["xyz_arr"])
-    y = np.asarray(twr["exp_arr"])
+    x = np.asarray(display["x"] if display else twr["xyz_arr"])
+    y = np.asarray(display["y"] if display else twr["exp_arr"])
+    shown_nulls = display["nulls"] if display else nulls
     ct = twr["cost_tree_tradeoff"]
     kp = twr["kp"]
-    lineage_x = x[0] + ct["delta_xyz"][0]
-    lineage_y = y[0] + ct["delta_exp"][0]
+    if display:
+        lineage_x, lineage_y = display["natural"]
+    else:
+        lineage_x = x[0] + ct["delta_xyz"][0]
+        lineage_y = y[0] + ct["delta_exp"][0]
 
     fig, ax = plt.subplots(figsize=(7.15, 4.85))
     fig.subplots_adjust(left=0.12, right=0.88, bottom=0.15, top=0.95)
@@ -115,7 +234,7 @@ def plot_main(twr, nulls):
         (3, "Third-cousin shuffle", THIRD_COUSIN_COLOR),
     ]
     for degree, label, color in null_styles:
-        nx, ny = nulls[degree]
+        nx, ny = shown_nulls[degree]
         ax.scatter(nx, ny, s=10, color=color, alpha=0.19,
                    edgecolors="none", label=label, zorder=1)
         mean = (float(np.mean(nx)), float(np.mean(ny)))
@@ -137,18 +256,18 @@ def plot_main(twr, nulls):
     ax.plot([lineage_x, x[k]], [lineage_y, y[k]], color="#222222",
             lw=0.8, ls=(0, (2, 2)), zorder=5)
 
-    full_x, full_y = nulls["full"]
+    full_x, full_y = shown_nulls["full"]
     inset = ax.inset_axes([0.66, 0.71, 0.31, 0.24])
     inset.scatter(full_x, full_y, s=6, color=FULL_RANDOM_COLOR, alpha=0.18,
                   edgecolors="none", rasterized=True)
     full_mean = (float(np.mean(full_x)), float(np.mean(full_y)))
     inset.scatter(*full_mean, marker="+", s=30, color=FULL_RANDOM_COLOR,
                   lw=1.1)
-    inset.set_xlim(full_x.min() - 2, full_x.max() + 2)
-    inset.set_ylim(full_y.min() - 4, full_y.max() + 4)
+    inset.set_xlim(*proportional_limits(full_x))
+    inset.set_ylim(*proportional_limits(full_y))
     inset.set_title("Full-random shuffle", fontsize=7, pad=2)
-    inset.set_xlabel("Travel distance (σ)", fontsize=6, labelpad=1)
-    inset.set_ylabel("Cell-state distance (σ)", fontsize=6, labelpad=1)
+    inset.set_xlabel("Travel distance", fontsize=6, labelpad=1)
+    inset.set_ylabel("Cell-state distance", fontsize=6, labelpad=1)
     inset.tick_params(labelsize=5.5, length=2, pad=1)
     inset.grid(True, alpha=0.25)
 
@@ -169,19 +288,38 @@ def plot_main(twr, nulls):
               frameon=True, facecolor="white", edgecolor="none",
               framealpha=0.92, borderaxespad=0, borderpad=0.25,
               labelspacing=0.22, handletextpad=0.4)
-    ax.set_xlabel("Travel distance\n(σ; natural lineage = 0)")
-    ax.set_ylabel("Cell-state distance\n(σ; natural lineage = 0)")
-    ax.set_xlim(min(-8, x.min() - 2), max(90, x.max() + 3))
-    ax.set_ylim(min(-45, y.min() - 3), max(50, nulls[3][1].max() + 3))
+    ax.set_xlabel(display["xlabel"] if display else
+                  "Travel distance\n(σ; natural lineage = 0)")
+    ax.set_ylabel(display["ylabel"] if display else
+                  "Cell-state distance\n(σ; natural lineage = 0)")
+    if display:
+        visible_x = np.concatenate(
+            [x, np.asarray([lineage_x])] +
+            [np.asarray(shown_nulls[key][0]) for key in (1, 2, 3)])
+        visible_y = np.concatenate(
+            [y, np.asarray([lineage_y])] +
+            [np.asarray(shown_nulls[key][1]) for key in (1, 2, 3)])
+        xpad = max(0.04 * np.ptp(visible_x), 0.04)
+        ypad = max(0.04 * np.ptp(visible_y), 0.04)
+        ax.set_xlim(visible_x.min() - xpad, visible_x.max() + xpad)
+        ax.set_ylim(visible_y.min() - ypad, visible_y.max() + ypad)
+    else:
+        ax.set_xlim(min(-8, x.min() - 2), max(90, x.max() + 3))
+        ax.set_ylim(min(-45, y.min() - 3), max(50, nulls[3][1].max() + 3))
     ax.grid(True, alpha=0.32)
+    if panel_letter:
+        ax.text(-0.16, 1.04, panel_letter, transform=ax.transAxes,
+                fontsize=11, fontweight="bold", ha="left", va="top",
+                clip_on=False)
     cbar = fig.colorbar(front, ax=ax, fraction=0.047, pad=0.025)
     cbar.set_label("Edge retention")
-    _save(fig, "fig2_ce_terminal_pareto_front")
+    _save(fig, "fig2_ce_terminal_pareto_front", out_dir=out_dir)
     return fig
 
 
-def plot_support_b(twr, distance_mode="changed_edges"):
-    x = np.asarray(twr["xyz_arr"])
+def plot_support_b(twr, distance_mode="changed_edges", *, display=None,
+                   out_dir=OUT, diagnostic_out=DIAGNOSTIC_OUT):
+    x = np.asarray(display["x"] if display else twr["xyz_arr"])
     er = np.asarray(twr["traditional_er"])
     null = twr["lineage_null"]
     if distance_mode == "changed_edges":
@@ -202,7 +340,8 @@ def plot_support_b(twr, distance_mode="changed_edges"):
         raise ValueError(f"Unknown tree-distance mode: {distance_mode}")
     ct = twr["cost_tree_tradeoff"]
     k = twr["kp"]["max_er_idx"]
-    lineage_x = x[0] + ct["delta_xyz"][0]
+    lineage_x = (display["natural"][0] if display
+                 else x[0] + ct["delta_xyz"][0])
     fig, ax = plt.subplots(figsize=(3.45, 2.85))
     ax_td = ax.twinx()
     er_line, = ax.plot(x, er, color="#0072B2", lw=2, label="Edge retention")
@@ -235,7 +374,8 @@ def plot_support_b(twr, distance_mode="changed_edges"):
     ax_td.scatter([x[min_td_idx]], [td[min_td_idx]], marker="o", s=35,
                   facecolor=tree_color, edgecolor="white", lw=0.6,
                   zorder=6, label="Minimum tree distance")
-    ax.set_xlabel("Travel distance\n(σ; natural lineage = 0)")
+    ax.set_xlabel(display["xlabel"] if display else
+                  "Travel distance\n(σ; natural lineage = 0)")
     ax.set_ylabel("Edge retention", color="#0072B2")
     ax_td.set_ylabel(distance_label, color=tree_color)
     ax.tick_params(axis="y", colors="#0072B2")
@@ -265,18 +405,18 @@ def plot_support_b(twr, distance_mode="changed_edges"):
         ])
     if distance_mode == "changed_edges":
         _save(fig, "fig3B_ce_edge_retention_tree_distance",
-              fixed_canvas=True)
+              fixed_canvas=True, out_dir=out_dir)
     else:
         # Retain the selectable all-edge definition as a diagnostic without
         # adding non-manuscript variants to output/publication.
         _save(fig, "fig3B_ce_edge_retention_tree_distance_all_edges",
-              out_dir=DIAGNOSTIC_OUT)
+              out_dir=diagnostic_out)
     return fig
 
 
-def plot_support_c(twr):
-    x = np.asarray(twr["xyz_arr"])
-    y = np.asarray(twr["exp_arr"])
+def plot_support_c(twr, *, display=None, out_dir=OUT):
+    x = np.asarray(display["x"] if display else twr["xyz_arr"])
+    y = np.asarray(display["y"] if display else twr["exp_arr"])
     tree_distance = np.asarray(twr["lineage_mean_dist"])
     edge_retention = np.asarray(twr["traditional_er"])
     k = twr["kp"]["max_er_idx"]
@@ -357,7 +497,8 @@ def plot_support_c(twr):
         pos.x0, SUPPORT_AXES_BOTTOM, pos.width,
         pos.y1 - SUPPORT_AXES_BOTTOM,
     ])
-    _save(fig, "fig3C_ce_structural_retention", fixed_canvas=True)
+    _save(fig, "fig3C_ce_structural_retention", fixed_canvas=True,
+          out_dir=out_dir)
     return fig
 
 
@@ -372,15 +513,58 @@ def main(argv=None):
         help=("Tree-distance definition(s) for supporting panel B "
               "(default: changed_edges; all_edges is diagnostic-only)."),
     )
+    parser.add_argument(
+        "--profile",
+        choices=("embryo1_legacy", "embryo1_matched", "pooled_tracking_v1"),
+        help="Opt into an isolated profile-aware run (omission keeps legacy paths).",
+    )
+    parser.add_argument("--run-id")
+    parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
+    parser.add_argument("--display", choices=("null_sd", "endpoint",
+                                               "percent_natural"),
+                        default="null_sd")
+    parser.add_argument(
+        "--main-panel-letter",
+        help="Optional panel letter for the Figure 2 front component.",
+    )
+    parser.add_argument("--force-analysis", action="store_true")
     args = parser.parse_args(argv)
     ps.configure()
-    twr, nulls = _load_analysis()
-    plot_main(twr, nulls)
+    display = None
+    out_dir = OUT
+    diagnostic_out = DIAGNOSTIC_OUT
+    if args.profile is None:
+        twr, nulls = _load_analysis()
+    else:
+        context = build_analysis_context(
+            args.profile, run_id=args.run_id, output_root=args.output_root)
+        context.write()
+        twr, nulls, result = _profile_analysis(
+            context, force=args.force_analysis)
+        display = _display_data(
+            twr, nulls, mode=args.display, result=result, context=context)
+        out_dir = context.run_paths.display(args.display)
+        diagnostic_out = context.run_paths.analysis / "diagnostics" / args.display
+        out_dir.mkdir(parents=True, exist_ok=True)
+        diagnostic_out.mkdir(parents=True, exist_ok=True)
+        metadata = dict(display["metadata"])
+        metadata.update({
+            "profile": context.profile,
+            "context_cache_key": context.cache_key,
+            "analysis_cache_key": result.analysis_cache_key,
+            "assignment_ids_hash": hashlib.sha256(
+                result.assignments.tobytes()).hexdigest(),
+        })
+        (out_dir / "fig2_fig3_display_manifest.json").write_text(
+            json.dumps(metadata, indent=2, sort_keys=True) + "\n")
+    plot_main(twr, nulls, display=display, out_dir=out_dir,
+              panel_letter=args.main_panel_letter)
     modes = ("changed_edges", "all_edges") if args.tree_distance_mode == "both" else (args.tree_distance_mode,)
     for mode in modes:
-        plot_support_b(twr, distance_mode=mode)
-    plot_support_c(twr)
-    print("Publication figure panels written to", OUT)
+        plot_support_b(twr, distance_mode=mode, display=display,
+                       out_dir=out_dir, diagnostic_out=diagnostic_out)
+    plot_support_c(twr, display=display, out_dir=out_dir)
+    print("Publication figure panels written to", out_dir)
 
 
 if __name__ == "__main__":

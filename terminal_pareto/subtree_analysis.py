@@ -18,6 +18,7 @@ directs starting around 10-15 usable terminal cells and testing sensitivity.
 """
 
 import argparse
+import hashlib
 import itertools
 import json
 import math
@@ -34,6 +35,12 @@ if str(REPO_ROOT) not in sys.path:
 from terminal_pareto import data_loader as dl
 from terminal_pareto import lineage_metrics as lm
 from terminal_pareto import pareto_engine as pe
+from terminal_pareto.analysis_context import (
+    DEFAULT_OUTPUT_ROOT,
+    AnalysisContext,
+    build_analysis_context,
+    validate_existing_context_manifest,
+)
 
 
 OUT = Path(__file__).resolve().parent / "output"
@@ -44,10 +51,95 @@ N_RANDOM_NULL = 1000     # first-cousin null draws (used only for the null cloud
 N_RANDOM_NLAD = 100      # NLAD null draws per subtree
 EXACT_NULL_CAP = 200_000   # cousin-shuffle space size below which optimality is enumerated
 OPTIMALITY_N_DRAWS = 1000  # Monte Carlo draws for non-enumerable optimality nulls
+SUBTREE_CACHE_VERSION = "subtree-summary-cache-v1"
 
 # Cell-type taxonomy: wormweb lineage -> merged developmental category.
 # Join on ``wormweb.lineage``, the convention used across the repo.
 _MERGE = pe.MERGE_MAP
+
+
+def _file_sha256(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def subtree_summary_cache_identity(min_cells, context):
+    """Identity fields required to reuse a subtree-summary table."""
+    return {
+        "version": SUBTREE_CACHE_VERSION,
+        "profile": context.profile if context is not None else "embryo1_legacy",
+        "context_cache_key": context.cache_key if context is not None else None,
+        "min_cells": int(min_cells),
+        "terminal_edges": (len(context.terminal_nodes)
+                           if context is not None else 299),
+        "pareto_sweep_intervals": ITERATION,
+        "null_draws": N_RANDOM_NULL,
+        "nlad_null_draws": N_RANDOM_NLAD,
+    }
+
+
+def subtree_summary_manifest_path(analysis_out, min_cells):
+    return (Path(analysis_out)
+            / f"subtree_summary_min{int(min_cells)}_manifest.json")
+
+
+def write_subtree_summary_cache_manifest(analysis_out, min_cells, context):
+    """Hash a completed subtree table and record its analysis identity."""
+    analysis_out = Path(analysis_out)
+    table = analysis_out / f"subtree_summary_min{int(min_cells)}.csv"
+    payload = subtree_summary_cache_identity(min_cells, context)
+    payload["files"] = {table.name: _file_sha256(table)}
+    path = subtree_summary_manifest_path(analysis_out, min_cells)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    return path
+
+
+def _validate_subtree_summary_table(frame, min_cells, context):
+    required = {"subtree", "n", "natural_on_front", "max_er", "entropy_nats"}
+    missing = sorted(required - set(frame.columns))
+    if missing:
+        raise ValueError(f"Subtree-summary cache is missing columns: {missing}")
+    if frame["subtree"].duplicated().any():
+        raise ValueError("Subtree-summary cache contains duplicate subtrees")
+    if context is None:
+        return
+    expected = {name: len(terms) for name, terms in context.subtrees(min_cells)}
+    actual = frame.set_index("subtree")["n"].astype(int).to_dict()
+    if actual != expected:
+        raise ValueError("Subtree-summary cache cohort does not match requested profile")
+
+
+def load_validated_subtree_summary(analysis_out, min_cells, context=None):
+    """Validate run identity and bytes before reading a subtree-summary CSV."""
+    analysis_out = Path(analysis_out)
+    table = analysis_out / f"subtree_summary_min{int(min_cells)}.csv"
+    if not table.exists():
+        raise FileNotFoundError(f"Missing subtree-summary cache: {table}")
+
+    if context is not None:
+        validate_existing_context_manifest(context, analysis_out)
+    expected = subtree_summary_cache_identity(min_cells, context)
+    manifest_path = subtree_summary_manifest_path(analysis_out, min_cells)
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_text())
+        mismatched = {
+            key: (manifest.get(key), value)
+            for key, value in expected.items()
+            if manifest.get(key) != value
+        }
+        if mismatched:
+            raise ValueError(
+                f"Subtree-summary cache configuration mismatch: {mismatched}")
+        if manifest.get("files", {}).get(table.name) != _file_sha256(table):
+            raise ValueError(f"Subtree-summary cache hash mismatch: {table.name}")
+    elif context is not None:
+        raise ValueError(
+            "Profile-specific subtree-summary cache lacks an identity manifest; "
+            "rerun terminal_pareto/subtree_analysis.py"
+        )
+
+    frame = pd.read_csv(table)
+    _validate_subtree_summary_table(frame, min_cells, context)
+    return frame
 
 
 def build_type_map(terminal_nodes):
@@ -173,7 +265,7 @@ def first_cousin_null_summary(xm, em, tn, gp_map, n_random=N_RANDOM_NULL, seed=4
 
 
 def analyze_subtree(name, terms, xyz_ce, protein_exp, prot_sel, tree_index,
-                    gp_map, type_map, seed=42):
+                    gp_map, type_map, seed=42, prepared_matrices=None):
     """Compute the full metric set for one subtree.
 
     Returns a flat dict of scalars ready for the summary table.
@@ -191,7 +283,11 @@ def analyze_subtree(name, terms, xyz_ce, protein_exp, prot_sel, tree_index,
     entropy = max(pe.type_shannon_entropy(tn, lambda c: type_map.get(c)), 0.0) if typed else np.nan
 
     # ── Cost matrices and null ──
-    xm, em, _ = pe.build_cost_matrices(tn, tp, xyz_ce, protein_exp, prot_sel)
+    if prepared_matrices is None:
+        xm, em, _ = pe.build_cost_matrices(
+            tn, tp, xyz_ce, protein_exp, prot_sel)
+    else:
+        xm, em = prepared_matrices
     lineage_xyz_raw = float(xm.diagonal().sum())
     lineage_exp_raw = float(em.diagonal().sum())
     groups = pe.build_cousin_groups(tn, gp_map)
@@ -264,13 +360,18 @@ def analyze_subtree(name, terms, xyz_ce, protein_exp, prot_sel, tree_index,
 
 
 def analyze_all(min_cells, lineage, xyz_ce, protein_exp, prot_sel, v_prot,
-                tree_index, gp_map, type_map):
+                tree_index, gp_map, type_map,
+                context: AnalysisContext | None = None):
     """Run the metric set over every subtree with >= min_cells usable terminals."""
-    subtrees = dl.collect_all_subtrees(lineage, v_prot, min_cells=min_cells)
+    subtrees = (context.subtrees(min_cells) if context is not None
+                else dl.collect_all_subtrees(
+                    lineage, v_prot, min_cells=min_cells))
     rows = []
     for name, terms in subtrees:
-        row = analyze_subtree(name, terms, xyz_ce, protein_exp, prot_sel,
-                              tree_index, gp_map, type_map)
+        matrices = context.cost_matrices(terms) if context is not None else None
+        row = analyze_subtree(
+            name, terms, xyz_ce, protein_exp, prot_sel,
+            tree_index, gp_map, type_map, prepared_matrices=matrices)
         rows.append(row)
         print(f"  {name:10s} n={row['n']:3d}  types={row['n_types']:2d}  "
               f"entropy={row['entropy_nats']:.2f}  max_er={row['max_er']:.3f}  "
@@ -426,29 +527,53 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--min-cells", type=int, default=12,
                         help="Minimum usable terminal cells per subtree (default 12).")
+    parser.add_argument(
+        "--profile",
+        choices=("embryo1_legacy", "embryo1_matched", "pooled_tracking_v1"),
+        help="Opt into an isolated profile-aware run (omission keeps legacy paths).",
+    )
+    parser.add_argument("--run-id")
+    parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
     args = parser.parse_args(argv)
 
-    # Primary publication configuration: C. elegans protein, T <= 255, top-20.
-    lineage = dl.load_json(dl._REPO_ROOT + "/data/cell_lineage.json")
-    tree_index = lm.build_lineage_tree_index(lineage)
-    xyz_ce, valid_ce = dl.load_elegans_tracking(dl.T_CE)
-    protein_exp = dl.load_protein_expression()
-    prot_sel = dl.load_prot_sel()
-    v_prot = [n for n in valid_ce if n in protein_exp.index]
-    gp_map = pe.build_grandparent_map(lineage)
-    tn_full, _ = dl.collect_terminals(lineage, v_prot)
+    context = None
+    analysis_out = OUT
+    if args.profile is None:
+        # Legacy no-argument behavior remains the accepted embryo-1 pipeline.
+        lineage = dl.load_json(dl._REPO_ROOT + "/data/cell_lineage.json")
+        tree_index = lm.build_lineage_tree_index(lineage)
+        xyz_ce, valid_ce = dl.load_elegans_tracking(dl.T_CE)
+        protein_exp = dl.load_protein_expression()
+        prot_sel = dl.load_prot_sel()
+        v_prot = [n for n in valid_ce if n in protein_exp.index]
+        gp_map = pe.build_grandparent_map(lineage)
+        tn_full, _ = dl.collect_terminals(lineage, v_prot)
+    else:
+        context = build_analysis_context(
+            args.profile, run_id=args.run_id, output_root=args.output_root)
+        context.write()
+        lineage = context.lineage
+        tree_index = context.tree_index
+        xyz_ce = None
+        protein_exp = context.protein_exp
+        prot_sel = context.prot_sel
+        v_prot = context.v_prot
+        gp_map = context.gp_map
+        tn_full = context.terminal_nodes
+        analysis_out = context.run_paths.analysis
     type_map = build_type_map(tn_full)
     print(f"Type map: {sum(1 for t in type_map.values() if t is not None)}/"
           f"{len(tn_full)} terminals typed, merged categories "
           f"{sorted(set(type_map.values()))}")
 
     df = analyze_all(args.min_cells, lineage, xyz_ce, protein_exp, prot_sel,
-                     v_prot, tree_index, gp_map, type_map)
+                     v_prot, tree_index, gp_map, type_map, context=context)
 
     # Nested non-independence: how many subtrees share an identical cousin-group
     # structure (and hence an identical null scale)?
-    subtrees_all = dl.collect_all_subtrees(lineage, v_prot,
-                                           min_cells=args.min_cells)
+    subtrees_all = (context.subtrees(args.min_cells) if context is not None
+                    else dl.collect_all_subtrees(
+                        lineage, v_prot, min_cells=args.min_cells))
     sharing = nested_null_sharing(subtrees_all, gp_map)
     n_shared = sum(len(v) for v in sharing.values())
     print(f"\nNested-null sharing: {len(sharing)} group structures shared by "
@@ -457,10 +582,12 @@ def main(argv=None):
           f"their null sigma is identical, so sigma units are not independent "
           f"across nested subtrees.")
 
-    OUT.mkdir(parents=True, exist_ok=True)
-    path = OUT / f"subtree_summary_min{args.min_cells}.csv"
+    analysis_out.mkdir(parents=True, exist_ok=True)
+    path = analysis_out / f"subtree_summary_min{args.min_cells}.csv"
     df.to_csv(path, index=False)
-    print(f"\nWrote {len(df)} rows to {path}")
+    manifest = write_subtree_summary_cache_manifest(
+        analysis_out, args.min_cells, context)
+    print(f"\nWrote {len(df)} rows to {path}; manifest {manifest}")
     return df
 
 

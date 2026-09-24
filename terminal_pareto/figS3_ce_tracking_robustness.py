@@ -31,6 +31,7 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -52,10 +53,11 @@ from terminal_pareto.fig5_table1_ce_canonical_metrics import (
     compute_front_landmarks,
 )
 from terminal_pareto.subtree_analysis import first_cousin_null_summary
+from terminal_pareto.front_coordinates import EndpointTransform
 
 
 ANALYSIS_OUT = Path(__file__).resolve().parent / "output"
-PUBLICATION_OUT = ANALYSIS_OUT / "publication"
+PUBLICATION_OUT = ANALYSIS_OUT / "legacy" / "rebuild" / "publication"
 MAJOR_SUBTREES = ("P0", "AB", "ABa", "ABp", "P1")
 MIN_CELLS = 12
 # ``compute_std_scaled_pareto`` includes both endpoints, so 300 intervals
@@ -186,7 +188,7 @@ def audit_replicates():
     return context, audit
 
 
-def build_manifests(context, audit):
+def build_manifests(context, audit, analysis_out=ANALYSIS_OUT):
     """Write edge-level and subtree-level availability/matching manifests."""
     replicate_data = context["replicates"]
     tree_index = context["tree_index"]
@@ -238,13 +240,14 @@ def build_manifests(context, audit):
         ["n_common", "subtree"], ascending=[False, True]
     )
 
-    ANALYSIS_OUT.mkdir(parents=True, exist_ok=True)
-    audit.to_csv(ANALYSIS_OUT / "ce_tracking_replicate_audit.csv", index=False)
+    analysis_out = Path(analysis_out)
+    analysis_out.mkdir(parents=True, exist_ok=True)
+    audit.to_csv(analysis_out / "ce_tracking_replicate_audit.csv", index=False)
     cells.to_csv(
-        ANALYSIS_OUT / "ce_tracking_replicate_cell_manifest.csv", index=False
+        analysis_out / "ce_tracking_replicate_cell_manifest.csv", index=False
     )
     subtrees.to_csv(
-        ANALYSIS_OUT / "ce_tracking_replicate_subtree_manifest.csv", index=False
+        analysis_out / "ce_tracking_replicate_subtree_manifest.csv", index=False
     )
     return cells, subtrees
 
@@ -273,7 +276,8 @@ def _subtree_term_map(context, ordered_common):
     return out
 
 
-def run_analysis(context, iteration=ITERATION, null_draws=NULL_DRAWS):
+def run_analysis(context, iteration=ITERATION, null_draws=NULL_DRAWS,
+                 analysis_out=ANALYSIS_OUT):
     """Compute matched global fronts and major-subtree canonical metrics."""
     ordered_common = _ordered_matched_terms(context)
     subtree_terms = _subtree_term_map(context, ordered_common)
@@ -363,14 +367,15 @@ def run_analysis(context, iteration=ITERATION, null_draws=NULL_DRAWS):
     fronts = pd.DataFrame(front_rows)
     nulls = pd.DataFrame(null_rows)
     metrics = pd.DataFrame(metric_rows)
+    analysis_out = Path(analysis_out)
+    analysis_out.mkdir(parents=True, exist_ok=True)
     fronts.to_csv(
-        ANALYSIS_OUT / "ce_tracking_replicate_fronts.csv", index=False
-    )
+        analysis_out / "ce_tracking_replicate_fronts.csv", index=False)
     nulls.to_csv(
-        ANALYSIS_OUT / "ce_tracking_replicate_null_clouds.csv", index=False
+        analysis_out / "ce_tracking_replicate_null_clouds.csv", index=False
     )
     metrics.to_csv(
-        ANALYSIS_OUT / "ce_tracking_replicate_major_metrics.csv", index=False
+        analysis_out / "ce_tracking_replicate_major_metrics.csv", index=False
     )
     return fronts, nulls, metrics
 
@@ -380,42 +385,108 @@ def _panel_letter(ax, letter, x=-0.13, y=1.08):
             fontweight="bold", ha="left", va="top", clip_on=False)
 
 
-def plot_fronts(fronts, nulls, audit):
-    """Panel A: matched all-terminal fronts in common null-SD axes."""
+def plot_fronts(fronts, nulls, audit, display_mode="null_sd"):
+    """Panel A with replicate-native references and a declared display mode."""
     fig, ax = plt.subplots(figsize=(7.15, 4.45))
     fig.subplots_adjust(left=0.105, right=0.79, bottom=0.13, top=0.92)
     ax.axhline(0, color="#777777", lw=0.7, ls=":", zorder=0)
     ax.axvline(0, color="#777777", lw=0.7, ls=":", zorder=0)
 
+    display_fronts = {}
+    display_nulls = {}
+    display_naturals = {}
+    transform_metadata = {}
+    for label in REPLICATE_STYLES:
+        front = fronts[fronts["replicate"] == label].sort_values("sweep_index")
+        cloud = nulls[nulls["replicate"] == label]
+        if display_mode == "endpoint":
+            travel_row = front[front["is_travel_optimum"]].iloc[0]
+            state_row = front[front["is_cell_state_optimum"]].iloc[0]
+            transform = EndpointTransform.from_endpoints(
+                reference_analysis_id=f"tracking_target:{label}",
+                travel_optimum_assignment_id=(
+                    f"{label}:sweep:{int(travel_row.sweep_index)}"),
+                state_optimum_assignment_id=(
+                    f"{label}:sweep:{int(state_row.sweep_index)}"),
+                travel_optimum_costs=(travel_row.travel_sigma,
+                                      travel_row.cell_state_sigma),
+                state_optimum_costs=(state_row.travel_sigma,
+                                     state_row.cell_state_sigma),
+            )
+            fx, fy = transform.transform(
+                front["travel_sigma"].to_numpy(),
+                front["cell_state_sigma"].to_numpy())
+            nx, ny = transform.transform(
+                cloud["travel_sigma"].to_numpy(),
+                cloud["cell_state_sigma"].to_numpy())
+            lx, ly = transform.transform(np.asarray([0.0]), np.asarray([0.0]))
+            transform_metadata[label] = transform.metadata(clipping=False)
+        else:
+            fx = front["travel_sigma"].to_numpy()
+            fy = front["cell_state_sigma"].to_numpy()
+            nx = cloud["travel_sigma"].to_numpy()
+            ny = cloud["cell_state_sigma"].to_numpy()
+            lx = ly = np.asarray([0.0])
+            transform_metadata[label] = {
+                "display_mode": "null_sd",
+                "reference_analysis_id": f"tracking_target:{label}",
+            }
+        display_fronts[label] = (front, fx, fy)
+        display_nulls[label] = (nx, ny)
+        display_naturals[label] = (float(lx[0]), float(ly[0]))
+
     # The same first-cousin construction is applied separately to each
     # replicate's travel geometry. Gold remains the shared null encoding.
     for label in REPLICATE_STYLES:
-        cloud = nulls[nulls["replicate"] == label]
-        ax.scatter(cloud["travel_sigma"], cloud["cell_state_sigma"],
+        nx, ny = display_nulls[label]
+        ax.scatter(nx, ny,
                    s=7, color=NULL_COLOR, alpha=0.045, edgecolors="none",
                    rasterized=True, zorder=1)
-        front = fronts[fronts["replicate"] == label]
-        ax.scatter(front["null_travel_mean_sigma"].iloc[0],
-                   front["null_cell_state_mean_sigma"].iloc[0],
+        front, _fx, _fy = display_fronts[label]
+        if display_mode == "endpoint":
+            transform = EndpointTransform.from_endpoints(
+                reference_analysis_id=f"tracking_target:{label}",
+                travel_optimum_assignment_id="travel_endpoint",
+                state_optimum_assignment_id="state_endpoint",
+                travel_optimum_costs=(
+                    front.loc[front["is_travel_optimum"], "travel_sigma"].iloc[0],
+                    front.loc[front["is_travel_optimum"], "cell_state_sigma"].iloc[0]),
+                state_optimum_costs=(
+                    front.loc[front["is_cell_state_optimum"], "travel_sigma"].iloc[0],
+                    front.loc[front["is_cell_state_optimum"], "cell_state_sigma"].iloc[0]),
+            )
+            mx, my = transform.transform(
+                np.asarray([front["null_travel_mean_sigma"].iloc[0]]),
+                np.asarray([front["null_cell_state_mean_sigma"].iloc[0]]))
+            mean_x, mean_y = float(mx[0]), float(my[0])
+        else:
+            mean_x = float(front["null_travel_mean_sigma"].iloc[0])
+            mean_y = float(front["null_cell_state_mean_sigma"].iloc[0])
+        ax.scatter(mean_x, mean_y,
                    marker="+", s=42,
                    color=NULL_COLOR, lw=1.2, zorder=5)
 
     for label, style in REPLICATE_STYLES.items():
-        front = fronts[fronts["replicate"] == label].sort_values("sweep_index")
+        front, fx, fy = display_fronts[label]
         cutoff = int(front["cutoff"].iloc[0])
-        ax.plot(front["travel_sigma"], front["cell_state_sigma"],
+        ax.plot(fx, fy,
                 color=style["color"], ls=style["ls"], lw=1.8,
                 label=f"{label} (T={cutoff})", zorder=3)
-        key = front[front["is_max_retention"]]
-        ax.scatter(key["travel_sigma"], key["cell_state_sigma"],
+        key_index = int(np.flatnonzero(front["is_max_retention"].to_numpy())[0])
+        ax.scatter([fx[key_index]], [fy[key_index]],
                    marker="D", s=30, facecolor=RETENTION_COLOR,
                    edgecolor=style["color"], lw=1.0, zorder=6)
 
-    ax.scatter([0], [0], marker="X", s=82, facecolor=INK,
-               edgecolor="white", lw=0.7, zorder=8)
+        natural_x, natural_y = display_naturals[label]
+        ax.scatter([natural_x], [natural_y], marker="X", s=70,
+                   facecolor=INK, edgecolor=style["color"], lw=0.8, zorder=8)
     n_matched = int(audit["matched_terminal_edges"].iloc[0])
-    ax.set_xlabel("Travel distance (first-cousin-null σ; natural lineage = 0)")
-    ax.set_ylabel("Cell-state distance (first-cousin-null σ; natural lineage = 0)")
+    if display_mode == "endpoint":
+        ax.set_xlabel("Travel distance (target-native endpoint span)")
+        ax.set_ylabel("Cell-state distance (target-native endpoint span)")
+    else:
+        ax.set_xlabel("Travel distance (first-cousin-null σ; natural lineage = 0)")
+        ax.set_ylabel("Cell-state distance (first-cousin-null σ; natural lineage = 0)")
     ax.set_title(f"Matched terminal-cell Pareto fronts (n={n_matched} edges)",
                  loc="left", pad=5)
     ax.grid(True)
@@ -448,7 +519,7 @@ def plot_fronts(fronts, nulls, audit):
     ax.add_artist(legend_reps)
     ax.legend(handles=semantic_handles, loc="upper left",
               bbox_to_anchor=(1.015, 0.70), borderaxespad=0)
-    return fig
+    return fig, transform_metadata
 
 
 def plot_metrics(metrics):
@@ -500,18 +571,25 @@ def plot_metrics(metrics):
     return fig
 
 
-def save_panels(fronts, nulls, metrics, audit):
-    PUBLICATION_OUT.mkdir(parents=True, exist_ok=True)
-    fig_a = plot_fronts(fronts, nulls, audit)
+def save_panels(fronts, nulls, metrics, audit, *, out_dir=PUBLICATION_OUT,
+                display_mode="null_sd"):
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fig_a, display_metadata = plot_fronts(
+        fronts, nulls, audit, display_mode=display_mode)
     ps.save_figure(
-        fig_a, PUBLICATION_OUT / "figS3A_ce_tracking_replicate_fronts.png"
+        fig_a, out_dir / "figS3A_ce_tracking_replicate_fronts.png"
     )
     plt.close(fig_a)
     fig_b = plot_metrics(metrics)
     ps.save_figure(
-        fig_b, PUBLICATION_OUT / "figS3B_ce_tracking_replicate_metrics.png"
+        fig_b, out_dir / "figS3B_ce_tracking_replicate_metrics.png"
     )
     plt.close(fig_b)
+    (out_dir / "figS3_display_manifest.json").write_text(json.dumps({
+        "display_mode": display_mode,
+        "references": display_metadata,
+    }, indent=2, sort_keys=True) + "\n")
 
 
 def validate(context, audit, cells, subtrees, fronts=None, nulls=None,
@@ -593,6 +671,10 @@ def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--audit-only", action="store_true",
                         help="Write availability/matching manifests and stop")
+    parser.add_argument("--analysis-out", type=Path, default=ANALYSIS_OUT)
+    parser.add_argument("--out", type=Path, default=PUBLICATION_OUT)
+    parser.add_argument("--display", choices=("null_sd", "endpoint"),
+                        default="null_sd")
     return parser.parse_args()
 
 
@@ -600,7 +682,7 @@ def main():
     args = parse_args()
     ps.configure()
     context, audit = audit_replicates()
-    cells, subtrees = build_manifests(context, audit)
+    cells, subtrees = build_manifests(context, audit, args.analysis_out)
     print("Replicate audit:")
     for row in audit.itertuples():
         print(f"  {row.replicate}: T={row.cutoff}, "
@@ -615,9 +697,11 @@ def main():
         validate(context, audit, cells, subtrees)
         return
 
-    fronts, nulls, metrics = run_analysis(context)
+    fronts, nulls, metrics = run_analysis(
+        context, analysis_out=args.analysis_out)
     validate(context, audit, cells, subtrees, fronts, nulls, metrics)
-    save_panels(fronts, nulls, metrics, audit)
+    save_panels(fronts, nulls, metrics, audit, out_dir=args.out,
+                display_mode=args.display)
     print("Major-subtree replicate ranges:")
     for column in ["u_L", "d_LP", "d_NP", "max_edge_retention"]:
         spreads = metrics.groupby("subtree")[column].agg(lambda x: x.max() - x.min())

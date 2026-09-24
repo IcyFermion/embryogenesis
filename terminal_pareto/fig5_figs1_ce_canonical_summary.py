@@ -1,9 +1,13 @@
-"""Primary and supplementary three-panel canonical subtree maps.
+"""Primary and supplementary canonical subtree summaries.
 
 This presentation-only renderer uses the validated per-subtree canonical
 metrics produced by ``fig5_table1_ce_canonical_metrics.py``.
 
-Panels:
+Profile-aware Figure 5 uses named rows: a paired natural/null comparison for
+five major subtrees, then canonical position and natural distance for every
+surveyed subtree, grouped by branch. Shapes do not encode lineage identity.
+
+Historical and supplementary panels:
   A. Symbolic definition of canonical position u and front distances.
   B. Lineage- and first-cousin-null distances for the five major subtrees.
   C. All eligible lineage-to-front distances, with the five major-subtree
@@ -31,9 +35,18 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from terminal_pareto import plot_style as ps
+from terminal_pareto.analysis_context import (
+    DEFAULT_OUTPUT_ROOT,
+    build_analysis_context,
+)
+from terminal_pareto.fig5_table1_ce_canonical_metrics import (
+    ITERATION,
+    MIN_CELLS,
+    load_validated_canonical_metrics,
+)
 
 
-OUT = Path(__file__).resolve().parent / "output" / "publication"
+OUT = Path(__file__).resolve().parent / "output" / "legacy" / "rebuild" / "publication"
 DEFAULT_METRICS = (Path(__file__).resolve().parent / "output"
                    / "ce_subtree_canonical_metrics.csv")
 
@@ -61,23 +74,47 @@ TRAVEL_COLOR = ps.SEMANTIC_COLORS["travel"]
 STATE_COLOR = ps.SEMANTIC_COLORS["cell_state"]
 
 
-def load_metrics(path):
-    """Load the established canonical metrics without recomputing analysis."""
-    path = Path(path)
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Missing {path}. Run terminal_pareto/fig5_table1_ce_canonical_metrics.py "
-            "first to generate the validated metric cache."
+def annotate_abplpp_pair(ax, data, u_col, distance_col, color):
+    """Label ABplpp/ABplppp jointly only when they truly coincide."""
+    nested = data[data["subtree"].isin(["ABplpp", "ABplppp"])]
+    if len(nested) != 2:
+        return
+    coordinates = nested[[u_col, distance_col]].to_numpy(dtype=float)
+    # Treat points as one visual anchor only when both coordinates are close
+    # on the scale of the full panel. The legacy d_LP values differ slightly
+    # but share one marker-sized location; the pooled values are widely
+    # separated in u and must be labeled individually.
+    u_tolerance = max(0.01, 0.02 * float(np.ptp(data[u_col])))
+    distance_scale = max(float(np.abs(data[distance_col]).max()), 0.1)
+    distance_tolerance = 0.02 * distance_scale
+    visually_coincident = (
+        abs(coordinates[0, 0] - coordinates[1, 0]) <= u_tolerance
+        and abs(coordinates[0, 1] - coordinates[1, 1]) <= distance_tolerance
+    )
+    if visually_coincident:
+        ax.annotate(
+            "ABplpp(p)", tuple(coordinates.mean(axis=0)),
+            xytext=(5, 4), textcoords="offset points", fontsize=6.1,
+            color=color, ha="left", va="bottom", zorder=8,
         )
-    data = pd.read_csv(path)
-    required = {
-        "subtree", "n", "region", "u_lineage", "relative_distance",
-        "u_lineage_lp", "d_lp", "d_np", "D1_lineage", "D2_lineage",
-        "max_er", "endpoint_ok", "u_monotone",
+        return
+    offsets = {
+        "ABplpp": (5, -5, "left", "top"),
+        "ABplppp": (5, 5, "left", "bottom"),
     }
-    missing = sorted(required - set(data.columns))
-    if missing:
-        raise ValueError(f"Canonical metric cache is missing columns: {missing}")
+    for row in nested.itertuples():
+        dx, dy, ha, va = offsets[row.subtree]
+        ax.annotate(
+            row.subtree, (getattr(row, u_col), getattr(row, distance_col)),
+            xytext=(dx, dy), textcoords="offset points", fontsize=6.1,
+            color=color, ha=ha, va=va, zorder=8,
+        )
+
+
+def load_metrics(path, min_cells=MIN_CELLS, iteration=ITERATION, context=None):
+    """Load the established canonical metrics without recomputing analysis."""
+    data = load_validated_canonical_metrics(
+        path, min_cells=min_cells, iteration=iteration, context=context)
     return data[data["endpoint_ok"].astype(bool)
                 & data["u_monotone"].astype(bool)].copy()
 
@@ -102,7 +139,7 @@ def add_colored_fraction(ax, prefix_x, fraction_x, center_y, prefix,
             color="#777777", fontsize=fontsize, ha="center", va="center")
 
 
-def plot_definition_r(ax):
+def plot_definition_r(ax, panel_letter="A"):
     """Supplementary symbolic definition of u and cousin-relative r."""
     t = np.linspace(0.0, 1.0, 15)
     x = 0.13 + 0.72 * t
@@ -184,10 +221,10 @@ def plot_definition_r(ax):
     ax.set_aspect("auto")
     ax.axis("off")
     ax.set_title("Canonical coordinates", loc="left", pad=3)
-    add_panel_letter(ax, "A", x=-0.08, y=1.12)
+    add_panel_letter(ax, panel_letter, x=-0.08, y=1.12)
 
 
-def plot_definition_dlp(ax):
+def plot_definition_dlp(ax, panel_letter="A"):
     """Primary symbolic definition of u, d_LP, and first-cousin d_NP."""
     t = np.linspace(0.0, 1.0, 15)
     x = 0.13 + 0.72 * t
@@ -261,7 +298,7 @@ def plot_definition_dlp(ax):
     ax.set_aspect("auto")
     ax.axis("off")
     ax.set_title("Endpoint-normalized coordinates", loc="left", pad=3)
-    add_panel_letter(ax, "A", x=-0.08, y=1.12)
+    add_panel_letter(ax, panel_letter, x=-0.08, y=1.12)
 
 
 def scatter_records(ax, data, u_col, distance_col, metric,
@@ -295,8 +332,8 @@ def scatter_records(ax, data, u_col, distance_col, metric,
         "ABa": (4, -3, "left", "top"),
         "ABp": (-4, 5, "right", "bottom"),
         "P1": (5, -5, "left", "top"),
-        "ABala": (4, 3, "left", "bottom"),
-        "ABprppp": (4, 2, "left", "bottom"),
+        "ABala": (-6, 8, "right", "bottom"),
+        "ABprppp": (6, 20, "left", "bottom"),
         "ABplpa": (-5, 9, "right", "bottom"),
     }
     for name in label_names:
@@ -304,21 +341,18 @@ def scatter_records(ax, data, u_col, distance_col, metric,
         if rows.empty:
             continue
         row = rows.iloc[0]
-        dx, dy, ha, va = placements.get(name, (4, 4, "left", "bottom"))
+        if name == "ABprppp" and row[distance_col] > 0.05:
+            dx, dy, ha, va = (6, -4, "left", "top")
+        else:
+            dx, dy, ha, va = placements.get(
+                name, (4, 4, "left", "bottom"))
         ax.annotate(name, (row[u_col], row[distance_col]),
                     xytext=(dx, dy), textcoords="offset points",
                     fontsize=6.1, ha=ha, va=va, zorder=6)
 
-    # Directly nested ABplpp/ABplppp have identical canonical coordinates.
     if "ABplpp(p)" in label_names:
-        nested = data[data["subtree"].isin(["ABplpp", "ABplppp"])]
-        if not nested.empty:
-            ax.annotate(
-                "ABplpp(p)",
-                (nested[u_col].mean(), nested[distance_col].mean()),
-                xytext=(5, 4), textcoords="offset points", fontsize=6.1,
-                ha="left", va="bottom", zorder=6,
-            )
+        annotate_abplpp_pair(
+            ax, data, u_col, distance_col, color=LP_COLOR)
 
     ax.grid(True, axis="y", alpha=0.28)
     ax.set_xlabel("Position along front, u")
@@ -344,7 +378,7 @@ def scatter_records(ax, data, u_col, distance_col, metric,
             ax.set_yticks([0.0, 0.5, 1.0])
 
 
-def plot_major_dlp_dnp(ax, metrics):
+def plot_major_dlp_dnp(ax, metrics, panel_letter="B"):
     """Show d_LP and d_NP for the five major subtrees without connectors."""
     major = metrics.set_index("subtree").loc[MAJOR_SUBTREES].reset_index()
     for name in ["P1", "ABp", "ABa", "AB", "P0"]:
@@ -365,13 +399,22 @@ def plot_major_dlp_dnp(ax, metrics):
         "ABp": (6, 4, "left", "bottom"),
         "P1": (6, 1, "left", "bottom"),
     }
-    lower_offsets = {
+    clustered_ab = np.ptp(
+        major.loc[major["subtree"].isin(["AB", "ABa", "ABp"]),
+                  "u_lineage_lp"].to_numpy(dtype=float)) < 0.03
+    lower_offsets = ({
+        "P0": (5, 5, "left", "bottom"),
+        "AB": (-8, 2, "right", "bottom"),
+        "ABa": (7, 2, "left", "bottom"),
+        "ABp": (-8, 11, "right", "bottom"),
+        "P1": (7, 6, "left", "bottom"),
+    } if clustered_ab else {
         "P0": (5, 5, "left", "bottom"),
         "AB": (-7, 3, "right", "bottom"),
         "ABa": (-5, 4, "right", "bottom"),
         "ABp": (-5, 4, "right", "bottom"),
         "P1": (7, 6, "left", "bottom"),
-    }
+    })
     for row in major.itertuples():
         dx, dy, ha, va = upper_offsets[row.subtree]
         ax.annotate(row.subtree, (row.u_lineage_lp, row.d_np),
@@ -382,18 +425,27 @@ def plot_major_dlp_dnp(ax, metrics):
                     xytext=(dx, dy), textcoords="offset points", fontsize=5.9,
                     color=LP_COLOR, ha=ha, va=va, zorder=7)
 
-    ax.set_xlim(0.145, 0.338)
-    ax.set_ylim(0.0, 0.292)
+    # The pooled profile shifts AB, ABa, and ABp left of the legacy panel's
+    # former hard-coded lower limit. Derive both ranges from the displayed
+    # records so markers and their offset labels stay inside the axes instead
+    # of leaking into the component crop.
+    major_u = major["u_lineage_lp"].to_numpy(dtype=float)
+    u_span = max(float(np.ptp(major_u)), 0.05)
+    ax.set_xlim(float(major_u.min() - 0.13 * u_span),
+                float(major_u.max() + 0.18 * u_span))
+    major_distance_max = float(
+        major[["d_lp", "d_np"]].to_numpy(dtype=float).max())
+    ax.set_ylim(0.0, max(0.10, 1.17 * major_distance_max))
     ax.xaxis.set_major_locator(mticker.MaxNLocator(nbins=4))
     ax.xaxis.set_major_formatter(mticker.FormatStrFormatter("%.2f"))
     ax.set_xlabel(r"Position along front, $u$")
     ax.set_ylabel("Distance to Pareto front")
     ax.set_title("Major-subtree distances", loc="left", pad=3)
     ax.grid(True, axis="y", alpha=0.28)
-    add_panel_letter(ax, "B", x=-0.22, y=1.12)
+    add_panel_letter(ax, panel_letter, x=-0.22, y=1.12)
 
 
-def plot_all_dlp_with_major_dnp(ax, metrics):
+def plot_all_dlp_with_major_dnp(ax, metrics, panel_letter="C"):
     """Show all d_LP records plus five labeled major-subtree d_NP anchors."""
     # Draw smaller subtrees first and give larger subtrees a higher explicit
     # z-order. This keeps major lineages such as AB visible when canonical
@@ -411,9 +463,9 @@ def plot_all_dlp_with_major_dnp(ax, metrics):
     major = metrics.set_index("subtree").loc[MAJOR_SUBTREES].reset_index()
     null_offsets = {
         "P0": (6, -1, "left", "bottom"),
-        "AB": (-6, 5, "right", "bottom"),
+        "AB": (-7, -2, "right", "top"),
         "ABa": (6, 4, "left", "bottom"),
-        "ABp": (-6, 4, "right", "bottom"),
+        "ABp": (-7, 7, "right", "bottom"),
         "P1": (6, 1, "left", "bottom"),
     }
     for row in major.itertuples():
@@ -428,30 +480,36 @@ def plot_all_dlp_with_major_dnp(ax, metrics):
                     color=NP_COLOR, ha=ha, va=va, zorder=8)
 
     placements = {
-        "ABala": (4, 3, "left", "bottom"),
-        "ABprppp": (4, 2, "left", "bottom"),
+        "ABala": (-6, 8, "right", "bottom"),
+        "ABprppp": (6, 20, "left", "bottom"),
         "ABplpa": (-5, 9, "right", "bottom"),
     }
     for name, (dx, dy, ha, va) in placements.items():
         row = metrics[metrics["subtree"] == name].iloc[0]
+        if name == "ABprppp" and row["d_lp"] > 0.05:
+            dx, dy, ha, va = (6, -4, "left", "top")
         ax.annotate(name, (row["u_lineage_lp"], row["d_lp"]),
                     xytext=(dx, dy), textcoords="offset points", fontsize=6.1,
                     color=LP_COLOR, ha=ha, va=va, zorder=8)
-    nested = metrics[metrics["subtree"].isin(["ABplpp", "ABplppp"])]
-    ax.annotate("ABplpp(p)",
-                (nested["u_lineage_lp"].mean(), nested["d_lp"].mean()),
-                xytext=(5, 4), textcoords="offset points", fontsize=6.1,
-                color=LP_COLOR, ha="left", va="bottom", zorder=8)
+    annotate_abplpp_pair(
+        ax, metrics, "u_lineage_lp", "d_lp", color=LP_COLOR)
 
     ax.axhline(0.0, color="#AAAAAA", lw=0.65, zorder=1)
     ax.grid(True, axis="y", alpha=0.28)
     ax.set_xlim(-0.025, 1.035)
-    ax.set_ylim(-0.015, max(0.10, metrics["d_lp"].max() * 1.15))
+    # d_NP is an independently displayed series. In the pooled run its P1
+    # value exceeds every d_LP value, so a limit based only on d_LP pushes the
+    # gold anchors and labels through the title. Retain the legacy d_LP margin
+    # when it dominates, but reserve a larger legend band when d_NP dominates.
+    dlp_max = float(metrics["d_lp"].max())
+    dnp_max = float(major["d_np"].max())
+    ymax = max(0.10, 1.15 * dlp_max, 1.35 * dnp_max)
+    ax.set_ylim(-0.015, ymax)
     ax.set_xticks([0.0, 0.5, 1.0])
     ax.set_xlabel(r"Position along front, $u$")
     ax.set_ylabel(r"Lineage-to-front distance, $d_{LP}$")
     ax.set_title("All terminal-cell subtrees", loc="left", pad=5)
-    add_panel_letter(ax, "C", x=-0.09, y=1.11)
+    add_panel_letter(ax, panel_letter, x=-0.09, y=1.11)
 
     shape_specs = [
         ("*", "Root"), ("P", "AB"),
@@ -468,7 +526,7 @@ def plot_all_dlp_with_major_dnp(ax, metrics):
     shape_legend = ax.legend(
         handles=shape_handles, loc="upper center", ncol=5,
         bbox_to_anchor=(0.5, 0.98), fontsize=6.4,
-        handletextpad=0.35, columnspacing=0.8,
+        handletextpad=0.35, columnspacing=0.8, frameon=False,
     )
     ax.add_artist(shape_legend)
     null_handle = Line2D(
@@ -556,6 +614,9 @@ def save_component_crops(fig, ax_definition, ax_major, ax_all,
 
     original_visibility = {axis: axis.get_visible() for axis in fig.axes}
     for panel_index, (stem, crop) in enumerate(crops.items()):
+        if stem is None:
+            # The pooled schematic is exported separately as the Figure 1 amendment.
+            continue
         if panel_index == 0:
             visible = {ax_definition}
         elif panel_index == 1:
@@ -573,7 +634,127 @@ def save_component_crops(fig, ax_definition, ax_major, ax_all,
         axis.set_visible(was_visible)
 
 
-def plot_summary(metrics, metric, component_names, out_dir=OUT):
+def plot_primary_rows(metrics, out_dir):
+    """Separate the null comparison from a fully labelled subtree inventory."""
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    def save(fig, stem):
+        # Both components have the same physical width in the wrapper.
+        bounds = Bbox.from_bounds(0, 0, *fig.get_size_inches())
+        for extension in ("pdf", "png"):
+            fig.savefig(out_dir / f"{stem}.{extension}", bbox_inches=bounds,
+                        dpi=300, facecolor="white")
+        plt.close(fig)
+
+    major = metrics.set_index("subtree").loc[MAJOR_SUBTREES]
+    fig = plt.figure(figsize=(7.4, 2.35))
+    fig.text(.015, .96, "A", fontsize=12, weight="bold", va="top")
+    fig.text(.065, .96, "Five major subtrees: natural lineage versus cousin null",
+             fontsize=10.5, weight="bold", va="top")
+    handles = [
+        Line2D([], [], marker="o", ls="", color=LP_COLOR, ms=6,
+               label=r"Natural lineage, $d_{LP}$"),
+        Line2D([], [], marker="o", ls="", color=NP_COLOR, ms=6,
+               label=r"First-cousin null mean, $d_{NP}$"),
+    ]
+    fig.legend(handles=handles, loc="upper center", bbox_to_anchor=(.54, .85),
+               ncol=2, frameon=False, fontsize=9, columnspacing=2.5,
+               handletextpad=.4, borderaxespad=0)
+    ax = fig.add_axes([.13, .22, .83, .48])
+    rows = np.arange(len(major))
+    ax.hlines(rows, major.d_lp, major.d_np, color="#BBBBBB", lw=1.3, zorder=2)
+    for field, color in (("d_lp", LP_COLOR), ("d_np", NP_COLOR)):
+        ax.scatter(major[field], rows, color=color, s=35, edgecolor="white",
+                   linewidth=.6, zorder=3)
+    ax.set_yticks(rows, ["P0 (root)", "AB", "ABa", "ABp", "P1"])
+    ax.set_ylim(len(major)-.45, -.55)
+    distance_max = max(.25, np.ceil(major[["d_lp", "d_np"]].to_numpy().max()*20)/20)
+    ax.set_xlim(-.008*distance_max, 1.035*distance_max)
+    ax.xaxis.set_major_locator(mticker.MultipleLocator(.05))
+    ax.xaxis.set_major_formatter(mticker.FormatStrFormatter("%.2f"))
+    ax.set_xlabel(r"Distance to the same closest front assignment, $P^*$", fontsize=9)
+    ax.tick_params(axis="y", labelsize=9, length=0, pad=7)
+    ax.tick_params(axis="x", labelsize=8)
+    ax.spines[["top", "right", "left"]].set_visible(False)
+    ax.grid(axis="x", color="#E5E5E5", lw=.6)
+    save(fig, "fig5A_ce_canonical_major_subtrees")
+
+    # Rows remove the severe overlap of the many near-zero d_LP records.
+    # Root and AB occupy their own section above the ABa branch; the other
+    # two columns contain the ABp and P1 branches on identical metric scales.
+    root = metrics[metrics.subtree.isin(["P0", "AB"])].set_index("subtree")
+    root = root.loc[[name for name in ("P0", "AB") if name in root.index]].reset_index()
+    groups = {name: metrics[metrics.region == name].sort_values("subtree")
+              for name in ("ABa", "ABp", "P1")}
+    p1_order = ["P1", "EMS", "MS", "MSa", "MSaa", "MSap", "MSp",
+                "MSpa", "MSpp", "P2", "C", "P3", "D"]
+    p1_rank = {name: index for index, name in enumerate(p1_order)}
+    groups["P1"] = groups["P1"].sort_values(
+        "subtree", key=lambda series: series.map(p1_rank).fillna(len(p1_rank)))
+    sections = [
+        [("Root & AB", root), ("ABa branch", groups["ABa"])],
+        [("ABp branch", groups["ABp"])],
+        [("P1 branch", groups["P1"])],
+    ]
+    displayed = pd.concat([frame for column in sections for _, frame in column])
+    if displayed.subtree.duplicated().any() or set(displayed.subtree) != set(metrics.subtree):
+        raise ValueError("Figure 5 row groups must include every subtree exactly once")
+    row_count = max(sum(len(frame)+2 for _, frame in column)-1 for column in sections)
+    fig = plt.figure(figsize=(7.4, 4.5))
+    fig.text(.015, .985, "B", fontsize=12, weight="bold", va="top")
+    fig.text(.065, .985, f"All {len(metrics)} surveyed subtrees: natural lineage only",
+             fontsize=10.5, weight="bold", va="top")
+    dmax = max(.2, np.ceil(float(metrics.d_lp.max())*10)/10)
+    for left, column in zip((.015, .345, .675), sections):
+        axes = [fig.add_axes([left+.105, .115, .077, .68]),
+                fig.add_axes([left+.213, .115, .087, .68])]
+        for ax, xmax, ticks, title, color in (
+            (axes[0], 1., [0., .5, 1.], r"Position, $u$", U_COLOR),
+            (axes[1], dmax, [0., dmax/2, dmax], r"Distance, $d_{LP}$", LP_COLOR),
+        ):
+            ax.set_ylim(row_count-.25, -1.1)
+            ax.set_xlim(-.07*xmax, 1.07*xmax)
+            ax.set_xticks(ticks)
+            ax.xaxis.set_major_formatter(mticker.FormatStrFormatter("%g"))
+            ax.tick_params(axis="x", top=True, labeltop=True, bottom=False,
+                           labelbottom=False, labelsize=7.5, length=2, pad=3)
+            ax.set_yticks([])
+            ax.set_title(title, fontsize=8.5, color=color, pad=21)
+            ax.spines[["left", "right", "bottom"]].set_visible(False)
+            ax.spines["top"].set_color("#CCCCCC")
+            ax.grid(axis="x", color="#E8E8E8", lw=.55)
+        row_number = 0
+        for heading, frame in column:
+            # Place group labels across the two metric columns, with a white
+            # background so they do not compete with the column gridlines.
+            axes[0].text(-1.30, row_number, f"{heading} ({len(frame)})",
+                         transform=axes[0].get_yaxis_transform(),
+                         fontsize=8.5, weight="bold", va="center", clip_on=False,
+                         bbox=dict(facecolor="white", edgecolor="none", pad=1.5),
+                         zorder=5)
+            for row in frame.itertuples():
+                row_number += 1
+                axes[0].text(-.12, row_number, row.subtree,
+                             transform=axes[0].get_yaxis_transform(), ha="right",
+                             va="center", fontsize=8.5, color="#222222",
+                             weight="bold" if row.subtree in MAJOR_SUBTREES else "normal")
+                for ax, value, color in (
+                    (axes[0], row.u_lineage_lp, U_COLOR),
+                    (axes[1], row.d_lp, LP_COLOR),
+                ):
+                    ax.hlines(row_number, 0, value, color=color, lw=.8, alpha=.45)
+                    ax.scatter(value, row_number, color=color, s=19,
+                               edgecolor="white", linewidth=.35, zorder=3)
+            row_number += 2
+    fig.text(.02, .045,
+             r"$u=0$: travel optimum; $u=1$: cell-state optimum.  Bold names also appear in A.",
+             fontsize=8, color="#444444")
+    save(fig, "fig5B_ce_canonical_all_subtrees")
+
+
+def plot_summary(metrics, metric, component_names, out_dir=OUT,
+                 panel_letters=("A", "B", "C")):
     """Render and split the primary d_LP or supplementary cousin-r summary."""
     if metric == "dlp":
         u_col, distance_col = "u_lineage_lp", "d_lp"
@@ -590,23 +771,23 @@ def plot_summary(metrics, metric, component_names, out_dir=OUT):
     ax_all = fig.add_subplot(grid[1, :])
 
     if metric == "dlp":
-        plot_definition_dlp(ax_definition)
-        plot_major_dlp_dnp(ax_major, metrics)
-        plot_all_dlp_with_major_dnp(ax_all, metrics)
+        plot_definition_dlp(ax_definition, panel_letters[0])
+        plot_major_dlp_dnp(ax_major, metrics, panel_letters[1])
+        plot_all_dlp_with_major_dnp(ax_all, metrics, panel_letters[2])
     else:
-        plot_definition_r(ax_definition)
+        plot_definition_r(ax_definition, panel_letters[0])
         major = (metrics.set_index("subtree").loc[MAJOR_SUBTREES]
                  .reset_index())
         scatter_records(ax_major, major, u_col, distance_col, metric,
                         label_names=MAJOR_SUBTREES, zoom=True)
         ax_major.set_title("Major subtrees", loc="left", pad=5)
-        add_panel_letter(ax_major, "B", x=-0.22, y=1.13)
+        add_panel_letter(ax_major, panel_letters[1], x=-0.22, y=1.13)
 
         outlier_labels = ["ABala", "ABprppp", "ABplpa", "ABplpp(p)"]
         scatter_records(ax_all, metrics, u_col, distance_col, metric,
                         label_names=outlier_labels, zoom=False)
         ax_all.set_title("All subtrees (n ≥ 12 terminal cells)", loc="left", pad=5)
-        add_panel_letter(ax_all, "C", x=-0.09, y=1.11)
+        add_panel_letter(ax_all, panel_letters[2], x=-0.09, y=1.11)
         shape_handles = [
             Line2D([0], [0], marker=REGION_MARKERS[region], ls="", ms=6.0,
                    markerfacecolor=LP_COLOR, markeredgecolor="#4B2D43",
@@ -631,25 +812,53 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--metrics", type=Path, default=DEFAULT_METRICS)
     parser.add_argument("--out", type=Path, default=OUT)
+    parser.add_argument("--min-cells", type=int, default=MIN_CELLS)
+    parser.add_argument("--iteration", type=int, default=ITERATION)
+    parser.add_argument("--primary-only", action="store_true",
+                        help="Render Figure 5 without rebuilding Figure S1.")
+    parser.add_argument(
+        "--profile",
+        choices=("embryo1_legacy", "embryo1_matched", "pooled_tracking_v1"),
+        help="Read validated metrics from an isolated profile run.",
+    )
+    parser.add_argument("--run-id")
+    parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
     args = parser.parse_args(argv)
     ps.configure()
-    metrics = load_metrics(args.metrics)
-    plot_summary(metrics, metric="dlp",
-                 component_names=(
-                     "fig5A_ce_canonical_definition",
-                     "fig5B_ce_canonical_major_subtrees",
-                     "fig5C_ce_canonical_all_subtrees",
-                 ),
-                 out_dir=args.out)
-    plot_summary(metrics, metric="r",
-                 component_names=(
-                     "figS1A_ce_cousin_r_definition",
-                     "figS1B_ce_cousin_r_major_subtrees",
-                     "figS1C_ce_cousin_r_all_subtrees",
-                 ),
-                 out_dir=args.out)
-    print(f"Wrote primary d_LP and supplementary cousin-r summaries for "
-          f"{len(metrics)} subtrees to {args.out}")
+    context = None
+    if args.profile is not None:
+        context = build_analysis_context(
+            args.profile, run_id=args.run_id, output_root=args.output_root,
+            sweep_intervals=args.iteration)
+        if args.metrics == DEFAULT_METRICS:
+            args.metrics = (context.run_paths.analysis
+                            / "ce_subtree_canonical_metrics.csv")
+        if args.out == OUT:
+            args.out = context.run_paths.display("endpoint")
+    # Rendering validates the existing cache and never rewrites its provenance.
+    metrics = load_metrics(
+        args.metrics, min_cells=args.min_cells,
+        iteration=args.iteration, context=context)
+    if args.profile is None:
+        primary_names = (
+            "fig5A_ce_canonical_definition",
+            "fig5B_ce_canonical_major_subtrees",
+            "fig5C_ce_canonical_all_subtrees",
+        )
+        primary_letters = ("A", "B", "C")
+        plot_summary(metrics, metric="dlp", component_names=primary_names,
+                     out_dir=args.out, panel_letters=primary_letters)
+    else:
+        plot_primary_rows(metrics, args.out)
+    if not args.primary_only:
+        plot_summary(metrics, metric="r",
+                     component_names=(
+                         "figS1A_ce_cousin_r_definition",
+                         "figS1B_ce_cousin_r_major_subtrees",
+                         "figS1C_ce_cousin_r_all_subtrees",
+                     ),
+                     out_dir=args.out)
+    print(f"Wrote canonical summaries for {len(metrics)} subtrees to {args.out}")
 
 
 if __name__ == "__main__":

@@ -1,31 +1,23 @@
 \documentclass[10pt]{article}
-\usepackage[margin=12mm]{geometry}
+\usepackage[margin=0.55in]{geometry}
 \usepackage{graphicx}
 \usepackage{caption}
-\pagestyle{empty}
+\usepackage{amsmath}
+\usepackage{tikz}
 \captionsetup{font=small,labelfont=bf}
-
+\pagestyle{empty}
 \begin{document}
+\setcounter{figure}{3}
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{fig4_ce_subtree_map_panel.pdf}
-
-\caption{\textbf{The \emph{C.\@ elegans} lineage contains local subtrees
-whose natural terminal assignment is exactly Pareto-optimal.}
-%
-Each circle is a lineage subtree with at least 12 usable terminal cells,
-connected as the natural lineage; the circle area is proportional to its
-usable terminal-cell count, and the pie shows the fate
-composition of those biological terminal cells (terminal cells without valid
-tracking or expression data are excluded). A solid circumference marks a
-subtree whose natural terminal assignment is exactly Pareto-optimal for at
-least one objective weighting; a dashed circumference marks an off-front
-assignment. Subtree-name and cell-count color indicates the maximum fraction
-of natural edges retained by any assignment on that subtree's Pareto front,
-using the same blue retention scale as Figures~2, 3, and 6.
-%
-All 16 on-front subtrees contained at most 35 usable terminal cells; exact
-recovery was absent among larger investigated subtrees.}
+\caption{\textbf{Pooled terminal Pareto behavior across the reference
+lineage.} The 42 displayed subtrees contain at least 12 of the 275 strictly
+matched natural terminal edges. Pies report the fate composition of the exact
+profile cohort; circle area scales with cell count. Solid outlines mark the 27
+subtrees in which the natural assignment is an attained sampled-front point,
+and dashed outlines mark the remaining subtrees. Label color reports maximum
+natural-edge retention.}
 \label{fig:ce_subtree_map}
 \end{figure}
 \end{document}
