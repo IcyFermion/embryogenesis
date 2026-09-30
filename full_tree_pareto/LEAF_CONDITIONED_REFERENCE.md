@@ -1,5 +1,10 @@
 # Leaf-conditioned separate-clock Gaussian sensitivity
 
+Historical single-embryo sensitivity. The pooled Figure 7 rebuild (2026-09-27)
+uses **free internal simulation followed by terminal clamping**, not the joint
+conditioning described here. See [README.md](README.md) for the current model;
+results below remain a distinct, reproducible side analysis.
+
 Evaluated 2026-09-10. **Side analysis only: Figure 8, its reference, and its
 publication caches are unchanged.** This conditions the official separate-clock
 Gaussian, not the historical shared-clock Brownian or lognormal-mixture model.

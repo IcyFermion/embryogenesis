@@ -1,5 +1,9 @@
 # Separate-clock branch-variability sensitivity
 
+Historical single-embryo sensitivity, still not adopted. The current pooled
+Figure 7 specification is in [README.md](README.md); historical Figure 8
+decisions and numerical totals below do not describe that new cohort/model.
+
 Run and evaluated 2026-09-10. **Exploratory sensitivity only: Figure 8 and its
 official separate-clock Gaussian reference are unchanged.**
 

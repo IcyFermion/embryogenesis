@@ -1,6 +1,6 @@
 # Publication-figure handoff
 
-Updated 2026-09-23.
+Updated 2026-09-30.
 
 ## Terminal figures: pooled release promoted
 
@@ -17,7 +17,60 @@ and remaining manuscript/co-author integration. These supersede the older
 terminal sections of this repository-level document. The manuscript remains
 unchanged by publication promotion. Full-tree work below remains separate.
 
-## Full-tree Pareto analysis (candidate Figures 7--8)
+## Full-tree Pareto analysis: pooled Figure 7 and supplement
+
+The author requested one main full-tree figure and one supplementary comparison,
+replacing the two-main-figure arrangement. Current scientific specification and
+build commands are in [the full-tree README](full_tree_pareto/README.md).
+[The resumable handoff](full_tree_pareto/POOLED_HANDOFF.md) records live build
+status, validated caches, tests and remaining checks; consult it before resuming.
+
+- Figure 7A: eight bottom-up layerwise fronts. Figure 7B: aggregate layerwise
+  front, first-/second-/third-cousin shuffles, with random rebuild in an inset
+  matching the terminal layout. Gaussian was removed from the main panel at
+  the author's request on 2026-09-29; its phylogenetic analogy is nonessential
+  and its distinct internal-state inventory limits comparison to the fronts.
+- Supplement: five regenerated heuristics, seven reference families (including
+  Gaussian) and a
+  constraint inventory. Terminal-only remains withheld.
+- Travel: mean normalized pairwise distances from embryos 1--3 at cutoffs
+  255/247/225, on 978 shared measured nodes and 974 full-tree edges. Each
+  embryo uses its natural full-tree total as the global denominator.
+- Display: terminal-style endpoint normalization, with each round's anchors
+  in A and shared aggregate layerwise anchors for B and the supplement.
+- Cousin shuffles: permute measured leaves (including cutoff/coverage leaves)
+  within canonical ancestor groups two/three/four generations back; position
+  and protein state move together. Internal states and four roots stay fixed;
+  all 974 edges are scored. New 10,000-draw second-/third-cousin caches are
+  independent add-ons; the expensive 301-weight reconstruction caches remain
+  untouched. Existing 1,505 forests and all 20,000 new draws are replay-validated.
+- Gaussian (supplement only): the author explicitly confirmed free forward internal simulation
+  followed by observed terminal-state clamping, **not** joint conditioning.
+  All measured leaves, including cutoff/coverage leaves, and four roots are
+  fixed. Spatial processes are separate per embryo; protein uses a shared
+  per-transition clock. Terminal reconnection costs are recomputed.
+- Protein distance remains Euclidean top-20 z-scored features, unlike terminal
+  cosine. This distinction and unequal heuristic/reference feasible sets are
+  retained explicitly; no biological efficiency or calibrated-null claim.
+
+The new build is isolated in
+`full_tree_pareto/output/runs/pooled_full_tree_v1/terminal_clamped_20260927/`.
+Publication promotion preserves the former bundle under a hash-checked archive.
+The old pipeline remains available and is not a source of pooled caches.
+Manuscript integration is a separate step.
+
+The author approved the revised Figure 7 and supplement and requested a
+repository checkpoint on 2026-09-30. Source, caption templates, tests and
+documentation are included; generated artifacts remain Git-ignored. This
+approval does not itself replace `full_tree_pareto/output/publication/`.
+
+## Historical full-tree decisions: pre-pooled Figures 7--8
+
+**The remainder of this section records the former single-embryo release. It is
+not the current figure specification.** In particular, the old decision to use
+leaf-unconstrained simulation was superseded by the explicit terminal-clamping
+request above. Old numerical totals refer to 1,000 edges and must not be mixed
+with the pooled cohort. See also `full_tree_pareto/LEGACY_EMBRYO1.md`.
 
 The *C. elegans* protein configuration is now implemented for the represented
 full tree: 500 internal cells, 504 terminal cells, four measured roots, and
@@ -135,6 +188,36 @@ wrappers as the release path. Preserve the separation between full-tree and
 terminal-only pipelines.
 
 ## Later work
+
+### Backlog: restore and validate 1,001-weight Pareto sweeps
+
+Recorded with author approval on 2026-09-28; **deferred, not implemented**.
+The original exploratory implementations use 1,000 intervals and 1,001
+endpoint-inclusive weights. Current terminal publication configurations and
+the new pooled full-tree build instead use 300 intervals and 301 weights.
+Terminal publication code already specified 300 intervals in `ae557ab`;
+full-tree publication code introduced that setting in `d493499`, and the
+pooled terminal release `3b6c31f` retained it. The reason for the reduction is
+not established; do not attribute it to runtime savings as a verified fact.
+
+- Audit sweep settings across terminal global/subtree/cell-type/tracking
+  analyses and all full-tree heuristics; restore the intended 1,001-weight
+  convention consistently, including builders, cache identities and captions.
+- Preserve the 301-weight caches and figures as a resolution baseline. Use
+  new run identities for the denser sweeps, with per-weight checkpoints for
+  expensive full-tree reconstruction. The 301- and 1,001-point grids are not
+  nested, so do not assume all existing assignments can be reused.
+- Compare attained fronts, retention and reported front-dependent metrics;
+  verify endpoint anchors and raw-cost replay before adopting new figures.
+  A denser sweep still does not enumerate the complete discrete Pareto set.
+- Null distributions do not depend on sweep resolution. Reuse existing draws
+  only after verifying unchanged cohort, objectives, reference model, seeds
+  and source provenance; do not rewrite manifests to bypass cache checks.
+- Update documentation and explicitly promote revised figures only after
+  validation/review. This backlog entry changes no algorithms, caches,
+  figures or publication assets.
+
+### Other deferred work
 
 Resolve the Figure 1 amendment with the co-author and revise the manuscript
 for the pooled terminal release. Paused molecular/cross-species comparisons

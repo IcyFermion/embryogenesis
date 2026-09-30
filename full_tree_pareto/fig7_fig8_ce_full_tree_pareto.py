@@ -23,7 +23,8 @@ from full_tree_pareto.heuristic_inventory import write_inventory
 from terminal_pareto import plot_style as ps
 
 
-OUT = analysis.PUBLICATION_ROOT
+# Historical no-profile rebuilds must not overwrite the pooled release.
+OUT = analysis.CACHE_ROOT / "legacy" / "rebuild" / "publication"
 EDGE_RETENTION_CMAP = LinearSegmentedColormap.from_list(
     "full_tree_edge_retention",
     ["#17365D", ps.COLORS["blue"], "#72C7EC"],
