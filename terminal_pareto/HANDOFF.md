@@ -1,6 +1,6 @@
 # Terminal publication handoff
 
-Updated 2026-09-23. The author approved switching to pooled travel and
+Updated 2026-09-30. The author approved switching to pooled travel and
 endpoint-normalized fronts. The current publication is `output/publication/`;
 its release manifest identifies the working run and records artifact/cache
 hashes. [README.md](README.md) is the analysis and reproduction reference.
@@ -18,6 +18,9 @@ hashes. [README.md](README.md) is the analysis and reproduction reference.
   the independent schematic says “Figure 1 amendment”.
 - Previous embryo-1 figures are frozen in `output/legacy/embryo1/publication/`.
   Historical no-profile commands write separately to `output/legacy/rebuild/`.
+- The additional cross-species figures are author-numbered Figures 8 and 9;
+  their captioned builds are in the separate comparison run described below.
+  They are not part of the existing 275-edge release manifest.
 - The working-run analysis caches and saved assignment sets are unchanged by
   promotion. Rebuilds are staged; publication is explicit and preserves the
   previous release. Use `publication_release.py --verify` to check the snapshot.
@@ -64,8 +67,83 @@ preserved legacy files, hash verification, and rollback on failure.
    the pooled compromise across A–C. Retain the limited holdout result in the
    sensitivity discussion. Avoid claims of isolated tracking error or a
    uniquely correct biological geometry.
-4. Keep full-tree figures and the paused cross-species pilot separate. No new
+4. Keep full-tree figures and the cross-species review figures separate. No new
    optimizations or pilot extensions are required for manuscript integration.
+
+## Resumed cross-species comparison (2026-09-30)
+
+The author requested a CE protein / CE RNA / CB RNA terminal-only figure in
+the current Figure 2 style. The new implementation is
+`cross_species_analysis.py`, with `fig_terminal_cross_species.py` for layout
+and `test_cross_species_terminal.py` for scientific checks. The original
+188-edge pilot remains in the archives below.
+
+Current run: `output/runs/cross_species_terminal_v1/pooled_comparison_20260930/`.
+The matched set is 187 edges; the original pilot's glial edge
+`ABalppaapp -> ABalppaappp` is absent from the required CE tracking intersection.
+CE protein and RNA share published pooled travel, restricted from the 275-edge
+reference with its fixed denominators. CB pools the two AF16 embryos over a
+196-edge shared tracking/RNA reference, using fixed natural-total denominators.
+See the README for commands, generated-file stems and measurement conventions.
+
+| Configuration | Existing-3D d_LP | Existing-3D max retention | XY d_LP | XY max retention |
+|---|---:|---:|---:|---:|
+| CE protein | 0.0099 | 0.8717 | 0.0196 | 0.7594 |
+| CE RNA | 0.0107 | 0.9198 | 0.0494 | 0.6471 |
+| CB AF16 RNA | 0.0311 | 0.7380 | 0.0411 | 0.6524 |
+
+Six focused tests passed. All 13,828 saved base/dense assignments passed
+permutation, raw travel/state cost, biological-parent retention, and endpoint
+coordinate replay; 20 input/code hashes were checked. Base sweeps have 301
+weights; the six pooled runs also have nested 1,201-weight checks. Maximum
+retention is unchanged, distance changes are below 5e-16, and the largest
+absolute change in canonical position is below 1.2e-7. This checks sampled
+grid stability and does not enumerate all nondominated/tied optima.
+
+The author's layout revision combines existing 3D above 2D (XY) in one
+six-panel comparison (`terminal_cross_species_comparison`), with CE protein,
+CE RNA and CB RNA in columns. A separate paired overlay figure
+(`terminal_cross_species_overlay`) shows both geometries with identical main
+axes and near-natural zoom limits. Species colors, line styles and landmarks
+are consistent across overlays. Individual row and overlay exports, plus the
+tracking transfer companion, remain available. All are standalone PNG/PDF
+artifacts with captions and render provenance; the numerical checkpoint is
+unchanged by this revision. At the author's request, the C. briggsae 3D caveat
+is caption-only and describes limitations of traditional embryo-tracking
+techniques, particularly for z-axis measurements, rather than an unverified
+axial scale. Exact wording remains provisional pending experimental
+collaborator input. Stage alignment and expression provenance still need
+review; XY sensitivity changes the proximity ordering of CE RNA versus CB RNA.
+No species ranking or controlled protein/RNA modality claim is adopted.
+No publication promotion or 1,001-weight migration is included in this build.
+
+The author subsequently assigned **Figure 8** to the six-panel comparison
+and **Figure 9** to the paired overlays and requested captioned publication
+pages. Figure 8 now omits natural-to-maximum-retention connectors. Figure 9
+adds panel C below its 3D/XY overlays, following the Figure 5B named-row style.
+The three configurations are grouped under each geometry, with separate
+columns for u, d_LP and d_NP. Scales are common across the six rows within
+each metric. Hollow diamonds and dashed natural-lineage connectors identify
+the closest attained point P* in Figure 9A--B, not the maximum-retention point.
+Both distances use this same P*, and u is normalized arc length from the
+travel optimum to P*. All 18 displayed values are replay-checked against the
+unchanged numerical cache, including analytic first-cousin-mean distances.
+`cross_species_publication.py` assembles these from hash-checked panels
+using the earlier terminal wrapper style. Both PDFs compile to one page,
+carry the requested figure labels, and have been visually inspected with no
+layout defects or TeX warnings. Their stems under the run's `publication/`
+are `fig8_terminal_cross_species_comparison` and
+`fig9_terminal_cross_species_overlays`; editable TeX and panel PDF/PNG assets
+accompany them. The tracking caveat is caption-only, shared across captions,
+and still explicitly provisional. Thirteen tests pass (six scientific and
+seven publication/numbering/archive/artist checks), including connector
+endpoints, the absence of Figure 8 connectors, and all 18 metric-panel points.
+The build rechecked all 13,828
+assignments and 20 source hashes; its manifest records eight assembled
+artifacts and nine unchanged analysis files. Rebuilds archive the previous
+assembled layout with hashes. The existing publication release and manuscript
+are untouched; numbering these figures does not revise historical full-tree
+Figure 8 assets or implicitly promote either bundle.
 
 ## Short development record
 

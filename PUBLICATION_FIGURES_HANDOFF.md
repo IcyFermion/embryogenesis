@@ -17,6 +17,31 @@ and remaining manuscript/co-author integration. These supersede the older
 terminal sections of this repository-level document. The manuscript remains
 unchanged by publication promotion. Full-tree work below remains separate.
 
+## Cross-species terminal Figures 8 and 9
+
+On 2026-09-30, the author assigned Figure 8 to the pooled 187-edge six-panel
+comparison (3D above XY; CE protein, CE RNA and CB RNA columns) and Figure 9 to
+the separate paired 3D/XY front overlays, now supplemented by canonical-metric
+panel C in the Figure 5B named-row style. It shows u, d_LP and d_NP for all
+three configurations under each geometry; distances use the same closest
+attained front point P*, not maximum retention. Figure 9A--B marks P* with
+hollow diamonds and natural-to-P* dashed connectors. Figure 8 has no
+natural-to-maximum-retention connectors. Both are assembled with captions
+in the earlier terminal publication-wrapper style, compiled to one page and
+visually checked. Their editable TeX, PDF pages and panel assets are in
+`terminal_pareto/output/runs/cross_species_terminal_v1/pooled_comparison_20260930/publication/`:
+
+- `fig8_terminal_cross_species_comparison.pdf`
+- `fig9_terminal_cross_species_overlays.pdf`
+
+The C. briggsae 3D tracking-method caveat is caption-only and provisional
+pending experimental collaborator input. Numerical caches are unchanged;
+figure numbers and source/artifact/analysis hashes are recorded in the build
+manifest. See the terminal README/handoff for reproduction and validation.
+This build does not replace the existing terminal publication release or edit
+the manuscript. Older full-tree Figure 8 references below are historical;
+the current full-tree specification remains Figure 7 and its supplement.
+
 ## Full-tree Pareto analysis: pooled Figure 7 and supplement
 
 The author requested one main full-tree figure and one supplementary comparison,
@@ -220,6 +245,11 @@ not established; do not attribute it to runtime savings as a verified fact.
 ### Other deferred work
 
 Resolve the Figure 1 amendment with the co-author and revise the manuscript
-for the pooled terminal release. Paused molecular/cross-species comparisons
-remain archived exploratory work; consult the terminal handoff before resuming.
+for the pooled terminal release. The original molecular/cross-species pilot
+remains archived. On 2026-09-30, the author requested a resumed terminal-only
+CE protein / CE RNA / CB RNA comparison in Figure 2 style, subsequently
+numbered Figures 8 and 9 and assembled with captions as recorded above.
+Its pooled 187-edge numerical checkpoint and build are documented in
+`terminal_pareto/README.md` and `HANDOFF.md`, under
+`terminal_pareto/output/runs/cross_species_terminal_v1/pooled_comparison_20260930/`.
 No terminal reorganization changes the full-tree analyses above.
