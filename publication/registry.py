@@ -41,11 +41,17 @@ class Family:
     status: str
     figures: tuple[FigureSpec, ...] = ()  # single-graphic figures (captioned from a spec)
     wrappers: tuple[tuple[str, str], ...] = ()  # (stem, printed number) for multi-panel figures
+    production: str | None = None  # production root (repository-relative) this family releases into
+    owned_assets: tuple[str, ...] = ()  # production file names only this family may add, change or remove
 
     def load(self, run_id: str | None = None):
         module, function = self.adapter.split(":")
         loader = getattr(import_module(module), function)
         return loader() if run_id is None else loader(run_id)
+
+    def __post_init__(self):
+        if self.figures and not self.owned_assets:
+            object.__setattr__(self, "owned_assets", tuple(name for spec in self.figures for name in spec.files))
 
     @property
     def numbers(self) -> dict[str, str]:
@@ -104,6 +110,62 @@ def _build_full_tree_pooled(family, data, out):
     return dict(artifacts=artifacts, figures=figures, extra=dict(display_transforms=transforms))
 
 
+# Production assets of the terminal primary release (the build also compiles Table 1 to check fit).
+TERMINAL_PRIMARY_ASSETS = (
+    "fig1_ce_endpoint_normalization_amendment.pdf",
+    "fig1_ce_endpoint_normalization_amendment.tex",
+    "fig1_endpoint_normalization_amendment.pdf",
+    "fig1_endpoint_normalization_amendment.png",
+    "fig1_endpoint_normalization_amendment.svg",
+    "fig2_ce_terminal_pareto_front.pdf",
+    "fig2_ce_terminal_pareto_front.png",
+    "fig2_ce_terminal_pareto_main.pdf",
+    "fig2_ce_terminal_pareto_main.tex",
+    "fig3A_ce_null_models.tex",
+    "fig3B_ce_edge_retention_tree_distance.pdf",
+    "fig3B_ce_edge_retention_tree_distance.png",
+    "fig3C_ce_structural_retention.pdf",
+    "fig3C_ce_structural_retention.png",
+    "fig3_ce_terminal_pareto_supporting.pdf",
+    "fig3_ce_terminal_pareto_supporting.tex",
+    "fig4_ce_subtree_map.pdf",
+    "fig4_ce_subtree_map.tex",
+    "fig4_ce_subtree_map_panel.pdf",
+    "fig4_ce_subtree_map_panel.png",
+    "fig5A_ce_canonical_major_subtrees.pdf",
+    "fig5A_ce_canonical_major_subtrees.png",
+    "fig5B_ce_canonical_all_subtrees.pdf",
+    "fig5B_ce_canonical_all_subtrees.png",
+    "fig5_ce_canonical_summary.pdf",
+    "fig5_ce_canonical_summary.tex",
+    "fig6A_ce_retention_heatmap.pdf",
+    "fig6A_ce_retention_heatmap.png",
+    "fig6B_ce_within_type_fronts.pdf",
+    "fig6B_ce_within_type_fronts.png",
+    "fig6C_ce_type_restricted_aggregate.pdf",
+    "fig6C_ce_type_restricted_aggregate.png",
+    "fig6_ce_cell_types.pdf",
+    "fig6_ce_cell_types.tex",
+    "figS1A_ce_cousin_r_definition.pdf",
+    "figS1A_ce_cousin_r_definition.png",
+    "figS1B_ce_cousin_r_major_subtrees.pdf",
+    "figS1B_ce_cousin_r_major_subtrees.png",
+    "figS1C_ce_cousin_r_all_subtrees.pdf",
+    "figS1C_ce_cousin_r_all_subtrees.png",
+    "figS1_ce_canonical_summary_cousin_r.pdf",
+    "figS1_ce_canonical_summary_cousin_r.tex",
+    "figS2_ce_cell_type_cost_gain.pdf",
+    "figS2_ce_cell_type_cost_gain.tex",
+    "figS2_ce_cell_type_cost_gain_panel.pdf",
+    "figS2_ce_cell_type_cost_gain_panel.png",
+    "figS3_ce_tracking_robustness.pdf",
+    "figS3_ce_tracking_robustness.tex",
+    "figS3_four_geometries_with_insets.pdf",
+    "figS3_four_geometries_with_insets.png",
+    "figS3_four_geometries_with_insets.svg",
+    "table1_ce_subtree_statistics.tex",
+)
+
 TERMINAL_WRAPPERS = (
     ("fig1_ce_endpoint_normalization_amendment", "1 amendment"), ("fig2_ce_terminal_pareto_main", "2"),
     ("fig3_ce_terminal_pareto_supporting", "3"), ("fig4_ce_subtree_map", "4"), ("fig5_ce_canonical_summary", "5"),
@@ -115,16 +177,25 @@ FAMILIES = {family.key: family for family in (
     Family("terminal-primary",
            "Pooled 275-edge terminal analysis, 42 subtrees (cosine molecular distance); Figures 1-6, S1-S3, Table 1",
            "publication.adapters.terminal:primary", _build_terminal_primary,
+           production="terminal_pareto/output/publication",
            status="active: published 2026-09-23 (Figure 1 amendment pending co-author integration)",
-           wrappers=TERMINAL_WRAPPERS),
+           wrappers=TERMINAL_WRAPPERS, owned_assets=TERMINAL_PRIMARY_ASSETS),
     Family("full-tree-pooled",
            "Pooled full tree, 978 nodes/974 edges, layerwise and four other reconstructions (Euclidean molecular distance)",
            "publication.adapters.full_tree:pooled", _build_full_tree_pooled,
            status="approved working build 2026-09-30; NOT promoted (S4 numbering provisional)",
-           wrappers=(("fig7_ce_full_tree_layerwise", "7"), ("figs_ce_full_tree_heuristics", "S4"))),
+           wrappers=(("fig7_ce_full_tree_layerwise", "7"), ("figs_ce_full_tree_heuristics", "S4")),
+           production="full_tree_pareto/output/publication",
+           owned_assets=tuple(f"{stem}{suffix}" for stem, suffixes in (
+               ("fig7A_ce_full_tree_layerwise_rounds", (".pdf", ".png")),
+               ("fig7B_ce_full_tree_collective", (".pdf", ".png")),
+               ("fig7_ce_full_tree_layerwise", (".pdf", ".tex")),
+               ("figs_ce_full_tree_heuristics", (".pdf", ".tex")),
+               ("figs_ce_full_tree_heuristics_panel", (".pdf", ".png"))) for suffix in suffixes)),
     Family("terminal-cross-species",
            "Pooled 187-edge terminal CE protein/CE RNA/CB RNA comparison (cosine molecular distance)",
            "publication.adapters.terminal:cross_species", _build_specs,
+           production="terminal_pareto/output/publication",
            status="active: Figures 8-9 published 2026-10-01",
            figures=(FigureSpec("8", "fig8_terminal_cross_species_comparison", "fig:terminal_cross_species_8",
                                partial(cs_figures.comparison_figure,
@@ -137,6 +208,7 @@ FAMILIES = {family.key: family for family in (
     Family("full-tree-cross-species",
            "Terminal-anchored partial forest, 485 cells/454 edges (Euclidean molecular distance)",
            "publication.adapters.full_tree:cross_species", _build_specs,
+           production="full_tree_pareto/output/publication",
            status="active: Figures 10-11 published 2026-10-01",
            figures=(FigureSpec("10", "fig10_full_tree_cross_species_comparison", "fig:full_tree_cross_species_10",
                                partial(cs_figures.comparison_figure,
@@ -150,6 +222,7 @@ FAMILIES = {family.key: family for family in (
                                cs_captions.full_tree_overlay))),
 )}
 
+BUILD_SET = "build_set.json"
 PROTECTED = tuple(provenance.ROOT / path for path in (
     "terminal_pareto/output", "full_tree_pareto/output"))
 
@@ -178,8 +251,32 @@ def build(family_key: str, output_dir: Path, *, run_id: str | None = None) -> di
                    release_promoted=False, **result["extra"]))
 
 
+def build_all(output_dir: Path) -> dict:
+    """Every family into ``output_dir/<family>``, plus one build-set manifest; production roots stay separate."""
+    output_dir = Path(output_dir)
+    _check_destination(output_dir)
+    families = {}
+    for key, family in FAMILIES.items():
+        record = build(key, output_dir / key)
+        families[key] = dict(directory=key, production=family.production, status=family.status,
+                             presentation_id=record["presentation_id"], figure_numbers=record["figure_numbers"],
+                             files=len(record["files"]))
+    manifest = dict(version="publication-build-set-1", families=families, release_promoted=False)
+    (output_dir / BUILD_SET).write_text(json.dumps(manifest, indent=2) + "\n")
+    return manifest
+
+
+def verify_any(path: Path) -> dict:
+    """Verify one family build or every member of a build set."""
+    path = Path(path)
+    if (path / BUILD_SET).exists():
+        families = json.loads((path / BUILD_SET).read_text())["families"]
+        return {key: provenance.verify_build(path / entry["directory"]) for key, entry in families.items()}
+    return provenance.verify_build(path)
+
+
 def describe() -> list[dict]:
-    return [dict(family=f.key, description=f.description, status=f.status,
+    return [dict(family=f.key, description=f.description, status=f.status, production=f.production,
                  figures={number: stem for stem, number in f.numbers.items()}) for f in FAMILIES.values()]
 
 

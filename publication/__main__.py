@@ -2,7 +2,13 @@
 
     python -m publication list
     python -m publication build --family terminal-cross-species --output-dir PATH
+    python -m publication build --all --output-dir PATH
     python -m publication verify --build PATH
+    python -m publication release --family full-tree-pooled --build PATH --rehearse
+
+Builds read validated caches only and write to a new directory. ``release``
+currently only rehearses: it applies the release to a scratch copy of
+production with the real verifiers and leaves production untouched.
 """
 
 from __future__ import annotations
@@ -23,20 +29,35 @@ def main(argv=None):
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("list", help="Show publication families and their figures")
-    build = commands.add_parser("build", help="Render one family from validated caches into a new directory")
-    build.add_argument("--family", required=True, choices=sorted(registry.FAMILIES))
+    build = commands.add_parser("build", help="Render one family (or --all) from validated caches into a new directory")
+    target = build.add_mutually_exclusive_group(required=True)
+    target.add_argument("--family", choices=sorted(registry.FAMILIES))
+    target.add_argument("--all", action="store_true")
     build.add_argument("--output-dir", required=True, type=Path)
     build.add_argument("--run-id", help="Back-end run identity (defaults to the family's published run)")
     verify = commands.add_parser("verify", help="Check a build's artifacts, inputs and source readiness")
     verify.add_argument("--build", required=True, type=Path)
+    rel = commands.add_parser("release", help="Rehearse a family release on a scratch copy of production")
+    rel.add_argument("--family", required=True, choices=("full-tree-pooled",))
+    rel.add_argument("--build", required=True, type=Path)
+    rel.add_argument("--rehearse", action="store_true", required=True,
+                     help="Required: only rehearsal is available; production promotion is a separate approved step")
+    rel.add_argument("--keep", type=Path, help="Keep the rehearsed directory here for inspection")
     args = parser.parse_args(argv)
     if args.command == "list":
         print(registry.dumps(registry.describe()))
+    elif args.command == "build" and args.all:
+        manifest = registry.build_all(args.output_dir)
+        print(f"Built {len(manifest['families'])} families in {args.output_dir}")
     elif args.command == "build":
         record = registry.build(args.family, args.output_dir, run_id=args.run_id)
         print(f"Built {record['family']} ({len(record['files'])} files) in {args.output_dir}")
+    elif args.command == "verify":
+        print(registry.dumps(registry.verify_any(args.build)))
     else:
-        print(registry.dumps(provenance.verify_build(args.build)))
+        from publication import release
+        production = provenance.ROOT / registry.FAMILIES[args.family].production
+        print(registry.dumps(release.rehearse_full_tree_pooled(args.build, production, keep=args.keep)))
 
 
 if __name__ == "__main__":

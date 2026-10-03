@@ -30,6 +30,7 @@ class CacheOnlyPooledBuild(unittest.TestCase):
     def test_inventory_matches_approved_working_build(self):
         approved = {p.name for p in APPROVED.iterdir() if p.suffix in (".pdf", ".png", ".tex")}
         self.assertEqual(set(self.record["files"]), approved)
+        self.assertEqual(set(self.record["files"]), set(registry.FAMILIES["full-tree-pooled"].owned_assets))
         self.assertEqual(self.record["figure_numbers"],
                          {"fig7_ce_full_tree_layerwise": "7", "figs_ce_full_tree_heuristics": "S4"})
 
@@ -48,3 +49,13 @@ class CacheOnlyPooledBuild(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Ownership(unittest.TestCase):
+    def test_families_sharing_a_production_root_own_disjoint_assets(self):
+        by_root = {}
+        for family in registry.FAMILIES.values():
+            self.assertTrue(family.owned_assets, family.key)
+            by_root.setdefault(family.production, []).append(set(family.owned_assets))
+        for root, owned in by_root.items():
+            self.assertEqual(sum(map(len, owned)), len(set().union(*owned)), root)

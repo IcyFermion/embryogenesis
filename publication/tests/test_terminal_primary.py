@@ -49,6 +49,7 @@ class CacheOnlyTerminalBuild(unittest.TestCase):
                          and not name.startswith(("fig8_", "fig9_"))}
         # The build also compiles Table 1 to check its fit; production keeps only its TeX.
         self.assertEqual(set(self.record["files"]), figure_assets | {"table1_ce_subtree_statistics.pdf"})
+        self.assertEqual(figure_assets, set(registry.FAMILIES["terminal-primary"].owned_assets))
         self.assertTrue(provenance.verify_build(self.tmp / "build")["ready"])
 
     def test_numerical_inputs_are_recorded_and_unchanged(self):
