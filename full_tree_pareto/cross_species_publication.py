@@ -13,6 +13,7 @@ from full_tree_pareto.cross_species_analysis import DEFAULT_RUN, ROOT, digest, r
 from full_tree_pareto.fig_cross_species import COMPARISON, OVERLAY, archive_previous
 from terminal_pareto.fig_terminal_cross_species import TRACKING_CAVEAT, TRACKING_CAPTION_STATUS
 from terminal_pareto.publication_wrappers import _write
+from publication.provenance import stale_files
 
 FIGURES = {
     "fig10_full_tree_cross_species_comparison": (10, COMPARISON),
@@ -133,7 +134,13 @@ def compile_wrappers(wrappers):
             raise ValueError("Missing numbered figure label")
 
 
-def verify(run, *, publication=None):
+def verify(run, *, publication=None, current_source=False):
+    """Check a numbered assembly's artifacts, renders and numerical inputs.
+
+    Frozen artifacts are verified strictly. Changed live presentation source is
+    reported as ``stale_presentation_sources``; it fails only when
+    ``current_source`` is requested (readiness to assemble with current code).
+    """
     run = Path(run)
     report = validate_run(run)
     figures = json.loads((run / "figures/figure_manifest.json").read_text())
@@ -141,16 +148,17 @@ def verify(run, *, publication=None):
     published = json.loads((publication / "publication_manifest.json").read_text())
     if report["analysis_id"] != figures["analysis_id"] or report["analysis_id"] != published["analysis_id"]:
         raise ValueError("Numerical/rendered/assembled identity mismatch")
-    check_hashes(ROOT, figures["plotting_sources"])
+    stale = sorted(set(stale_files(figures["plotting_sources"])) | set(stale_files(published["sources"])))
+    if current_source and stale:
+        raise ValueError(f"Changed presentation source since render/assembly: {stale}")
     check_hashes(run / "figures", figures["files"])
-    check_hashes(ROOT, published["sources"])
     if set(published["files"]) != publication_files() or published["figure_numbers"] != {stem: number for stem, (number, _) in FIGURES.items()}:
         raise ValueError("Invalid Figures 10/11 assembly inventory or numbering")
     check_hashes(publication, published["files"])
     check_hashes(run / "analysis", published["analysis_files"])
     if digest(run / "figures/figure_manifest.json") != published["rendered_manifest_hash"]:
         raise ValueError("Changed rendered manifest")
-    return report
+    return dict(report, stale_presentation_sources=stale)
 
 
 def build(run):
@@ -186,12 +194,12 @@ def build(run):
             analysis_files={p.name: digest(p) for p in (run / "analysis").iterdir() if p.is_file()},
             files={name: digest(stage / name) for name in sorted(publication_files())})
         (stage / "publication_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-        verify(run, publication=stage)
+        verify(run, publication=stage, current_source=True)
         if out.exists():
             out.rename(backup)
         stage.rename(out)
         installed = True
-        verify(run)
+        verify(run, current_source=True)
     except Exception:
         if installed:
             out.rename(temporary / "failed")
@@ -217,7 +225,7 @@ def verify_release(publication=PRODUCTION, *, check_archive=True):
     if any((publication / name).exists() for name in LEGACY_FIG8):
         raise ValueError("Retired full-tree Figure 8 remains in production")
     run = Path(record["run"])
-    report = verify(run)
+    report = verify(run)  # Artifact integrity; stale live source is reported, not fatal.
     if report["analysis_id"] != record["analysis_id"]:
         raise ValueError("Production/numerical analysis mismatch")
     if digest(run / "publication/publication_manifest.json") != record["files"][ASSEMBLY_COPY]:
@@ -227,7 +235,7 @@ def verify_release(publication=PRODUCTION, *, check_archive=True):
         check_hashes(archive / "publication", record["previous_files"])
         if json.loads((archive / "manifest.json").read_text())["files"] != record["previous_files"]:
             raise ValueError("Previous production archive manifest mismatch")
-    return record
+    return dict(record, stale_presentation_sources=report.get("stale_presentation_sources", []))
 
 
 def promote(run, *, production=PRODUCTION):
@@ -308,6 +316,9 @@ def main():
     if args.verify_production:
         record = verify_release()
         print(f"Verified production Figures 10/11, preserved assets and archive: {record['published_at']}", flush=True)
+        if record["stale_presentation_sources"]:
+            print("Presentation source changed since this release (artifacts verified unchanged): "
+                  + ", ".join(record["stale_presentation_sources"]), flush=True)
     elif args.verify:
         print(json.dumps(verify(run), indent=2), flush=True)
     else:

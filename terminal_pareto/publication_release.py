@@ -14,6 +14,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from terminal_pareto.analysis_context import DEFAULT_OUTPUT_ROOT
+from publication.provenance import stale_files
 
 WRAPPERS = (
     "fig1_ce_endpoint_normalization_amendment", "fig2_ce_terminal_pareto_main",
@@ -86,12 +87,16 @@ def validate_cross_species_source(run):
         raise ValueError("Invalid numbered comparison assembly inventory")
     if record["figure_numbers"] != dict(zip(CROSS_SPECIES_STEMS, (8, 9))):
         raise ValueError("Invalid comparison numbering")
-    for base, hashes in ((ROOT, record["sources"]), (ROOT, rendered["plotting_sources"]),
-                         (run / "figures", rendered["files"]), (source, record["files"]),
+    # Frozen panels, assembly and numerical inputs must be unchanged. Live
+    # presentation source may have moved on since assembly; report it only.
+    for base, hashes in ((run / "figures", rendered["files"]), (source, record["files"]),
                          (run / "analysis", record["analysis_files"])):
         for name, sha in hashes.items():
             if digest(base / name) != sha:
                 raise ValueError(f"Changed comparison source/asset: {base / name}")
+    stale = sorted(set(stale_files(record["sources"])) | set(stale_files(rendered["plotting_sources"])))
+    if stale:
+        print(f"Presentation source changed since the comparison assembly (artifacts unchanged): {stale}", flush=True)
     if digest(run / "figures/figure_manifest.json") != record["rendered_manifest_hash"]:
         raise ValueError("Changed comparison render manifest")
     if file_inventory(run / "analysis") != record["analysis_files"]:

@@ -28,6 +28,16 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+def stale_files(hashes: dict[str, str], base: Path = ROOT) -> list[str]:
+    """Recorded files whose live bytes differ from (or no longer exist at) their hash.
+
+    Use for *readiness* questions about source code. Frozen artifacts must be
+    checked strictly instead; stale source never invalidates an existing build.
+    """
+    return sorted(name for name, digest in hashes.items()
+                  if not (Path(base) / name).is_file() or sha256(Path(base) / name) != digest)
+
+
 def presentation_sources() -> dict[str, str]:
     """Every non-test publication source; any change invalidates rendered assets."""
     return {str(path.relative_to(ROOT)): sha256(path)
