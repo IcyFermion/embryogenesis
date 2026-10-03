@@ -43,7 +43,14 @@ Each redraw first saves a hash-checked preceding layout under `layout_history/`.
 Wrapper stems are `fig7_ce_full_tree_layerwise` and
 `figs_ce_full_tree_heuristics`; the latter is provisionally Figure S4, following
 terminal supplements S1--S3.
-Wrapper templates/captions are versioned in `publication_build.py`.
+Panels and captions are drawn by `publication/figures/full_tree.py` and
+`publication/captions/full_tree.py`; `publication_build.py` keeps settings,
+cache building and release mechanics. `python -m publication build --family
+full-tree-pooled --output-dir PATH` renders the same assets from validated
+caches. A staged mixed release that preserves Figures 10/11 exists in
+`publication/release.py` and can be rehearsed with
+`python -m publication release --family full-tree-pooled --build PATH --rehearse`;
+the guard below still applies to `publication_build --publish`.
 
 Promotion copies figures to `output/publication/` with a release manifest,
 preserving the former bundle in `output/legacy/releases/`. A failed promotion
@@ -312,14 +319,17 @@ the cross-species assets and update their preserved-file release hashes.
 
 ## Source map
 
+Presentation lives in [`publication/`](../publication/README.md); modules below
+keep analysis, caches, CLIs and release mechanics.
+
 | Source | Role |
 |---|---|
 | `cross_species_analysis.py` | Isolated terminal-anchored partial-forest cohort, six exact layerwise sweeps, references and replay guards |
-| `fig_cross_species.py`, `cross_species_publication.py` | Figure 8/9-style partial-forest layouts, numbered Figures 10/11 and additive archived release |
+| `fig_cross_species.py`, `cross_species_publication.py` | `--render-only` entrypoint and numbered Figures 10/11 assembly/release (drawing and captions in `publication/`) |
 | `test_cross_species.py`, `CROSS_SPECIES_HANDOFF.md` | Partial-forest tests and cross-species execution checkpoint |
 | `pooled_analysis.py` | Cohort, matrices, five heuristics, references and replay-validated caches |
 | `cousin_references.py` | Separate second-/third-cousin caches using terminal ancestry definitions and full-edge replay |
-| `publication_build.py` | Current panels, captions, compilation and explicit archived promotion |
+| `publication_build.py` | Sweep settings, cache build/replay, working-layout archive, guarded promotion; drawing delegates to `publication/figures/full_tree.py` |
 | `resume_paired.py` | Per-weight checkpointed paired sweep, assembled into the standard cache |
 | `test_pooled_analysis.py` | Pooled scoring, solver invariants, endpoints, clamping and cache guards |
 | `test_publication_build.py` | Endpoint display, release hashes, caption settings and promotion rollback |

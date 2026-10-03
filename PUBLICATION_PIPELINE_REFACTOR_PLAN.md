@@ -371,7 +371,7 @@ back-end output files and tracked back-end source, a 562 MB tar of both
 
 No verifier changed any output file (hash diff empty).
 
-### Phase 1 — done, awaiting midpoint review
+### Phase 1 — done; midpoint review 2026-10-03
 
 - `publication/` created (see its README): notation registry, style,
   contract, adapters, shared artists/canonical panels, Figure 9/11 layout and
@@ -387,6 +387,56 @@ No verifier changed any output file (hash diff empty).
   blocked, integrity vs readiness, destination guards, legacy parity.
 - After the phase: tracked back-end source and all 1,822 output files
   unchanged; both production verifiers and the 20 + 55 legacy tests pass.
-- Retained compatibility island: legacy presentation modules are copied, not
-  delegated, because the full-tree production verifier re-hashes live
-  presentation source (see `publication/README.md`). Resolve in phase 3.
+- Review decisions (2026-10-03): the null-mean point is labeled `C`; move
+  the verifier change (integrity versus readiness) to the start of phase 2;
+  mixed notation across not-yet-migrated figures is acceptable meanwhile.
+
+### Phase 2 — done (2026-10-03)
+
+- Verifier split first (`4cc8fdc`): production/promotion checks verify frozen
+  artifacts, renders and numerical inputs strictly and report stale live
+  presentation source; assembly keeps the strict current-source check.
+- All active presentation moved into `publication/` (`78d34c2`, `1e80023`,
+  `ffdd15f`): Figures 8-11; terminal 1 amendment-6, S1-S3, Table 1 and all
+  wrapper captions; pooled Figure 7 and provisional S4. Legacy entrypoints
+  delegate. Full-tree presentation imports no terminal figure script.
+- Parity with the previous notation: Figures 8-11 and Figure 7/S4 identical
+  (TeX bytes, panel and page pixels); terminal 48/50 identical, remaining two
+  PNGs differ by antialiasing only (Figure 6C 81 px, S3 57 px; PDFs identical).
+  Legacy `--render-only`, numbered assembly and `--layout-only` commands were
+  run on scratch run copies and reproduced every historical file.
+- Findings recorded for the author: published Figure 2 and S3 used Matplotlib
+  defaults (reproduced via `style.matplotlib_defaults`); pre-existing TeX
+  overflow warnings in Figure 7 (8.27 pt) and standalone Table 1 (3.75 pt)
+  are explicitly tolerated, any other warning fails.
+- Compatibility exceptions (validator-pinned): `figS3_cross_geometry.py`,
+  `fig5_table1_ce_canonical_metrics.py`. Figure 3A asset moved to
+  `publication/assets/`.
+
+### Phase 3 — done, nothing promoted (2026-10-03, `b78646c`)
+
+- Registry: families, production roots, printed numbers, owned assets
+  (disjoint per root, tested); `build --all` with `build_set.json`; set
+  verification.
+- `release.py`: inventories, hash-checked archives, staged transaction with
+  rollback; mixed full-tree release (pooled Figure 7/S4 in, five superseded
+  historical files retired, methods PDFs and Figures 10/11 preserved, Figures
+  10/11 preserved-file record rewritten with history). Fixture tests cover
+  success with both real verifiers, foreign-asset refusal, staged and final
+  failure rollback and tampered builds. Rehearsed on a scratch copy of real
+  production with the real verifiers: 5 added, 8 changed, 5 removed;
+  production unchanged. The CLI only rehearses; the legacy guard remains.
+- Not unified yet: terminal and Figures 10/11 promoters keep their own tested
+  transaction code.
+
+### Phase 4 — done (2026-10-03)
+
+- `publication/README.md` (families, commands, notation recipe, boundaries,
+  open author items); source maps in both package READMEs; link from
+  `PUBLICATION_FIGURES_HANDOFF.md`.
+- Candidates: `publication/output/candidates/phase3_20261003/` (all families,
+  `d_CP` notation, verified ready); parity builds `phase*_parity_*`.
+- Final checks: 35 publication tests, 16 terminal and 53 full-tree tests,
+  29/29 migration checks, 13/13 profile tests, both production verifiers,
+  13,828 + 9,012 assignment replays; all 1,822 back-end output files and every
+  validator-pinned source byte-identical to the phase 0 baseline.

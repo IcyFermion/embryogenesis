@@ -287,17 +287,25 @@ external backup as other runs.
 
 ## Source map and reproducibility
 
+Presentation (drawing, captions, notation, Table 1 formatting, wrapper
+assembly) now lives in [`publication/`](../publication/README.md); the modules
+below keep analysis, cache loaders, CLIs and release mechanics and delegate
+drawing to it. `python -m publication build --family terminal-primary` (or
+`terminal-cross-species`) renders from these caches into a separate directory.
+Displayed symbols come from `publication/notation.py`; the cache field
+`d_NP` is now displayed as `d_CP` (null mean `C`).
+
 | Files | Role |
 |---|---|
-| `publication_build.py`, `publication_release.py`, `publication_wrappers.py` | Build, validated pooled/additive cross-species promotion and wrapper templates |
+| `publication_build.py`, `publication_release.py`, `publication_wrappers.py` | Build orchestration, validated pooled/additive cross-species promotion; wrapper captions delegate to `publication/captions/terminal.py` |
 | `analysis_context.py`, `global_analysis.py`, `front_coordinates.py` | Profiles, identity-checked caches, display transforms |
-| `cross_species_analysis.py`, `fig_terminal_cross_species.py`, `test_cross_species_terminal.py` | Pooled molecular/species comparison, Figure 2 style rendering, scientific checks |
-| `cross_species_publication.py`, `test_cross_species_publication.py` | Figures 8/9 caption templates, one-page compilation, numbering and archive checks |
-| `fig1_endpoint_amendment.py`, `fig2_fig3_*.py`, `fig4_*.py`, `fig5_*.py`, `fig6*.py`, `figS3_cross_geometry.py` | Current figure renderers |
-| `data_loader.py`, `pareto_engine.py`, `lineage_metrics.py`, `subtree_analysis.py`, `subtree_explore.py`, `plot_style.py` | Shared analysis/rendering support |
+| `cross_species_analysis.py`, `fig_terminal_cross_species.py`, `test_cross_species_terminal.py` | Pooled molecular/species comparison, `--render-only` entrypoint (drawing in `publication/figures/cross_species.py`), scientific checks |
+| `cross_species_publication.py`, `test_cross_species_publication.py` | Figures 8/9 numbered assembly and archive checks (captions in `publication/captions/cross_species.py`) |
+| `fig1_endpoint_amendment.py`, `fig2_fig3_*.py`, `fig4_*.py`, `fig5_*.py`, `fig6*.py`, `figS3_cross_geometry.py` | Figure CLIs, loaders and analyses; drawing delegates to `publication/figures/terminal_*.py`. `figS3_cross_geometry.py` and `fig5_table1_*` stay byte-identical (source hashes are pinned by validators) |
+| `data_loader.py`, `pareto_engine.py`, `lineage_metrics.py`, `subtree_analysis.py`, `subtree_explore.py` | Shared analysis support; `plot_style.py` re-exports `publication/style.py` |
 | `tracking_geometry_sensitivity.py`, `figS3_ce_tracking_robustness.py` | Saved tracking sweeps and historical tracking audit support |
 | `main.py` | Historical exploratory CLI, not the primary publication coordinator |
-| `assets/fig3A_ce_null_models.tex` | Versioned common null schematic; no dependency on retired figure outputs |
+| `../publication/assets/fig3A_ce_null_models.tex` | Versioned common null schematic (moved from `assets/` on 2026-10-03) |
 | `validate_pooled_migration.py`, `test_analysis_context.py`, `test_publication_release.py` | Scientific, cache, and promotion checks |
 | `legacy/development_sources_20260923.tar.gz` and `.json` | Exact pre-consolidation sources/docs, hashes, original paths |
 

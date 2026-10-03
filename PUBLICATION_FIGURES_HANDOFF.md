@@ -1,6 +1,12 @@
 # Publication-figure handoff
 
-Updated 2026-10-02.
+Updated 2026-10-03.
+
+All active figures, captions and Table 1 are now built by the shared
+presentation package; see [publication/README.md](publication/README.md) for
+families, commands, the notation-change recipe and release boundaries.
+The first-cousin-null-mean distance is displayed as `d_CP` (null mean `C`)
+from 2026-10-03; production assets still show `d_NP` until the next release.
 
 ## Terminal figures: pooled release promoted
 
