@@ -3,6 +3,7 @@
 ``terminal_pareto/plot_style.py`` re-exports these names for older callers.
 """
 
+from contextlib import contextmanager
 from pathlib import Path
 
 import matplotlib as mpl
@@ -119,3 +120,16 @@ def color_ramp(base_color, n, lightness=(0.72, 0.05)):
 EDGE_RETENTION_CMAP = mcolors.LinearSegmentedColormap.from_list(
     "edge_retention_blue", ["#17365D", "#0072B2", "#72C7EC"]
 )
+
+
+@contextmanager
+def matplotlib_defaults(**overrides):
+    """Render with Matplotlib's built-in defaults plus ``overrides``.
+
+    Published Figure 2 and Figure S3 were drawn without :func:`configure`;
+    this reproduces them exactly until the author decides whether to restyle.
+    """
+    with mpl.rc_context():
+        mpl.rcdefaults()
+        mpl.rcParams.update(overrides)
+        yield

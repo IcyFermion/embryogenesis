@@ -79,3 +79,34 @@ class FrontComparisonInput:
 
     def cloud(self, geometry: str, config: str):
         return self.clouds[(self.clouds.geometry == geometry) & (self.clouds.config == config)]
+
+
+@dataclass(frozen=True)
+class TerminalPrimaryInput:
+    """Validated inputs for the primary 275-edge terminal figures (1-6, S1-S3) and Table 1.
+
+    Each field is the cached result the corresponding layout consumes; the
+    adapter has already run the back end's validators and prepared display
+    coordinates (endpoint transforms) without recomputing any analysis.
+    """
+
+    run: Path
+    analysis_id: str  # pooled analysis-context cache key
+    edges: int
+    subtrees: int
+    min_cells: int
+    global_twr: dict  # cached global front record (Figures 2-3)
+    global_nulls: dict  # null-SD clouds keyed 1/2/3/"full"
+    global_display: dict  # endpoint display coordinates for the global front
+    canonical: pd.DataFrame  # validated canonical metrics (all endpoint-valid rows; Table 1)
+    canonical_display: pd.DataFrame  # rows drawn in Figures 5/S1 (monotone front parameterization)
+    subtree_summary: pd.DataFrame
+    subtree_nodes: dict  # Figure 4 display nodes with validated attributes
+    subtree_edges: list
+    cell_type_retention: pd.DataFrame  # n<=4 groups merged (Figure 6A)
+    cell_type_keypoints: pd.DataFrame  # n<=4 groups merged (Figure S2)
+    within_type: dict  # fronts, summary, aggregate, endpoints (Figure 6B-C)
+    s3_projections: pd.DataFrame
+    s3_references: dict
+    validation: dict = field(default_factory=dict)
+    input_files: dict = field(default_factory=dict)

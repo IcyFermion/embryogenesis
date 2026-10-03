@@ -39,10 +39,10 @@ def stale_files(hashes: dict[str, str], base: Path = ROOT) -> list[str]:
 
 
 def presentation_sources() -> dict[str, str]:
-    """Every non-test publication source; any change invalidates rendered assets."""
-    return {str(path.relative_to(ROOT)): sha256(path)
-            for path in sorted(PACKAGE.rglob("*.py"))
-            if "tests" not in path.relative_to(PACKAGE).parts and "output" not in path.relative_to(PACKAGE).parts}
+    """Every non-test publication source and asset; any change invalidates rendered assets."""
+    files = [*PACKAGE.rglob("*.py"), *(PACKAGE / "assets").rglob("*")]
+    return {str(path.relative_to(ROOT)): sha256(path) for path in sorted(files)
+            if path.is_file() and not {"tests", "output", "__pycache__"} & set(path.relative_to(PACKAGE).parts)}
 
 
 def presentation_id(sources: dict[str, str], notation_snapshot: dict) -> str:

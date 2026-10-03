@@ -25,12 +25,10 @@ TEX_WARNINGS = re.compile(r"Overfull|Underfull|LaTeX Warning|Missing character|u
 
 
 def numbering(number: str) -> str:
-    """Make a standalone wrapper print its manuscript label ("1 amendment", "S3", "9")."""
-    if number == "1":
-        return r"\renewcommand{\thefigure}{1 amendment}" + "\n"
-    if number.startswith("S"):
-        return rf"\renewcommand{{\thefigure}}{{{number}}}" + "\n"
-    return rf"\setcounter{{figure}}{{{int(number) - 1}}}" + "\n"
+    """Make a standalone wrapper print its manuscript label ("9", "S3", "1 amendment")."""
+    if number.isdigit():
+        return rf"\setcounter{{figure}}{{{int(number) - 1}}}" + "\n"
+    return rf"\renewcommand{{\thefigure}}{{{number}}}" + "\n"
 
 
 def write_figure_wrapper(out: Path, stem: str, *, number: str, graphic: str, caption: str, label: str,
@@ -39,9 +37,7 @@ def write_figure_wrapper(out: Path, stem: str, *, number: str, graphic: str, cap
             f"\\includegraphics[width={width}]{{{graphic}}}\n"
             f"\\caption{{{caption}}}\n"
             f"\\label{{{label}}}\n\\end{{figure}}")
-    path = Path(out) / f"{stem}.tex"
-    path.write_text(PREAMBLE + numbering(number) + body.strip() + "\n\\end{document}\n")
-    return path
+    return write_wrapper(out, stem, number=number, body=body)
 
 
 def compile_wrapper(wrapper: Path, *, label: str, pages: int = 1) -> dict:
@@ -71,3 +67,10 @@ def compile_wrapper(wrapper: Path, *, label: str, pages: int = 1) -> dict:
     if warnings:
         raise ValueError(f"{wrapper.stem}: TeX warnings: {warnings}")
     return dict(pages=found, label=f"Figure {label}", warnings=warnings)
+
+
+def write_wrapper(out: Path, stem: str, *, number: str, body: str) -> Path:
+    """Standalone wrapper around a complete ``figure`` environment."""
+    path = Path(out) / f"{stem}.tex"
+    path.write_text(PREAMBLE + numbering(number) + body.strip() + "\n\\end{document}\n")
+    return path

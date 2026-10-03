@@ -7,11 +7,9 @@ Uses the published numerical runs read-only. Run from the repository root:
 
 from __future__ import annotations
 
-from contextlib import ExitStack, contextmanager
 import json
 from pathlib import Path
 import shutil
-import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -21,37 +19,18 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import scipy.optimize
 
 from publication import assembly, notation, provenance, registry, style
 from publication.adapters import full_tree as full_tree_adapter, terminal as terminal_adapter
 from publication.canonical_panels import canonical_records
 from publication.captions import cross_species as captions
 from publication.figures.cross_species import compose_overlay
+from publication.tests.support import no_experiments
 
 HAS_TEX = shutil.which("tectonic") is not None or shutil.which("pdflatex") is not None
-FAMILY_TITLES = {family.key: next(spec for spec in family.figures if spec.stem.endswith("_overlays"))
-                 for family in registry.FAMILIES.values()}
-
-
-@contextmanager
-def no_experiments():
-    """Make any solver or null/reference generation call fail loudly."""
-    def forbidden(*args, **kwargs):
-        raise AssertionError("Presentation build reached scientific computation")
-
-    from full_tree_pareto import cousin_references, cross_species_analysis as fcs
-    from terminal_pareto import cross_species_analysis as tcs
-    targets = [(tcs, "analyze"), (tcs, "write_analysis"), (tcs, "endpoint_assignment"),
-               (fcs, "build"), (fcs, "solve_sweep"), (fcs, "random_rebuilds"),
-               (cousin_references, "sample_permutations"), (cousin_references, "build"),
-               (scipy.optimize, "linear_sum_assignment"), (np.random, "default_rng")]
-    targets += [(module, "linear_sum_assignment") for module in list(sys.modules.values())
-                if getattr(module, "linear_sum_assignment", None) is scipy.optimize.linear_sum_assignment]
-    with ExitStack() as stack:
-        for module, name in targets:
-            stack.enter_context(mock.patch.object(module, name, forbidden))
-        yield
+CROSS_SPECIES = ("terminal-cross-species", "full-tree-cross-species")
+FAMILY_TITLES = {key: next(spec for spec in registry.FAMILIES[key].figures if spec.stem.endswith("_overlays"))
+                 for key in CROSS_SPECIES}
 
 
 class CrossSpeciesSlice(unittest.TestCase):
@@ -148,7 +127,7 @@ class CacheOnlyBuild(unittest.TestCase):
         cls.tmp = Path(tempfile.mkdtemp(prefix="publication-test-"))
         cls.records = {}
         with no_experiments():
-            for family in registry.FAMILIES:
+            for family in CROSS_SPECIES:
                 cls.records[family] = registry.build(family, cls.tmp / family)
 
     @classmethod
@@ -222,7 +201,7 @@ class LegacyParity(unittest.TestCase):
         from terminal_pareto import publication_wrappers as legacy
         self.assertEqual(assembly.PREAMBLE, legacy.PREAMBLE)
         with tempfile.TemporaryDirectory() as tmp:
-            for stem, number in (("fig1_x", "1"), ("figS3_x", "S3"), ("fig11_x", "11")):
+            for stem, number in (("fig1_x", "1 amendment"), ("figS3_x", "S3"), ("fig11_x", "11")):
                 legacy_text = legacy._write(Path(tmp), stem, "BODY").read_text()
                 self.assertIn(assembly.numbering(number), legacy_text)
 
