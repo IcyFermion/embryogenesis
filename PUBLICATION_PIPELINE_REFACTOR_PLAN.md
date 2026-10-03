@@ -342,3 +342,51 @@ Suggested task prompt:
 > Build isolated candidates; do not publish, promote pooled Figure 7, change
 > scientific definitions, or edit the manuscript. Report the completed phases,
 > tests, visual checks and any explicitly retained compatibility boundaries.
+
+## Progress record
+
+Branch `publication-refactor` (from `6b464be`). Author decisions on 2026-10-02:
+midpoint review after phases 0–1; candidates under
+`publication/output/candidates/` (ignored by the existing `output/` rule; ignore
+policy to be revisited); visual equivalence at a glance suffices, not pixel
+identity; long checks may run locally with timings recorded; display the
+first-cousin-null-mean distance as `d_CP` instead of `d_NP`.
+
+### Phase 0 — done (2026-10-02)
+
+`publication/output/baseline_20261002/`: HEAD/status, SHA-256 of all 1,822
+back-end output files and tracked back-end source, a 562 MB tar of both
+`output/` trees, and timed logs from `run_baseline.sh` (about 3 min total):
+
+| Check | Result | Time |
+|---|---|---|
+| `terminal_pareto/publication_release.py --verify` | 66 files verified | <1 s |
+| `full_tree_pareto.cross_species_publication --verify-production` | pass | 3 s |
+| terminal release/cross-species unittests | 20/20 | <1 s |
+| `full_tree_pareto` unittest discover | 55/55 | 26 s |
+| terminal / partial-forest `cross_species_analysis --verify-only` | 13,828 / 9,012 assignments replayed | <1 s / 3 s |
+| `terminal_pareto/test_analysis_context.py` | 13/13 | 87 s |
+| `terminal_pareto/validate_pooled_migration.py` | 29/29 | 49 s |
+| `full_tree_pareto.publication_build --verify` | **pre-existing failure**: production has no `release_manifest.json` (pooled Figure 7 never promoted) | — |
+
+No verifier changed any output file (hash diff empty).
+
+### Phase 1 — done, awaiting midpoint review
+
+- `publication/` created (see its README): notation registry, style,
+  contract, adapters, shared artists/canonical panels, Figure 9/11 layout and
+  captions, assembly, provenance and a cache-only CLI.
+- Parity: with the old `d_NP`/`N` notation, Figures 9 and 11 rebuild with
+  byte-identical TeX and pixel-identical panel PNGs and compiled pages
+  (`candidates/phase1_parity_20261002/`).
+- Candidates with `d_CP`/`C`: `candidates/phase1_20261002/{terminal,full-tree}-cross-species/`;
+  one page each, no TeX warnings, visually checked.
+- 13 new tests: scope, replayed canonical values (all 18 per family), artist
+  points and connector endpoints, notation override propagation to both
+  families' artists and captions, numerical hashes unchanged, solver/null calls
+  blocked, integrity vs readiness, destination guards, legacy parity.
+- After the phase: tracked back-end source and all 1,822 output files
+  unchanged; both production verifiers and the 20 + 55 legacy tests pass.
+- Retained compatibility island: legacy presentation modules are copied, not
+  delegated, because the full-tree production verifier re-hashes live
+  presentation source (see `publication/README.md`). Resolve in phase 3.
