@@ -6,7 +6,6 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial.distance import cdist
 
@@ -14,7 +13,6 @@ from full_tree_pareto import cross_species_analysis as ca
 from full_tree_pareto import cousin_references as cr
 from full_tree_pareto import fig_cross_species as figmod
 from full_tree_pareto import cross_species_publication as pub
-from terminal_pareto.test_cross_species_publication import figure_fixture
 
 
 def fixture():
@@ -165,48 +163,8 @@ class PresentationTests(unittest.TestCase):
                 self.assertIn("traditional embryo-tracking", content)
                 self.assertNotIn("axial scale unverified", content)
             self.assertIn("No missing state is imputed", wrappers[0].read_text())
-            self.assertIn(r"d_{NP}", wrappers[1].read_text())
+            self.assertIn(r"d_{CP}", wrappers[1].read_text())
             self.assertIn("Figure~10", wrappers[1].read_text())
-
-    def test_comparison_has_six_panels_no_metric_connectors(self):
-        fronts, metrics, clouds = figure_fixture()
-        clouds.loc[clouds.family == "full_random", "family"] = "random_rebuild"
-        captured = []
-        with patch.object(figmod, "save", side_effect=lambda fig, *_: captured.append(fig)):
-            limits = figmod.comparison(fronts, metrics, clouds, Path("unused"), dict(edges=454))
-        try:
-            self.assertEqual(len(captured[0].axes), 7)
-            self.assertEqual(len(limits["random_rebuild_insets"]), 6)
-            for i, ax in enumerate(captured[0].axes[:6]):
-                self.assertEqual(len(ax.lines), 3)
-                self.assertEqual(len(ax.child_axes), 1)
-                self.assertEqual(ax.child_axes[0].get_title(), "Random rebuild")
-                self.assertEqual(ax.get_title(), figmod.LABELS[ca.PRIMARY[i % 3]])
-                label = next(text for text in ax.texts if (text.get_gid() or "").startswith("comparison_geometry:"))
-                self.assertEqual(label.get_text(), "3D tracking" if i < 3 else "2D (XY) tracking")
-                self.assertEqual(label.get_fontweight(), "bold")
-                self.assertNotIn("embryo", ax.get_title())
-        finally:
-            plt.close(captured[0])
-
-    def test_overlay_has_canonical_metrics_and_closest_connectors(self):
-        fronts, metrics, _ = figure_fixture()
-        captured = []
-        with patch.object(figmod, "save", side_effect=lambda fig, *_: captured.append(fig)):
-            figmod.overlay(fronts, metrics, Path("unused"), dict(edges=454))
-        try:
-            self.assertEqual(len(captured[0].axes), 5)
-            for ax in captured[0].axes[:2]:
-                for region in (ax, ax.child_axes[0]):
-                    connections = [line for line in region.lines if (line.get_gid() or "").startswith("natural_to_closest:")]
-                    self.assertEqual(len(connections), 3)
-                    for line in connections:
-                        np.testing.assert_allclose(line.get_xdata(), [.32, .3])
-            for ax, field in zip(captured[0].axes[2:], ("u_L", "d_LP", "d_NP")):
-                points = next(c for c in ax.collections if c.get_gid() == f"canonical:{field}")
-                self.assertEqual(len(points.get_offsets()), 6)
-        finally:
-            plt.close(captured[0])
 
     def test_layout_archive_is_hash_checked_and_recoverable(self):
         with tempfile.TemporaryDirectory() as folder:

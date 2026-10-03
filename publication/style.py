@@ -1,11 +1,7 @@
 """Shared publication style: palette, typography and export conventions.
 
-Extracted from ``terminal_pareto/plot_style.py``. That module is hash-pinned by
-published presentation manifests, so it stays byte-identical until release
-verification separates artifact integrity from live-source readiness; a
-parity test keeps the two in agreement meanwhile.
+``terminal_pareto/plot_style.py`` re-exports these names for older callers.
 """
-
 
 from pathlib import Path
 
@@ -117,3 +113,9 @@ def color_ramp(base_color, n, lightness=(0.72, 0.05)):
     base = np.asarray(mcolors.to_rgb(base_color))
     mixes = np.linspace(lightness[0], lightness[1], n)
     return [mcolors.to_hex(base * (1 - mix) + np.ones(3) * mix) for mix in mixes]
+
+
+# Sequential biological-parent edge-retention scale shared by front scatters.
+EDGE_RETENTION_CMAP = mcolors.LinearSegmentedColormap.from_list(
+    "edge_retention_blue", ["#17365D", "#0072B2", "#72C7EC"]
+)

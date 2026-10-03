@@ -30,7 +30,8 @@ from publication.captions import cross_species as captions
 from publication.figures.cross_species import compose_overlay
 
 HAS_TEX = shutil.which("tectonic") is not None or shutil.which("pdflatex") is not None
-FAMILY_TITLES = {spec_family.key: spec_family.figures[0] for spec_family in registry.FAMILIES.values()}
+FAMILY_TITLES = {family.key: next(spec for spec in family.figures if spec.stem.endswith("_overlays"))
+                 for family in registry.FAMILIES.values()}
 
 
 @contextmanager
@@ -156,11 +157,12 @@ class CacheOnlyBuild(unittest.TestCase):
 
     def test_build_inventory_and_verification(self):
         for family, record in self.records.items():
-            spec = registry.FAMILIES[family].figures[0]
-            self.assertEqual(set(record["files"]), set(spec.files))
+            specs = registry.FAMILIES[family].figures
+            self.assertEqual(set(record["files"]), {name for spec in specs for name in spec.files})
             status = provenance.verify_build(self.tmp / family)
             self.assertTrue(status["integrity"] and status["ready"])
-            self.assertIn(rf"\label{{{spec.tex_label}}}", (self.tmp / family / f"{spec.stem}.tex").read_text())
+            for spec in specs:
+                self.assertIn(rf"\label{{{spec.tex_label}}}", (self.tmp / family / f"{spec.stem}.tex").read_text())
 
     def test_changed_presentation_source_is_stale_not_blessed(self):
         family = "terminal-cross-species"

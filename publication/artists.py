@@ -7,6 +7,7 @@ back end nor any figure-specific script.
 from __future__ import annotations
 
 from matplotlib.lines import Line2D
+import numpy as np
 
 from publication import notation as nt
 from publication import style
@@ -22,6 +23,30 @@ def base_axes(ax):
     ax.axvline(0, color="#777777", lw=.7, ls=":", zorder=0)
     ax.grid(True, alpha=.32)
     ax.spines[["top", "right"]].set_visible(True)
+
+
+def proportional_limits(values, pad_fraction=0.12):
+    """Return finite data limits with padding proportional to their range."""
+    values = np.asarray(values, dtype=float)
+    finite = values[np.isfinite(values)]
+    if finite.size == 0:
+        raise ValueError("Cannot determine limits from non-finite data")
+    lo = float(finite.min())
+    hi = float(finite.max())
+    span = hi - lo
+    if span <= np.finfo(float).eps * max(abs(lo), abs(hi), 1.0):
+        span = max(abs(lo), abs(hi), 1.0)
+    pad = float(pad_fraction) * span
+    return lo - pad, hi + pad
+
+
+def comparison_heading(ax, config, geometry, panel):
+    """Configuration title first, then a bold tracking-geometry second line."""
+    ax.set_title(nt.CONFIG_LABELS[config], fontsize=11, pad=25)
+    subtitle = ax.text(.5, 1.025, f"{nt.GEOMETRY_LABELS[geometry]} tracking", transform=ax.transAxes,
+                       fontsize=11, fontweight="bold", color=style.COLORS["black"], ha="center", va="bottom")
+    subtitle.set_gid(f"comparison_geometry:{geometry}")
+    ax.text(-.025, 1.025, panel, transform=ax.transAxes, fontsize=10, fontweight="bold", ha="left", va="bottom")
 
 
 def overlay_handles(data):

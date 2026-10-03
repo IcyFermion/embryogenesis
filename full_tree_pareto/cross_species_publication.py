@@ -6,13 +6,12 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 import shutil
-import subprocess
 import tempfile
 
 from full_tree_pareto.cross_species_analysis import DEFAULT_RUN, ROOT, digest, run_path, validate_run, check_hashes
 from full_tree_pareto.fig_cross_species import COMPARISON, OVERLAY, archive_previous
-from terminal_pareto.fig_terminal_cross_species import TRACKING_CAVEAT, TRACKING_CAPTION_STATUS
-from terminal_pareto.publication_wrappers import _write
+from publication import assembly, provenance
+from publication.captions import cross_species as cs_captions
 from publication.provenance import stale_files
 
 FIGURES = {
@@ -38,100 +37,22 @@ def inventory(directory):
 
 
 def captions(record):
-    n, nodes, terminals, roots = (record[key] for key in ("edges", "cohort_size", "terminal_count", "roots"))
-    rounds = ", ".join(map(str, record["round_edges"]))
-    weights, draws = record["settings"]["intervals"]+1, record["settings"]["draws"]
-    caveat = TRACKING_CAVEAT.replace("C. briggsae", r"\emph{C.\@ briggsae}")
-    return {
-        COMPARISON: rf"""\textbf{{Layerwise trade-offs on a matched terminal-anchored partial forest.}}
-Columns show \emph{{C.\@ elegans}} protein, \emph{{C.\@ elegans}} RNA and
-\emph{{C.\@ briggsae}} AF16 RNA; \textbf{{(A--C)}} use 3D tracking and
-\textbf{{(D--F)}} use XY, recomputing distances, nulls and assignments after omitting z.
-Starting at the same {terminals} matched biological terminal edges as Figures~8--9,
-each branch ascends through observed canonical ancestors and stops at its first
-measurement gap. The resulting {nodes} measured cells and {n} edges form a
-partial forest with {roots} fixed boundary roots, not a complete embryonic tree.
-No missing state is imputed and no ancestor is skipped. Six asynchronous
-contraction rounds ({rounds} edges) preserve observed parent-slot multiplicities,
-including one-child boundaries. Exact linear assignments at {weights} shared
-weights use global analytic first-cousin-null SD scaling; aggregate costs sum
-all rounds. This optimizes a product of round-wise assignment spaces, not
-unrestricted tree reconstruction. Travel averages pairwise displacements from
-three CE embryos (cutoffs 255/247/225) or two AF16 embryos (148/156), each divided
-by its fixed natural total on these {n} edges. Coordinates are not averaged.
-Cell-state distance is Euclidean across 20 z-scored protein reporters or the
-shared 20 RNA TFs on stored values, unlike terminal cosine distance.
-Each panel maps its own travel optimum to \((0,1)\) and state optimum to \((1,0)\);
-lineage and nulls share those anchors, with common main-axis limits.
-Blue indicates biological-parent retention; black crosses mark natural lineage
-and outlined circles sampled maximum retention. Cousin shuffles permute only
-the {terminals} terminal identities within canonical ancestor groups two, three
-or four transitions back, keeping internal states fixed and scoring all {n}
-edges. Random rebuild fixes roots and observed capacities and appears in insets
-with the same transform but separate limits. Dots show 1,000 of {draws:,} draws;
-plus signs show the analytic first-cousin mean or full-draw means for other
-references. These descriptive comparisons are not calibrated significance
-tests or absolute-cost species rankings. {caveat} {TRACKING_CAPTION_STATUS}""",
-        OVERLAY: rf"""\textbf{{Partial-forest front overlays and canonical metrics.}}
-The same {n}-edge, {nodes}-cell terminal-anchored cohort, pooled travel and
-layerwise assignment spaces are used as in Figure~10.
-\textbf{{(A)}} 3D tracking. \textbf{{(B)}} XY tracking. Blue solid lines show
-\emph{{C.\@ elegans}} protein, orange dashed lines \emph{{C.\@ elegans}} RNA,
-and green dash-dotted lines \emph{{C.\@ briggsae}} AF16 RNA. Crosses mark natural
-lineage and outlined circles sampled maximum biological-parent retention.
-Hollow diamonds mark the closest attained assignment \(P^*\), and dashed
-connectors join natural lineage to \(P^*\), not maximum retention. Insets
-enlarge the natural-lineage region without changing coordinates. Both panels
-share main-axis and zoom limits; each configuration retains its own aggregate
-layerwise endpoint spans. \textbf{{(C)}} Named rows group configurations under
-3D and XY, using separate metric columns as in Figures~5B and 9C.
-Gray shows position \(u\), purple distance \(d_{{LP}}\) from natural lineage
-\(L\) to \(P^*\), and gold distance \(d_{{NP}}\) from the analytic partial-forest
-first-cousin-null mean \(N\) to the same \(P^*\).
-\(P^*\) minimizes Euclidean distance to \(L\) among sampled attained
-assignments in endpoint coordinates; \(u\) is front arc length from the travel
-optimum to \(P^*\), divided by total arc length. Metric scales are shared
-across all six rows within each column. Curves connect {weights} attained
-weighted solutions, not the complete discrete Pareto set; connecting segments
-need not be attainable. Separate {record['settings']['dense_intervals']+1:,}-weight
-checks are retained in the numerical cache. These panels compare relative
-trade-off shapes and lineage proximity, not absolute travel or molecular costs.
-Coverage determines the partial-tree boundary; developmental alignment and
-RNA measurement provenance remain unresolved. Protein/RNA differences are not
-a controlled modality effect, and tracking replicates share molecular matrices.
-{caveat} {TRACKING_CAPTION_STATUS}""",
-    }
+    meta = dict(edges=record["edges"], nodes=record["cohort_size"], terminals=record["terminal_count"],
+                roots=record["roots"], round_edges=record["round_edges"], weights=record["settings"]["intervals"] + 1,
+                dense_weights=record["settings"]["dense_intervals"] + 1, draws=record["settings"]["draws"])
+    return {COMPARISON: cs_captions.full_tree_comparison(meta), OVERLAY: cs_captions.full_tree_overlay(meta)}
 
 
 def write_wrappers(out, record):
-    result = []
-    for stem, (number, source) in FIGURES.items():
-        body = ("\\begin{figure}[p]\n\\centering\n"
-                + rf"\includegraphics[width=\textwidth]{{{stem}_panel.pdf}}" + "\n"
-                + rf"\caption{{{captions(record)[source]}}}" + "\n"
-                + rf"\label{{fig:full_tree_cross_species_{number}}}" + "\n\\end{figure}\n")
-        result.append(_write(Path(out), stem, body))
-    return result
+    text = captions(record)
+    return [assembly.write_figure_wrapper(Path(out), stem, number=str(number), graphic=f"{stem}_panel.pdf",
+                                          caption=text[source], label=f"fig:full_tree_cross_species_{number}")
+            for stem, (number, source) in FIGURES.items()]
 
 
 def compile_wrappers(wrappers):
-    compiler = shutil.which("tectonic") or shutil.which("pdflatex")
-    if compiler is None:
-        raise RuntimeError("Activate dev: tectonic or pdflatex is required")
     for wrapper in wrappers:
-        args = ([compiler, "--keep-logs", wrapper.name] if Path(compiler).name == "tectonic" else
-                [compiler, "-interaction=nonstopmode", "-halt-on-error", wrapper.name])
-        result = subprocess.run(args, cwd=wrapper.parent, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        wrapper.with_suffix(".build.log").write_text(result.stdout)
-        if result.returncode:
-            raise RuntimeError(f"Failed compilation: {wrapper}")
-        info = subprocess.check_output(["pdfinfo", str(wrapper.with_suffix(".pdf"))], text=True)
-        pages = int(next(line.split(":")[1] for line in info.splitlines() if line.startswith("Pages:")))
-        if pages != 1:
-            raise ValueError(f"Figure must fit one page: {wrapper.stem} has {pages}")
-        text = subprocess.check_output(["pdftotext", str(wrapper.with_suffix(".pdf")), "-"], text=True)
-        if f"Figure {FIGURES[wrapper.stem][0]}:" not in text:
-            raise ValueError("Missing numbered figure label")
+        assembly.compile_wrapper(wrapper, label=str(FIGURES[wrapper.stem][0]))
 
 
 def verify(run, *, publication=None, current_source=False):
@@ -189,8 +110,7 @@ def build(run):
             previous_layout=str(previous.relative_to(run)) if previous else None,
             rendered_manifest_hash=digest(panels / "figure_manifest.json"),
             sources={str(p.relative_to(ROOT)): digest(p) for p in (
-                Path(__file__), ROOT / "terminal_pareto/publication_wrappers.py",
-                ROOT / "terminal_pareto/fig_terminal_cross_species.py", ROOT / "full_tree_pareto/fig_cross_species.py")},
+                Path(__file__), ROOT / "full_tree_pareto/fig_cross_species.py")} | provenance.presentation_sources(),
             analysis_files={p.name: digest(p) for p in (run / "analysis").iterdir() if p.is_file()},
             files={name: digest(stage / name) for name in sorted(publication_files())})
         (stage / "publication_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
