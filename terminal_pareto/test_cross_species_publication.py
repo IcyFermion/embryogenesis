@@ -91,8 +91,13 @@ class PublicationTests(unittest.TestCase):
             comparison(fronts, metrics, clouds, None, Path("unused"), 187)
         try:
             self.assertEqual(len(captured[0].axes), 7)  # Six panels and the color bar.
-            for ax in captured[0].axes[:6]:
+            for i, ax in enumerate(captured[0].axes[:6]):
                 self.assertEqual(len(ax.lines), 3)  # Two zero guides and the front only.
+                self.assertEqual(ax.get_title(), ("C. elegans protein", "C. elegans RNA", "C. briggsae RNA")[i % 3])
+                label = next(text for text in ax.texts if (text.get_gid() or "").startswith("comparison_geometry:"))
+                self.assertEqual(label.get_text(), "3D tracking" if i < 3 else "2D (XY) tracking")
+                self.assertEqual(label.get_fontweight(), "bold")
+                self.assertNotIn("embryo", ax.get_title())
         finally:
             plt.close(captured[0])
 

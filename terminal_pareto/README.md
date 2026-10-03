@@ -1,11 +1,12 @@
 # Terminal-cell Pareto analysis
 
-**Current release, 2026-09-23:** C. elegans protein analysis using pooled travel
+**Current release, extended 2026-10-01:** C. elegans protein analysis using pooled travel
 from three embryos and endpoint-normalized Pareto displays. This replaces the
 single-embryo publication set. [HANDOFF.md](HANDOFF.md) records current status,
 validation, remaining manuscript work, and the short development history.
 These are the module's two maintained Markdown documents. The resumed
-cross-species terminal comparison is described below and uses its own run.
+cross-species terminal comparison is described below and uses its own run;
+Figures 8 and 9 are now published alongside the preceding figures.
 
 ## Start here
 
@@ -45,6 +46,8 @@ A build writes into its run directory. Publication is explicit via `--publish`
 or `publication_release.py`; it validates first, checks compiled one-page
 wrappers, stages a copy, preserves the previous publication, and writes the
 release manifest. Editing working figures does not silently change the release.
+Pooled-layout promotion retains the published cross-species Figures 8/9 and
+their separate cohort/provenance section rather than dropping them.
 Generated PDFs, arrays, and local output archives are Git-ignored and need the
 project's external backup. Versioned wrapper templates and source archives do
 not replace those data backups.
@@ -181,9 +184,17 @@ scale across all six rows. Each configuration retains its own endpoint anchors.
 Working comparison:
 `output/runs/cross_species_terminal_v1/pooled_comparison_20260930/`.
 The author assigned the six-panel comparison to **Figure 8** and the paired
-front overlays plus canonical-metric rows to **Figure 9**. Captioned standalone pages are in this run's
-`publication/`; their sources and the September pilot checkpoint remain
-independent of the existing 275-edge publication release.
+front overlays plus canonical-metric rows to **Figure 9**. On 2026-10-01 their
+captioned PDFs, editable TeX and panel PDF/PNG files were added to
+`output/publication/`. The source assembly remains in the run's `publication/`
+for reproducibility; its numerical scope is separate from the primary
+275-edge analysis and from the September pilot checkpoint.
+
+Comparison headings were revised on 2026-10-01: each panel shows its
+species/molecular configuration above a bold `3D tracking` or `2D (XY) tracking`
+label, with no embryo count in the title. This matches the partial-forest
+comparison; replicate counts remain in captions. The numerical cache is
+unchanged and preceding layouts are hash-archived.
 
 - CE uses the published three-embryo pooled matrix restricted from 275 to
   187 edges, retaining the original 275-edge normalization totals. Protein
@@ -222,7 +233,7 @@ Individual row exports (`terminal_cross_species_existing_3d` and
 primary figures above supply Figures 8 and 9. The captioned build reuses the
 same numerical checkpoint and changes no metrics.
 
-| Figure | Wrapper stem under the run's `publication/` |
+| Figure | Wrapper stem under `output/publication/` (also retained in the run) |
 |---|---|
 | Figure 8: six-panel 3D/XY comparison | `fig8_terminal_cross_species_comparison` |
 | Figure 9: paired overlays and canonical metrics | `fig9_terminal_cross_species_overlays` |
@@ -232,7 +243,16 @@ as the earlier terminal publication figures. Panel PDF/PNG files accompany
 them. `publication_manifest.json` records figure numbering, rendered-source
 identity, artifact hashes and unchanged analysis hashes. Rebuilding preserves
 the preceding assembled layout with verified hashes under `layout_history/`.
-This does not promote or replace `output/publication/` or edit the manuscript.
+Assembly alone does not publish or edit the manuscript. Explicit release uses
+`publication_release.py --cross-species`: it validates the numbered assembly,
+replays all 13,828 assignments and checks 20 source hashes, adds only the eight
+figure assets and `cross_species_publication_manifest.json`, then extends the
+existing `release_manifest.json` with a separate `cross_species` section and
+the nine comparison analysis hashes. The original 57 release assets and all
+numerical caches are unchanged. The resulting release verifies 66 assets.
+The complete preceding 58-file production folder, including its manifest,
+is recoverable with checked hashes under
+`output/legacy/releases/20261001T154243342749Z/publication/`.
 
 From the repository root in `dev`:
 
@@ -245,6 +265,10 @@ python terminal_pareto/cross_species_analysis.py --render-only
 
 # Assemble and compile captioned Figures 8 and 9 from verified panels.
 python terminal_pareto/cross_species_publication.py
+
+# Add the validated Figures 8/9 assembly to production without rebuilding.
+python terminal_pareto/publication_release.py --cross-species
+python terminal_pareto/publication_release.py --verify
 
 # Replay every assignment and check source/cache hashes without rendering.
 python terminal_pareto/cross_species_analysis.py --verify-only
@@ -265,7 +289,7 @@ external backup as other runs.
 
 | Files | Role |
 |---|---|
-| `publication_build.py`, `publication_release.py`, `publication_wrappers.py` | Build, validated promotion and wrapper templates |
+| `publication_build.py`, `publication_release.py`, `publication_wrappers.py` | Build, validated pooled/additive cross-species promotion and wrapper templates |
 | `analysis_context.py`, `global_analysis.py`, `front_coordinates.py` | Profiles, identity-checked caches, display transforms |
 | `cross_species_analysis.py`, `fig_terminal_cross_species.py`, `test_cross_species_terminal.py` | Pooled molecular/species comparison, Figure 2 style rendering, scientific checks |
 | `cross_species_publication.py`, `test_cross_species_publication.py` | Figures 8/9 caption templates, one-page compilation, numbering and archive checks |

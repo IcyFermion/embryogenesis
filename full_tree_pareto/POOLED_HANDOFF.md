@@ -1,9 +1,20 @@
 # Pooled full-tree figure rebuild
 
-Updated 2026-09-30. **Computation, rendering and visual review are complete.**
+Updated 2026-10-01. **Computation, rendering and visual review are complete.**
 The author approved the revised figures and requested a repository checkpoint
 on 2026-09-30. Publication promotion remains a separate, unperformed step.
 [README.md](README.md) holds the scientific specification and build commands.
+
+The subsequent cross-species layerwise comparison is a separate, completed
+**terminal-anchored partial-forest analysis**, documented in
+[CROSS_SPECIES_HANDOFF.md](CROSS_SPECIES_HANDOFF.md). It does not alter this
+978-node Figure 7 build or its caches. RNA coverage limits the new matched
+cohort to 485 cells/454 observed edges reached upward from 187 common terminal
+edges, without imputation or skipped ancestors. The author approved these as
+**Figures 10 and 11**, additively released to `output/publication/` on
+2026-10-01. The original Figure 7/supplement remain unchanged. Four obsolete
+full-tree Figure 8 files were retired and remain recoverable in the hashed
+archive `output/legacy/cross_species_releases/20261001T150611720032Z/`.
 
 ## Current status
 
@@ -19,7 +30,9 @@ on 2026-09-30. Publication promotion remains a separate, unperformed step.
     collective B.
   - `figs_ce_full_tree_heuristics.pdf`: provisional Figure S4, with five
     heuristics, all references and the constraint inventory.
-- `output/publication/` still holds the former single-embryo bundle. Its two
+- `output/publication/` retains the former single-embryo Figure 7/supplement,
+  now alongside Figures 10/11 and their manifests; obsolete full-tree Figure 8
+  assets are archived, not in production. The former bundle's two
   wrappers were untracked from Git on 2026-09-29, so promotion no longer
   produces tracked-file diffs.
 - All 38 `full_tree_pareto` tests pass (19 pooled/build/cousin, 19 historical),
@@ -30,7 +43,7 @@ on 2026-09-30. Publication promotion remains a separate, unperformed step.
 - The preceding Gaussian-main layout is preserved with hashes under
   `layout_history/20260930T033756463612Z/` (UTC stamp; local date September 29).
   A subsequent intermediate layout is also archived. Redraws now automatically
-  archive the preceding working layout; accepted `output/publication/` is untouched.
+  archive the preceding working layout; Figure 7 production assets are untouched.
 
 ## Next action
 
@@ -38,7 +51,12 @@ Open review finding: `resume_paired` still needs to create `run/analysis/`
 before assembling its final cache on a completely fresh run. The worker-default
 change does not fix this separate issue; the completed existing run is unaffected.
 
-When publication promotion is explicitly requested:
+When pooled Figure 7 publication promotion is explicitly requested, **first
+adapt/coordinate promotion to preserve production Figures 10/11 and refresh
+their preserved-file hashes**. The existing `publication_build --publish`
+replaces the entire directory and now refuses a production folder containing
+the Figures 10/11 release manifest. The historical command sequence below is
+deferred until that change:
 
 ```bash
 python -m full_tree_pareto.publication_build --layout-only --publish

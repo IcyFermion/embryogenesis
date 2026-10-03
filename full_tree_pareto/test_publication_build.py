@@ -126,6 +126,23 @@ class BuildTests(unittest.TestCase):
             self.assertFalse((output / "legacy").exists() and any((output / "legacy/releases").iterdir()))
             self.assertEqual([p for p in output.iterdir() if p.name.startswith(".pooled-stage-")], [])
 
+    def test_pooled_promotion_refuses_to_replace_cross_species_release(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            publication = root / "full_tree_pareto/output/publication"
+            publication.mkdir(parents=True)
+            manifest = publication / "cross_species_release_manifest.json"
+            manifest.write_text('{"release_promoted": true}\n')
+            figure = publication / "fig10_full_tree_cross_species_comparison.pdf"
+            figure.write_bytes(b"accepted comparison")
+            before = {p.name: p.read_bytes() for p in publication.iterdir()}
+            with mock.patch.object(pa, "ROOT", root), mock.patch.object(pa, "build") as build:
+                with self.assertRaisesRegex(ValueError, "Figures 10/11"):
+                    pb.promote(root / "unbuilt-run")
+                build.assert_not_called()
+            self.assertEqual({p.name: p.read_bytes() for p in publication.iterdir()}, before)
+            self.assertEqual(list(publication.parent.iterdir()), [publication])
+
 
 if __name__ == "__main__":
     unittest.main()

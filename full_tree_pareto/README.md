@@ -25,6 +25,8 @@ python -m full_tree_pareto.publication_build --workers 8
 python -m full_tree_pareto.publication_build --layout-only
 
 # Explicit promotion; preserve the former publication in a hashed archive.
+# Currently deferred: first coordinate preservation of production Figures 10/11
+# (this older Figure 7 promoter replaces the entire directory).
 python -m full_tree_pareto.publication_build --layout-only --publish
 
 python -m full_tree_pareto.publication_build --verify
@@ -229,10 +231,92 @@ analyses remain in [LEGACY_EMBRYO1.md](LEGACY_EMBRYO1.md),
 [LEAF_CONDITIONED_REFERENCE.md](LEAF_CONDITIONED_REFERENCE.md). Their numerical
 results apply to the old cohort and are not mixed with this build.
 
+## Cross-species partial-forest comparison
+
+The next comparison is isolated from Figure 7 under
+`output/runs/cross_species_layerwise_v1/terminal_anchored_20260930/`.
+It compares CE protein, CE RNA and CB AF16 RNA in 3D and XY, using only
+layerwise assignment. Both RNA tables lack the four early Figure 7 roots and
+several intervening ancestors. The author therefore approved a bottom-up
+partial-tree comparison rather than imputing states or skipping ancestors.
+See [CROSS_SPECIES_HANDOFF.md](CROSS_SPECIES_HANDOFF.md) for the cohort rule,
+execution checkpoint, figure scope and resumption commands.
+
+Starting from the same **187 matched biological terminal edges** as terminal
+Figures 8--9, each branch ascends until its first unavailable canonical
+ancestor. This retains **485 measured cells, 454 scored edges, 31 boundary
+roots and 187 leaves**. Contraction rounds contain **187, 119, 80, 48, 18, 2**
+edges. The 298 retained internal nodes include 142 with one represented child
+and 156 with two; the observed parent-slot capacities are preserved exactly.
+These are coverage boundaries, not a claim of biologically unary divisions.
+No isolated upper islands, synthetic states or skipped-generation edges enter.
+This is not a complete or near-complete embryonic tree.
+
+Travel pools three CE embryos and two AF16 embryos using fixed natural totals
+on this new 454-edge reference, separately for 3D and XY. It does not use the
+terminal 275-edge denominators or reuse Figure 7's 974-edge caches. Molecular
+distance remains the full-tree **Euclidean** convention: frozen top-20
+z-scored protein or shared 20 RNA TFs on stored values, not terminal cosine.
+The six aggregate fronts use global exact first-cousin-null SD scaling,
+301 weights, checked endpoint tie handling and nested 1,201-weight checks.
+Each configuration has its own endpoint display spans.
+
+The comparison uses the six-panel layout of Figure 8 and the three cousin
+references/random-rebuild inset of Figure 7B. The separate overlay uses the
+Figure 9 layout, including canonical-metric panel C. On 2026-10-01 the author
+approved these as **publication Figures 10 and 11**, respectively. The
+captioned one-page PDFs, editable TeX and panel PDF/PNG files are released in
+`output/publication/` under these stems:
+
+- `fig10_full_tree_cross_species_comparison`
+- `fig11_full_tree_cross_species_overlays`
+
+The captions retain the partial-forest scope and tracking caveats. No other full-tree
+heuristics or Gaussian references are computed. All generated artifacts remain
+Git-ignored; arrange external backup before relying on them as an archive.
+
+Heading style is shared with terminal Figure 8: the configuration title is
+followed by a bold tracking-geometry label in every panel, with embryo counts
+kept in the caption rather than titles (revision 2026-10-01).
+
+```bash
+OPENBLAS_NUM_THREADS=1 python -m full_tree_pareto.cross_species_analysis
+python -m full_tree_pareto.cross_species_analysis --verify-only
+python -m full_tree_pareto.cross_species_analysis --render-only
+python -m full_tree_pareto.cross_species_publication
+python -m full_tree_pareto.cross_species_publication --verify
+# Explicit additive release; archive existing production, retire only old Figure 8.
+python -m full_tree_pareto.cross_species_publication --publish
+python -m full_tree_pareto.cross_species_publication --verify-production
+python -m unittest full_tree_pareto.test_cross_species
+```
+
+All commands run from the repository root in `dev`. They accept `--run-id`
+for another isolated run. Completed case caches resume after identity/hash
+checks. Changed scientific inputs or source require a new run; do not edit
+manifests to force reuse. Rendering and caption assembly archive preceding
+layouts with hashes. Promotion preserves unrelated production files and writes
+`cross_species_release_manifest.json` plus a copy of the assembly manifest.
+The four obsolete `fig8_ce_full_tree_collective` PDF/TeX/panel PDF/panel PNG
+assets were removed from production. They remain recoverable in the verified
+pre-release archive
+`output/legacy/cross_species_releases/20261001T150611720032Z/publication/`.
+All 29 numerical artifacts and 15 other production files were hash-checked
+unchanged. Figure 7 and its supplement were not promoted or changed, and the
+terminal publication directory is untouched.
+
+**Do not use the older `publication_build --publish` directly on this mixed
+production directory.** Its whole-bundle replacement is now blocked when the
+Figures 10/11 release manifest is present. A later pooled Figure 7 promotion must first be coordinated to preserve
+the cross-species assets and update their preserved-file release hashes.
+
 ## Source map
 
 | Source | Role |
 |---|---|
+| `cross_species_analysis.py` | Isolated terminal-anchored partial-forest cohort, six exact layerwise sweeps, references and replay guards |
+| `fig_cross_species.py`, `cross_species_publication.py` | Figure 8/9-style partial-forest layouts, numbered Figures 10/11 and additive archived release |
+| `test_cross_species.py`, `CROSS_SPECIES_HANDOFF.md` | Partial-forest tests and cross-species execution checkpoint |
 | `pooled_analysis.py` | Cohort, matrices, five heuristics, references and replay-validated caches |
 | `cousin_references.py` | Separate second-/third-cousin caches using terminal ancestry definitions and full-edge replay |
 | `publication_build.py` | Current panels, captions, compilation and explicit archived promotion |

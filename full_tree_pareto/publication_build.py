@@ -372,6 +372,9 @@ def promote(run):
     source = run / "publication"
     root = pa.ROOT / "full_tree_pareto/output"
     target = root / "publication"
+    if (target / "cross_species_release_manifest.json").exists():
+        raise ValueError("Production includes Figures 10/11. Coordinate an additive Figure 7 release "
+                         "that preserves them and updates their preserved-file hashes.")
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     # Revalidate source/config and replay parent arrays before promotion.
     ctx, _, _, _ = pa.build(run=run, layout_only=True, **sweep_settings())

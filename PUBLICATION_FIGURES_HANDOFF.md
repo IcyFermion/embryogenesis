@@ -1,13 +1,13 @@
 # Publication-figure handoff
 
-Updated 2026-09-30.
+Updated 2026-10-02.
 
 ## Terminal figures: pooled release promoted
 
 The author approved the pooled-travel, endpoint-normalized terminal figures.
 The current release is `terminal_pareto/output/publication/`, including the
 standalone Figure 1 amendment, single-panel Figure 2, and four-geometry S3
-with insets. Previous single-embryo figures are in
+with insets, now extended with cross-species Figures 8 and 9. Previous single-embryo figures are in
 `terminal_pareto/output/legacy/embryo1/publication/`.
 
 Use [the terminal README](terminal_pareto/README.md) for analysis conventions,
@@ -28,8 +28,8 @@ attained front point P*, not maximum retention. Figure 9A--B marks P* with
 hollow diamonds and natural-to-P* dashed connectors. Figure 8 has no
 natural-to-maximum-retention connectors. Both are assembled with captions
 in the earlier terminal publication-wrapper style, compiled to one page and
-visually checked. Their editable TeX, PDF pages and panel assets are in
-`terminal_pareto/output/runs/cross_species_terminal_v1/pooled_comparison_20260930/publication/`:
+visually checked. On 2026-10-01 their editable TeX, PDF pages and panel assets
+were additively published in `terminal_pareto/output/publication/`:
 
 - `fig8_terminal_cross_species_comparison.pdf`
 - `fig9_terminal_cross_species_overlays.pdf`
@@ -37,12 +37,63 @@ visually checked. Their editable TeX, PDF pages and panel assets are in
 The C. briggsae 3D tracking-method caveat is caption-only and provisional
 pending experimental collaborator input. Numerical caches are unchanged;
 figure numbers and source/artifact/analysis hashes are recorded in the build
-manifest. See the terminal README/handoff for reproduction and validation.
-This build does not replace the existing terminal publication release or edit
-the manuscript. Older full-tree Figure 8 references below are historical;
-the current full-tree specification remains Figure 7 and its supplement.
+manifest. The source assembly remains under
+`terminal_pareto/output/runs/cross_species_terminal_v1/pooled_comparison_20260930/publication/`.
+The main release manifest now verifies 66 assets and separately records the
+187-edge comparison cohort/provenance alongside the primary 275-edge analysis.
+All 57 earlier production assets and nine comparison numerical files remain
+unchanged. The preceding release is recoverable with verified hashes under
+`terminal_pareto/output/legacy/releases/20261001T154243342749Z/publication/`.
+Use `python terminal_pareto/publication_release.py --cross-species` to repeat
+the explicit additive release and `--verify` to check production. Future
+pooled-layout releases retain these comparison assets automatically; staged
+failure rollback and retention are tested. See the terminal README/handoff
+for reproduction and validation. The manuscript remains unchanged.
+Older full-tree Figure 8 references below are historical;
+the current full-tree specification includes Figure 7, its supplement and the
+partial-forest cross-species Figures 10--11.
+
+## Cross-species partial-forest Figures 10 and 11
+
+A separate cross-species **partial-forest layerwise analysis** is now complete.
+See [its handoff](full_tree_pareto/CROSS_SPECIES_HANDOFF.md). Starting from the
+same 187 matched terminal edges as Figures 8--9, it ascends only through
+available canonical ancestors, retaining 485 measured cells and 454 edges
+with 31 fixed boundary roots. It has no imputation, skipped ancestors, other
+reconstruction heuristics or Gaussian reference. This is not a complete tree.
+New pooled-travel, Euclidean molecular-distance and endpoint-normalized caches
+are isolated under
+`full_tree_pareto/output/runs/cross_species_layerwise_v1/terminal_anchored_20260930/`.
+The captioned six-panel comparison and overlays/canonical-metric companion
+follow Figures 8/9's layouts and Figure 7B's reference inventory. The author
+approved and released them as **Figures 10 and 11** on 2026-10-01, with
+301-weight displays and separately cached
+1,201-weight resolution checks; CE RNA XY has a modest closest-point
+sensitivity recorded in the handoff. Captioned one-page PDFs, editable TeX
+and panel PDF/PNG assets are in `full_tree_pareto/output/publication/`:
+
+- `fig10_full_tree_cross_species_comparison.pdf`
+- `fig11_full_tree_cross_species_overlays.pdf`
+
+The additive release preserved all 15 unrelated production files, including
+Figure 7 and its supplement, and all 29 partial-forest numerical artifacts.
+Only the four obsolete `fig8_ce_full_tree_collective` PDF/TeX/panel PDF/panel PNG
+files were removed from production; they remain recoverable in the hash-checked
+pre-release archive
+`full_tree_pareto/output/legacy/cross_species_releases/20261001T150611720032Z/publication/`.
+Production assets, preserved files and archive hashes are recorded in
+`cross_species_release_manifest.json`; verify with
+`python -m full_tree_pareto.cross_species_publication --verify-production`.
+Both PDFs were visually checked; all 54 full-tree and 13 terminal cross-species
+tests passed. No pooled Figure 7 promotion or manuscript integration occurred.
 
 ## Full-tree Pareto analysis: pooled Figure 7 and supplement
+
+**Promotion coordination:** the older Figure 7 builder replaces the full
+production directory and now refuses to replace a Figures 10/11 release.
+Before any future `publication_build --publish`, adapt
+that release workflow to preserve Figures 10/11 and refresh their recorded
+preserved-file hashes. Do not overwrite the mixed production release directly.
 
 The author requested one main full-tree figure and one supplementary comparison,
 replacing the two-main-figure arrangement. Current scientific specification and

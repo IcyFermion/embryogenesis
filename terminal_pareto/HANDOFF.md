@@ -1,6 +1,6 @@
 # Terminal publication handoff
 
-Updated 2026-09-30. The author approved switching to pooled travel and
+Updated 2026-10-01. The author approved switching to pooled travel and
 endpoint-normalized fronts. The current publication is `output/publication/`;
 its release manifest identifies the working run and records artifact/cache
 hashes. [README.md](README.md) is the analysis and reproduction reference.
@@ -19,8 +19,10 @@ hashes. [README.md](README.md) is the analysis and reproduction reference.
 - Previous embryo-1 figures are frozen in `output/legacy/embryo1/publication/`.
   Historical no-profile commands write separately to `output/legacy/rebuild/`.
 - The additional cross-species figures are author-numbered Figures 8 and 9;
-  their captioned builds are in the separate comparison run described below.
-  They are not part of the existing 275-edge release manifest.
+  their captioned PDFs, TeX and panel PDF/PNG assets are now in
+  `output/publication/`. Their source builds remain in the separate comparison
+  run described below, and a `cross_species` section of the release manifest
+  records this distinct 187-edge analysis rather than relabeling the 275-edge run.
 - The working-run analysis caches and saved assignment sets are unchanged by
   promotion. Rebuilds are staged; publication is explicit and preserves the
   previous release. Use `publication_release.py --verify` to check the snapshot.
@@ -38,7 +40,8 @@ bundle; they must not compare old hashes against the newly published figures.
 
 Promotion completed with **29/29 migration checks, 13/13 profile/cache tests,
 and 3/3 release-boundary tests passing**. The published manifest verifies
-57 figure/data/provenance files and all recorded analysis files. The frozen
+57 original figure/data/provenance files and all recorded analysis files. The
+2026-10-01 Figure 8/9 addition extends verification to 66 assets. The frozen
 old publication matches its pre-organization hashes.
 
 All figure wrappers were visually inspected during the organization review.
@@ -115,7 +118,8 @@ axial scale. Exact wording remains provisional pending experimental
 collaborator input. Stage alignment and expression provenance still need
 review; XY sensitivity changes the proximity ordering of CE RNA versus CB RNA.
 No species ranking or controlled protein/RNA modality claim is adopted.
-No publication promotion or 1,001-weight migration is included in this build.
+The initial comparison build included no promotion or 1,001-weight migration;
+the subsequent approved Figure 8/9 release is recorded below.
 
 The author subsequently assigned **Figure 8** to the six-panel comparison
 and **Figure 9** to the paired overlays and requested captioned publication
@@ -141,9 +145,39 @@ endpoints, the absence of Figure 8 connectors, and all 18 metric-panel points.
 The build rechecked all 13,828
 assignments and 20 source hashes; its manifest records eight assembled
 artifacts and nine unchanged analysis files. Rebuilds archive the previous
-assembled layout with hashes. The existing publication release and manuscript
-are untouched; numbering these figures does not revise historical full-tree
-Figure 8 assets or implicitly promote either bundle.
+assembled layout with hashes. Initial numbering did not promote the comparison
+or revise historical full-tree Figure 8 assets. Subsequent production promotion
+is explicit, and the manuscript remains untouched.
+
+Presentation revision, 2026-10-01: Figure 8 now uses a shared heading style
+with the partial-forest comparison. Each of its six panels displays the
+species/molecular configuration, followed immediately by a bold `3D tracking`
+or `2D (XY) tracking` label. Embryo counts no longer clutter titles; replicate
+counts and pooling definitions remain in captions. The faint row-wide geometry
+labels are removed and configuration names repeat in the XY row. The preceding
+panel and captioned layouts are preserved under `layout_history/`; numerical
+caches and all canonical metrics remain unchanged.
+
+Production addition, 2026-10-01: the author requested Figures 8/9 alongside
+the other terminal figures in `output/publication/`. Their eight assembled
+assets were copied byte-for-byte without rebuilding, with a frozen assembly
+manifest named `cross_species_publication_manifest.json`. The working run is
+retained for provenance rather than moved away from its numerical caches.
+`publication_release.py --cross-species` performs this additive, staged,
+rollback-tested release. It extends the main release manifest with a distinct
+comparison section, nine comparison analysis hashes and figure numbers.
+All 57 preceding production assets and nine comparison numerical files match
+the pre-release hashes. The entire former 58-file production directory is
+recoverable in the verified archive
+`output/legacy/releases/20261001T154243342749Z/publication/`.
+
+Both pages were rendered and visually checked again. The release validates
+all 13,828 assignments and 20 source hashes, and `publication_release.py
+--verify` now checks 66 assets plus both runs' recorded analysis files. All
+20 focused release/cross-species tests pass, including failed-promotion rollback,
+source-run preservation and retention of Figures 8/9 through future pooled
+layout promotion. The 13 profile/cache regression checks also pass. No
+full-tree figures, numerical optimizations or manuscript files were changed.
 
 ## Short development record
 

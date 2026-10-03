@@ -48,6 +48,18 @@ def base_axes(ax):
     ax.spines[["top", "right"]].set_visible(True)
 
 
+def comparison_heading(ax, config, geometry, panel):
+    """Keep configuration first and make tracking geometry a clear second line."""
+    ax.set_title(LABELS[config], fontsize=11, pad=25)
+    geometry_label = "3D tracking" if geometry == "raw3d" else "2D (XY) tracking"
+    subtitle = ax.text(.5, 1.025, geometry_label, transform=ax.transAxes,
+                       fontsize=11, fontweight="bold", color=ps.COLORS["black"],
+                       ha="center", va="bottom")
+    subtitle.set_gid(f"comparison_geometry:{geometry}")
+    ax.text(-.025, 1.025, panel, transform=ax.transAxes,
+            fontsize=10, fontweight="bold", ha="left", va="bottom")
+
+
 def comparison(fronts, metrics, clouds, geometry, out, n):
     """Compose one row or the primary two-row 3D/XY comparison."""
     geometries = ("raw3d", "xy") if geometry is None else (geometry,)
@@ -55,17 +67,10 @@ def comparison(fronts, metrics, clouds, geometry, out, n):
     fig, axes = plt.subplots(len(geometries), 3, figsize=(14.4, 9.8 if combined else 5.1),
                              sharex=True, sharey=True, squeeze=False)
     if combined:
-        fig.subplots_adjust(left=.06, right=.91, bottom=.16, top=.83, hspace=.25, wspace=.13)
+        fig.subplots_adjust(left=.06, right=.91, bottom=.16, top=.87, hspace=.32, wspace=.13)
     else:
         fig.subplots_adjust(left=.06, right=.91, bottom=.24, top=.80, wspace=.13)
     fig.suptitle(f"Terminal-only comparison | {n} shared terminal edges", y=.97, fontsize=12)
-    geometry_text = ("3D: pooled distances"
-                     if geometries[0] == "raw3d" else "2D (XY): pooled distances; axial coordinates omitted")
-    fig.text(.5, .927 if combined else .90, geometry_text, ha="center", fontsize=8.5, color="#555555")
-    if combined:
-        middle = (axes[0, 0].get_position().y0 + axes[1, 0].get_position().y1) / 2
-        fig.text(.5, middle, "2D (XY): pooled distances; axial coordinates omitted",
-                 ha="center", fontsize=8.5, color="#555555")
     visible_x, visible_y = [], []
     panels = [(row, col, ax, g, config) for row, g in enumerate(geometries)
               for col, (ax, config) in enumerate(zip(axes[row], PRIMARY))]
@@ -108,14 +113,7 @@ def comparison(fronts, metrics, clouds, geometry, out, n):
         inset.locator_params(axis="both", nbins=3)
         inset.grid(True, alpha=.25)
         inset.spines[["top", "right"]].set_visible(True)
-        replicas = 2 if config == "cb_rna" else 3
-        if combined:
-            if row == 0:
-                ax.set_title(f"{LABELS[config]}\n{replicas} tracking embryos", fontsize=9.5, pad=22)
-            ax.text(-.025, 1.025, "ABCDEF"[3 * row + col], transform=ax.transAxes,
-                    fontsize=10, fontweight="bold", ha="left", va="bottom")
-        else:
-            ax.set_title(f"{'ABC'[col]}   {LABELS[config]}\n{replicas} tracking embryos", fontsize=9.5, pad=12)
+        comparison_heading(ax, config, g, "ABCDEF"[3 * row + col] if combined else "ABC"[col])
         if row == len(geometries) - 1:
             ax.set_xlabel("Travel distance\n(fraction of endpoint cost span)")
         if col == 0:
@@ -124,7 +122,7 @@ def comparison(fronts, metrics, clouds, geometry, out, n):
         lo, hi = min(values), max(values)
         pad = max(.04 * (hi - lo), .04)
         setter(lo - pad, hi + pad)
-    color_axis = fig.add_axes([.934, .16 if combined else .24, .013, .67 if combined else .56])
+    color_axis = fig.add_axes([.934, .16 if combined else .24, .013, .71 if combined else .56])
     bar = fig.colorbar(front, cax=color_axis)
     bar.set_label("Edge retention")
     handles = [Line2D([], [], marker="o", ls="", color=ps.NULL_MODEL_COLORS[family], alpha=.7,
@@ -381,6 +379,8 @@ def render(run):
     manifest = dict(analysis_id=record["analysis_id"], shared_axes=True, retention_color_scale=[0, 1],
         primary_comparison="terminal_cross_species_comparison", comparison_rows=["raw3d", "xy"],
         comparison_columns=list(PRIMARY), primary_overlay="terminal_cross_species_overlay", overlay_panels=["raw3d", "xy"],
+        comparison_geometry_labels="bold second line beneath each configuration title",
+        comparison_title_tracking_counts=False,
         shared_overlay_zoom_limits=True,
         comparison_natural_to_maximum_connectors=False,
         overlay_closest_point_connectors=True, canonical_panel="C",
