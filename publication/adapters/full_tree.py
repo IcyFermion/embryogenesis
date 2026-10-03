@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -47,3 +48,54 @@ def cross_species(run=fcs.DEFAULT_RUN) -> FrontComparisonInput:
         validation=report,
         input_files={f"analysis/{name}": sha256(analysis / name) for name in CROSS_SPECIES_INPUTS},
         clouds=clouds, references=CROSS_SPECIES_REFERENCES)
+
+
+POOLED_FAMILY = "full-tree-pooled"
+
+
+def caption_meta(data) -> dict:
+    return dict(edges=data.edges, leaves=data.leaves, internal=data.internal, round_edges=list(data.round_edges),
+                **data.settings)
+
+
+def pooled_from_results(run, ctx, fronts, layers, nulls):
+    """Contract from replay-validated ``pooled_analysis.build`` / ``cousin_references.build`` results."""
+    from full_tree_pareto import pooled_analysis as pa
+    from full_tree_pareto import publication_build as legacy
+    from publication.contracts import FullTreePooledInput
+
+    run = Path(run)
+    rounds = [f"round_{i}" for i in range(1, len(ctx.layers) + 1)]
+    layerwise = fronts[fronts.method == pa.METHODS[0]]
+    analysis = run / "analysis"
+    validation = json.loads((analysis / "validation.json").read_text())
+    files = sorted(p for p in analysis.rglob("*") if p.is_file())
+    return FullTreePooledInput(
+        run=run, analysis_id=hashlib.sha256(json.dumps(validation["identity"], sort_keys=True).encode()).hexdigest(),
+        edges=len(ctx.edges), leaves=len(ctx.leaves), internal=len(ctx.internal),
+        round_edges=tuple(len(layer) for layer in ctx.layers), natural=tuple(map(float, ctx.natural)),
+        fronts=fronts, layers=layers, references=dict(nulls), methods=tuple(pa.METHODS),
+        main_references=tuple(legacy.MAIN_REFERENCES), supplement_references=tuple(legacy.SUPPLEMENT_REFERENCES),
+        inset_reference="Random rebuild",
+        round_transforms={scope: legacy.endpoint(layerwise[layerwise.scope == scope], scope) for scope in rounds},
+        aggregate_transform=legacy.endpoint(layerwise[layerwise.scope == "aggregate"], "aggregate"),
+        settings=dict(weights=legacy.INTERVALS + 1, draws=legacy.DRAWS, display_draws=legacy.DISPLAY_DRAWS),
+        validation=dict(assignments_replayed=validation.get("assignments_replayed"), nodes=validation.get("nodes"),
+                        edges=validation.get("edges"), rounds=validation.get("rounds")),
+        input_files={str(p.relative_to(run)): sha256(p) for p in files})
+
+
+def pooled(run=None):
+    """Pooled full-tree Figure 7/S4 inputs; replays all saved forests and reference draws."""
+    from full_tree_pareto import cousin_references as cr
+    from full_tree_pareto import pooled_analysis as pa
+    from full_tree_pareto import publication_build as legacy
+
+    run = Path(run) if run is not None else Path(pa.DEFAULT_RUN)
+    if not (run / "analysis/validation.json").is_file():
+        raise FileNotFoundError(f"No pooled full-tree caches at {run}; create them with "
+                                "`python -m full_tree_pareto.resume_paired` then `python -m full_tree_pareto.publication_build`")
+    ctx, fronts, layers, nulls = pa.build(run=run, layout_only=True, **legacy.sweep_settings())
+    nulls = dict(nulls)
+    nulls.update(cr.build(ctx, run, draws=legacy.DRAWS, seed=legacy.SEED, layout_only=True))
+    return pooled_from_results(run, ctx, fronts, layers, nulls)

@@ -179,31 +179,20 @@ class CacheOnlyBuild(unittest.TestCase):
             registry.build("terminal-cross-species", self.tmp / "terminal-cross-species")
 
 
-class LegacyParity(unittest.TestCase):
-    """Copied presentation values must match the hash-pinned legacy modules until they become shims."""
+class CompatibilityShims(unittest.TestCase):
+    """Legacy modules re-export the publication implementations rather than copies."""
 
-    def test_palette_rcparams_labels_and_caveats(self):
-        from terminal_pareto import cross_species_analysis as tcs
+    def test_legacy_names_resolve_to_publication(self):
         from terminal_pareto import fig_terminal_cross_species as legacy_figure
-        from terminal_pareto import plot_style as legacy
-        for name in ("COLORS", "SPECIES_COLORS", "NULL_MODEL_COLORS", "SEMANTIC_COLORS"):
-            self.assertEqual(getattr(style, name), getattr(legacy, name))
-        self.assertEqual(notation.CONFIG_LABELS, tcs.LABELS)
-        self.assertEqual(captions.TRACKING_CAVEAT, legacy_figure.TRACKING_CAVEAT)
-        self.assertEqual(captions.TRACKING_CAPTION_STATUS, legacy_figure.TRACKING_CAPTION_STATUS)
-        with matplotlib.rc_context():
-            legacy.configure()
-            expected = dict(matplotlib.rcParams)
-            style.configure()
-            self.assertEqual(dict(matplotlib.rcParams), expected)
-
-    def test_wrapper_preamble_and_numbering(self):
-        from terminal_pareto import publication_wrappers as legacy
-        self.assertEqual(assembly.PREAMBLE, legacy.PREAMBLE)
+        from terminal_pareto import plot_style as legacy_style
+        from terminal_pareto import publication_wrappers as legacy_wrappers
+        for name in ("COLORS", "SPECIES_COLORS", "NULL_MODEL_COLORS", "SEMANTIC_COLORS", "configure"):
+            self.assertIs(getattr(legacy_style, name), getattr(style, name))
+        self.assertIs(legacy_wrappers.PREAMBLE, assembly.PREAMBLE)
+        self.assertIs(legacy_figure.TRACKING_CAVEAT, captions.TRACKING_CAVEAT)
         with tempfile.TemporaryDirectory() as tmp:
-            for stem, number in (("fig1_x", "1 amendment"), ("figS3_x", "S3"), ("fig11_x", "11")):
-                legacy_text = legacy._write(Path(tmp), stem, "BODY").read_text()
-                self.assertIn(assembly.numbering(number), legacy_text)
+            text = legacy_wrappers._write(Path(tmp), "fig1_x", "BODY").read_text()
+            self.assertIn(assembly.numbering("1 amendment"), text)
 
 
 if __name__ == "__main__":

@@ -110,3 +110,33 @@ class TerminalPrimaryInput:
     s3_references: dict
     validation: dict = field(default_factory=dict)
     input_files: dict = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class FullTreePooledInput:
+    """Validated inputs for pooled full-tree Figure 7 and provisional supplement S4.
+
+    978 measured nodes, 974 scored edges, Euclidean molecular distance. Fronts
+    and references are replay-validated by the back end; endpoint transforms
+    are per round (Figure 7A) and aggregate layerwise (Figure 7B and S4).
+    """
+
+    run: Path
+    analysis_id: str
+    edges: int
+    leaves: int
+    internal: int
+    round_edges: tuple[int, ...]
+    natural: tuple[float, float]  # aggregate natural (travel, state)
+    fronts: pd.DataFrame  # method, scope, weight_index, travel, state, retention, nondominated
+    layers: pd.DataFrame  # scope, edges, natural_travel, natural_state
+    references: dict  # display name -> (draws, 2) raw costs
+    methods: tuple[str, ...]  # first is the main layerwise method
+    main_references: tuple[str, ...]
+    supplement_references: tuple[str, ...]
+    inset_reference: str
+    round_transforms: dict  # scope -> endpoint transform (``.transform``, ``.metadata``)
+    aggregate_transform: object
+    settings: dict  # weights, draws, display_draws
+    validation: dict = field(default_factory=dict)
+    input_files: dict = field(default_factory=dict)

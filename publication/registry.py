@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 from typing import Callable
 
-from publication import assembly, provenance, style
+from publication import assembly, provenance, style, tables
 from publication.canonical_panels import canonical_records
 from publication.captions import cross_species as cs_captions
 from publication.figures import cross_species as cs_figures
@@ -74,8 +74,34 @@ def _build_terminal_primary(family, data, out):
     for stem, number in family.wrappers:
         wrapper = assembly.write_wrapper(out, stem, number=number, body=CAPTIONED_FIGURES[stem][1]())
         figures[stem] = dict(number=number, compiled=assembly.compile_wrapper(wrapper, label=number))
+    table = out / f"{tables.TABLE1_STEM}.tex"
+    figures[table.stem] = dict(number="1", compiled=assembly.compile_wrapper(
+        table, label="1", kind="Table", known_warnings=TABLE1_KNOWN_WARNINGS))
     artifacts = sorted(p for p in out.iterdir() if p.suffix in (".pdf", ".png", ".svg", ".tex"))
     return dict(artifacts=artifacts, figures=figures, extra={})
+
+
+# Reviewed, pre-existing warnings (one-page outputs): the approved 2026-09-30 Figure 7 build,
+# and published Table 1, whose standalone TeX was never compiled in production.
+TABLE1_KNOWN_WARNINGS = ("Float too large for page by 3.75319pt",)
+FULL_TREE_KNOWN_WARNINGS = {"fig7_ce_full_tree_layerwise": ("Float too large for page by 8.2687pt",)}
+
+
+def _build_full_tree_pooled(family, data, out):
+    """Figure 7 and provisional S4: panels, wrappers (own preamble/numbering) and compilation."""
+    from publication.adapters.full_tree import caption_meta
+    from publication.captions import full_tree as captions
+    from publication.figures import full_tree
+    transforms = full_tree.render_panels(data, out)
+    meta, figures = caption_meta(data), {}
+    for (stem, number), numbering, body in zip(family.wrappers, (captions.FIGURE7_NUMBERING, captions.SUPPLEMENT_NUMBERING),
+                                               (captions.figure7, captions.supplement)):
+        wrapper = assembly.write_wrapper(out, stem, number=number, body=body(meta), preamble=captions.PREAMBLE,
+                                         numbering_tex=numbering)
+        figures[stem] = dict(number=number, compiled=assembly.compile_wrapper(
+            wrapper, label=number, known_warnings=FULL_TREE_KNOWN_WARNINGS.get(stem, ())))
+    artifacts = sorted(p for p in out.iterdir() if p.suffix in (".pdf", ".png", ".tex"))
+    return dict(artifacts=artifacts, figures=figures, extra=dict(display_transforms=transforms))
 
 
 TERMINAL_WRAPPERS = (
@@ -91,6 +117,11 @@ FAMILIES = {family.key: family for family in (
            "publication.adapters.terminal:primary", _build_terminal_primary,
            status="active: published 2026-09-23 (Figure 1 amendment pending co-author integration)",
            wrappers=TERMINAL_WRAPPERS),
+    Family("full-tree-pooled",
+           "Pooled full tree, 978 nodes/974 edges, layerwise and four other reconstructions (Euclidean molecular distance)",
+           "publication.adapters.full_tree:pooled", _build_full_tree_pooled,
+           status="approved working build 2026-09-30; NOT promoted (S4 numbering provisional)",
+           wrappers=(("fig7_ce_full_tree_layerwise", "7"), ("figs_ce_full_tree_heuristics", "S4"))),
     Family("terminal-cross-species",
            "Pooled 187-edge terminal CE protein/CE RNA/CB RNA comparison (cosine molecular distance)",
            "publication.adapters.terminal:cross_species", _build_specs,

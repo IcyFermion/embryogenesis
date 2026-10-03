@@ -37,16 +37,18 @@ class CacheOnlyTerminalBuild(unittest.TestCase):
         shutil.rmtree(cls.tmp)
 
     def test_every_wrapper_compiles_to_one_labelled_page(self):
-        self.assertEqual(set(self.record["figures"]), set(CAPTIONED_FIGURES))
+        self.assertEqual(set(self.record["figures"]), set(CAPTIONED_FIGURES) | {"table1_ce_subtree_statistics"})
         for stem, figure in self.record["figures"].items():
             self.assertEqual(figure["compiled"]["pages"], 1, stem)
-            self.assertEqual(figure["compiled"]["warnings"], [], stem)
+            expected = list(registry.TABLE1_KNOWN_WARNINGS) if stem.startswith("table1") else []
+            self.assertEqual([w for w in figure["compiled"]["warnings"] if not any(k in w for k in expected)], [], stem)
 
     def test_rendered_inventory_matches_production_figures(self):
         released = set(json.loads((PRODUCTION / "release_manifest.json").read_text())["files"])
         figure_assets = {name for name in released if Path(name).suffix in (".pdf", ".png", ".svg", ".tex")
                          and not name.startswith(("fig8_", "fig9_"))}
-        self.assertEqual(set(self.record["files"]), figure_assets)
+        # The build also compiles Table 1 to check its fit; production keeps only its TeX.
+        self.assertEqual(set(self.record["files"]), figure_assets | {"table1_ce_subtree_statistics.pdf"})
         self.assertTrue(provenance.verify_build(self.tmp / "build")["ready"])
 
     def test_numerical_inputs_are_recorded_and_unchanged(self):
