@@ -1,6 +1,6 @@
 """Resume expensive paired matching with verified, per-weight checkpoints.
 
-Run before publication_build when the paired aggregate cache is missing.
+Run before pooled_pipeline when the paired aggregate cache is missing.
 Uses the unchanged production solver and cache identity; never relabels caches.
 """
 import argparse
@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 
 from full_tree_pareto import pooled_analysis as pa
-from full_tree_pareto.publication_build import DEFAULT_WORKERS, positive_workers, sweep_settings
+from full_tree_pareto.pooled_pipeline import DEFAULT_WORKERS, positive_workers, sweep_settings
 
 SETTINGS = sweep_settings()
 INTERVALS = SETTINGS["intervals"]

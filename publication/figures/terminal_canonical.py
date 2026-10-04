@@ -1,28 +1,15 @@
-"""Primary and supplementary canonical subtree summaries.
+"""Canonical-metric drawings: Figure 1 amendment, Figure 5 rows and Figure S1.
 
-This presentation-only renderer uses the validated per-subtree canonical
-metrics produced by ``fig5_table1_ce_canonical_metrics.py``.
-
-Profile-aware Figure 5 uses named rows: a paired natural/null comparison for
-five major subtrees, then canonical position and natural distance for every
-surveyed subtree, grouped by branch. Shapes do not encode lineage identity.
-
-Historical and supplementary panels:
-  A. Symbolic definition of canonical position u and front distances.
-  B. Lineage- and first-cousin-null distances for the five major subtrees.
-  C. All eligible lineage-to-front distances, with the five major-subtree
-     first-cousin-null distances overlaid as references.
-
-The primary figure uses null-independent endpoint-normalized distance d_LP.
-The supplementary version preserves first-cousin-null-relative r and adds a
-correlation inset. No analysis is recomputed and no maximum-retention
-position is assigned a second canonical coordinate.
+Moved from the retired ``terminal_pareto/fig5_figs1_ce_canonical_summary.py``
+and ``fig1_endpoint_amendment.py``. Inputs are validated canonical-metric tables;
+persisted column names (``d_lp``, ``d_np``, ``u_lineage_lp``) are unchanged.
+Every displayed symbol comes from ``publication.notation``.
 """
 
-import argparse
-import sys
 from pathlib import Path
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
@@ -30,25 +17,15 @@ import pandas as pd
 from matplotlib.lines import Line2D
 from matplotlib.transforms import Bbox
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
-from terminal_pareto import plot_style as ps
-from terminal_pareto.analysis_context import (
-    DEFAULT_OUTPUT_ROOT,
-    build_analysis_context,
-)
-from terminal_pareto.fig5_table1_ce_canonical_metrics import (
-    ITERATION,
-    MIN_CELLS,
-    load_validated_canonical_metrics,
-)
+from publication import notation as nt
+from publication import style as ps
 
 
-OUT = Path(__file__).resolve().parent / "output" / "legacy" / "rebuild" / "publication"
-DEFAULT_METRICS = (Path(__file__).resolve().parent / "output"
-                   / "ce_subtree_canonical_metrics.csv")
+def _points():
+    """Travel optimum, cell-state optimum, natural lineage, null mean and P* symbols."""
+    return tuple(nt.symbol(key) for key in (
+        "travel_optimum", "cell_state_optimum", "natural_lineage", "null_mean", "closest_point"))
+
 
 REGION_MARKERS = {
     "root": "*",
@@ -111,14 +88,6 @@ def annotate_abplpp_pair(ax, data, u_col, distance_col, color):
         )
 
 
-def load_metrics(path, min_cells=MIN_CELLS, iteration=ITERATION, context=None):
-    """Load the established canonical metrics without recomputing analysis."""
-    data = load_validated_canonical_metrics(
-        path, min_cells=min_cells, iteration=iteration, context=context)
-    return data[data["endpoint_ok"].astype(bool)
-                & data["u_monotone"].astype(bool)].copy()
-
-
 def add_panel_letter(ax, letter, x=-0.16, y=1.08):
     ax.text(x, y, letter, transform=ax.transAxes, fontsize=10,
             fontweight="bold", ha="left", va="top", clip_on=False)
@@ -141,6 +110,7 @@ def add_colored_fraction(ax, prefix_x, fraction_x, center_y, prefix,
 
 def plot_definition_r(ax, panel_letter="A"):
     """Supplementary symbolic definition of u and cousin-relative r."""
+    T, S, L, C, P = _points()
     t = np.linspace(0.0, 1.0, 15)
     x = 0.13 + 0.72 * t
     y = 0.88 - 0.72 * np.sqrt(t)
@@ -175,13 +145,13 @@ def plot_definition_r(ax, panel_letter="A"):
                lw=0.5, zorder=5)
     ax.scatter([px], [py], s=29, marker="o", facecolor="#222222",
                edgecolor="white", lw=0.5, zorder=6)
-    ax.annotate("Travel optimum  T", (x[0], y[0]), xytext=(5, 3),
+    ax.annotate(f"Travel optimum  {nt.plain('travel_optimum')}", (x[0], y[0]), xytext=(5, 3),
                 textcoords="offset points", fontsize=6.2, ha="left",
                 va="bottom")
-    ax.annotate("S", (x[-1], y[-1]), xytext=(4, 1),
+    ax.annotate(nt.plain("cell_state_optimum"), (x[-1], y[-1]), xytext=(4, 1),
                 textcoords="offset points", fontsize=6.5, ha="left",
                 va="center", fontweight="bold")
-    ax.annotate(r"$P^*$", (px, py), xytext=(-4, -8),
+    ax.annotate(f"${P}$", (px, py), xytext=(-4, -8),
                 textcoords="offset points", fontsize=6.5, ha="right",
                 va="top", fontweight="bold")
 
@@ -196,20 +166,20 @@ def plot_definition_r(ax, panel_letter="A"):
     ax.scatter([nx], [ny], marker="D", s=35,
                facecolor=NP_COLOR, edgecolor="#222222",
                lw=0.5, zorder=6)
-    ax.annotate("Natural lineage  L", (lx, ly), xytext=(6, -3),
+    ax.annotate(f"Natural lineage  {nt.plain('natural_lineage')}", (lx, ly), xytext=(6, -3),
                 textcoords="offset points", fontsize=6.2, va="center")
-    ax.annotate("Null mean  N", (nx, ny), xytext=(6, -2),
+    ax.annotate(f"Null mean  {nt.plain('null_mean')}", (nx, ny), xytext=(6, -2),
                 textcoords="offset points", fontsize=6.2, va="top")
 
     add_colored_fraction(
         ax, prefix_x=0.15, fraction_x=0.285, center_y=0.16,
-        prefix="u", numerator=r"\mathrm{arc}(T\rightarrow P^*)",
-        denominator=r"\mathrm{arc}(T\rightarrow S)",
+        prefix=nt.symbol("canonical_position"), numerator=rf"\mathrm{{arc}}({T}\rightarrow {P})",
+        denominator=rf"\mathrm{{arc}}({T}\rightarrow {S})",
         color=U_COLOR, half_width=0.115,
     )
     add_colored_fraction(
         ax, prefix_x=0.69, fraction_x=0.825, center_y=0.87,
-        prefix="r", numerator=r"|L-P^*|", denominator=r"|N-P^*|",
+        prefix=nt.symbol("cousin_relative"), numerator=f"|{L}-{P}|", denominator=f"|{C}-{P}|",
         color=LP_COLOR, half_width=0.090,
     )
     ax.set_xlim(0, 1.05)
@@ -225,7 +195,8 @@ def plot_definition_r(ax, panel_letter="A"):
 
 
 def plot_definition_dlp(ax, panel_letter="A"):
-    """Primary symbolic definition of u, d_LP, and first-cousin d_NP."""
+    """Primary symbolic definition of u and both canonical distances."""
+    T, S, L, C, P = _points()
     t = np.linspace(0.0, 1.0, 15)
     x = 0.13 + 0.72 * t
     y = 0.88 - 0.72 * np.sqrt(t)
@@ -239,9 +210,9 @@ def plot_definition_dlp(ax, panel_letter="A"):
                 arrowprops=dict(arrowstyle="->", color="#333333", lw=0.8))
     ax.annotate("", xy=(0.055, 1.00), xytext=(0.055, 0.0),
                 arrowprops=dict(arrowstyle="->", color="#333333", lw=0.8))
-    ax.text(1.01, -0.055, r"Normalized travel, $D_1$", ha="right",
+    ax.text(1.01, -0.055, f"Normalized travel, {nt.math('travel_axis')}", ha="right",
             va="top", fontsize=7, clip_on=False)
-    ax.text(0.015, 0.99, "Normalized\ncell state, $D_2$", ha="right",
+    ax.text(0.015, 0.99, f"Normalized\ncell state, {nt.math('cell_state_axis')}", ha="right",
             va="top", fontsize=7)
     ax.plot(x, y, color="#A7A7A7", lw=1.3, zorder=1)
     ax.scatter(x, y, s=9, facecolor="white", edgecolor="#777777",
@@ -264,34 +235,34 @@ def plot_definition_dlp(ax, panel_letter="A"):
                edgecolor="white", lw=0.55, zorder=6)
     ax.scatter([nx], [ny], marker="D", s=42, facecolor=NP_COLOR,
                edgecolor="white", lw=0.6, zorder=7)
-    ax.annotate(r"$T=(0,1)$", (x[0], y[0]), xytext=(5, 3),
+    ax.annotate(f"${T}=(0,1)$", (x[0], y[0]), xytext=(5, 3),
                 textcoords="offset points", fontsize=6.2, ha="left",
                 va="bottom")
-    ax.annotate(r"$S=(1,0)$", (x[-1], y[-1]), xytext=(4, 1),
+    ax.annotate(f"${S}=(1,0)$", (x[-1], y[-1]), xytext=(4, 1),
                 textcoords="offset points", fontsize=6.2, ha="left",
                 va="center")
-    ax.annotate(r"Closest assignment $P^*$", (px, py), xytext=(-4, -8),
+    ax.annotate(f"Closest assignment ${P}$", (px, py), xytext=(-4, -8),
                 textcoords="offset points", fontsize=6.2, ha="right",
                 va="top")
-    ax.annotate("Natural lineage  L", (lx, ly), xytext=(6, -2),
+    ax.annotate(f"Natural lineage  {nt.plain('natural_lineage')}", (lx, ly), xytext=(6, -2),
                 textcoords="offset points", fontsize=6.2, va="center")
-    ax.annotate(r"First-cousin null mean, $N$", (nx, ny),
+    ax.annotate(f"First-cousin null mean, ${C}$", (nx, ny),
                 xytext=(5, -6), textcoords="offset points", fontsize=6.0,
                 color=NP_COLOR, ha="left", va="top")
 
     add_colored_fraction(
         ax, prefix_x=0.15, fraction_x=0.285, center_y=0.16,
-        prefix="u", numerator=r"\mathrm{arc}(T\rightarrow P^*)",
-        denominator=r"\mathrm{arc}(T\rightarrow S)",
+        prefix=nt.symbol("canonical_position"), numerator=rf"\mathrm{{arc}}({T}\rightarrow {P})",
+        denominator=rf"\mathrm{{arc}}({T}\rightarrow {S})",
         color=U_COLOR, half_width=0.115,
     )
-    ax.text(0.65, 0.89, r"$D(a)=(D_1(a),D_2(a))$",
+    ax.text(0.65, 0.89, f"$D(a)=({nt.symbol('travel_axis')}(a),{nt.symbol('cell_state_axis')}(a))$",
             fontsize=5.8, color="#666666", ha="left", va="center")
     ax.text(0.65, 0.805,
-            r"$d_{LP}=\|D(L)-D(P^*)\|_2$",
+            rf"${nt.symbol('natural_front_distance')}=\|D({L})-D({P})\|_2$",
             fontsize=7.0, color=LP_COLOR, ha="left", va="center")
     ax.text(0.65, 0.720,
-            r"$d_{NP}=\|D(N)-D(P^*)\|_2$",
+            rf"${nt.symbol('null_front_distance')}=\|D({C})-D({P})\|_2$",
             fontsize=6.8, color=NP_COLOR, ha="left", va="center")
     ax.set_xlim(0, 1.05)
     ax.set_ylim(0, 1.05)
@@ -355,11 +326,11 @@ def scatter_records(ax, data, u_col, distance_col, metric,
             ax, data, u_col, distance_col, color=LP_COLOR)
 
     ax.grid(True, axis="y", alpha=0.28)
-    ax.set_xlabel("Position along front, u")
+    ax.set_xlabel(f"Position along front, {nt.plain('canonical_position')}")
     if metric == "dlp":
-        ax.set_ylabel(r"Distance to front, $d_{LP}$")
+        ax.set_ylabel(f"Distance to front, {nt.math('natural_front_distance')}")
     else:
-        ax.set_ylabel(r"Cousin-relative distance, $r$")
+        ax.set_ylabel(f"Cousin-relative distance, {nt.math('cousin_relative')}")
     if zoom:
         ux = data[u_col].to_numpy(dtype=float)
         dy = data[distance_col].to_numpy(dtype=float)
@@ -379,7 +350,7 @@ def scatter_records(ax, data, u_col, distance_col, metric,
 
 
 def plot_major_dlp_dnp(ax, metrics, panel_letter="B"):
-    """Show d_LP and d_NP for the five major subtrees without connectors."""
+    """Show both canonical distances for the five major subtrees without connectors."""
     major = metrics.set_index("subtree").loc[MAJOR_SUBTREES].reset_index()
     for name in ["P1", "ABp", "ABa", "AB", "P0"]:
         row = major[major["subtree"] == name].iloc[0]
@@ -438,7 +409,7 @@ def plot_major_dlp_dnp(ax, metrics, panel_letter="B"):
     ax.set_ylim(0.0, max(0.10, 1.17 * major_distance_max))
     ax.xaxis.set_major_locator(mticker.MaxNLocator(nbins=4))
     ax.xaxis.set_major_formatter(mticker.FormatStrFormatter("%.2f"))
-    ax.set_xlabel(r"Position along front, $u$")
+    ax.set_xlabel(f"Position along front, {nt.math('canonical_position')}")
     ax.set_ylabel("Distance to Pareto front")
     ax.set_title("Major-subtree distances", loc="left", pad=3)
     ax.grid(True, axis="y", alpha=0.28)
@@ -446,7 +417,7 @@ def plot_major_dlp_dnp(ax, metrics, panel_letter="B"):
 
 
 def plot_all_dlp_with_major_dnp(ax, metrics, panel_letter="C"):
-    """Show all d_LP records plus five labeled major-subtree d_NP anchors."""
+    """Show all natural distances plus five labeled major-subtree null-mean anchors."""
     # Draw smaller subtrees first and give larger subtrees a higher explicit
     # z-order. This keeps major lineages such as AB visible when canonical
     # positions overlap without introducing a second size encoding.
@@ -497,7 +468,7 @@ def plot_all_dlp_with_major_dnp(ax, metrics, panel_letter="C"):
     ax.axhline(0.0, color="#AAAAAA", lw=0.65, zorder=1)
     ax.grid(True, axis="y", alpha=0.28)
     ax.set_xlim(-0.025, 1.035)
-    # d_NP is an independently displayed series. In the pooled run its P1
+    # The null-mean distance is an independently displayed series. In the pooled run its P1
     # value exceeds every d_LP value, so a limit based only on d_LP pushes the
     # gold anchors and labels through the title. Retain the legacy d_LP margin
     # when it dominates, but reserve a larger legend band when d_NP dominates.
@@ -506,8 +477,8 @@ def plot_all_dlp_with_major_dnp(ax, metrics, panel_letter="C"):
     ymax = max(0.10, 1.15 * dlp_max, 1.35 * dnp_max)
     ax.set_ylim(-0.015, ymax)
     ax.set_xticks([0.0, 0.5, 1.0])
-    ax.set_xlabel(r"Position along front, $u$")
-    ax.set_ylabel(r"Lineage-to-front distance, $d_{LP}$")
+    ax.set_xlabel(f"Position along front, {nt.math('canonical_position')}")
+    ax.set_ylabel(f"Lineage-to-front distance, {nt.math('natural_front_distance')}")
     ax.set_title("All terminal-cell subtrees", loc="left", pad=5)
     add_panel_letter(ax, panel_letter, x=-0.09, y=1.11)
 
@@ -532,7 +503,7 @@ def plot_all_dlp_with_major_dnp(ax, metrics, panel_letter="C"):
     null_handle = Line2D(
         [0], [0], marker="o", ls="", ms=5.3,
         markerfacecolor=NP_COLOR, markeredgecolor="#4A3A1B",
-        markeredgewidth=0.55, label=r"Major-subtree null mean, $d_{NP}$",
+        markeredgewidth=0.55, label=f"Major-subtree null mean, {nt.math('null_front_distance')}",
     )
     ax.legend(handles=[null_handle], loc="upper right",
               bbox_to_anchor=(0.995, 0.88), frameon=False, fontsize=6.2,
@@ -558,8 +529,8 @@ def add_metric_correlation_inset(ax, metrics):
     inset.text(0.96, 0.06, rf"Spearman $\rho={rho:.2f}$",
                transform=inset.transAxes, ha="right", va="bottom",
                fontsize=5.0, color="#444444")
-    inset.set_xlabel(r"$d_{LP}$", fontsize=5.2, labelpad=1)
-    inset.set_ylabel(r"$r$", fontsize=5.2, labelpad=1)
+    inset.set_xlabel(nt.math("natural_front_distance"), fontsize=5.2, labelpad=1)
+    inset.set_ylabel(nt.math("cousin_relative"), fontsize=5.2, labelpad=1)
     inset.set_title("Metric agreement", fontsize=5.8, pad=2)
     inset.tick_params(labelsize=4.7, length=2, pad=1)
     inset.grid(True, alpha=0.2, lw=0.35)
@@ -654,9 +625,9 @@ def plot_primary_rows(metrics, out_dir):
              fontsize=10.5, weight="bold", va="top")
     handles = [
         Line2D([], [], marker="o", ls="", color=LP_COLOR, ms=6,
-               label=r"Natural lineage, $d_{LP}$"),
+               label=f"Natural lineage, {nt.math('natural_front_distance')}"),
         Line2D([], [], marker="o", ls="", color=NP_COLOR, ms=6,
-               label=r"First-cousin null mean, $d_{NP}$"),
+               label=f"First-cousin null mean, {nt.math('null_front_distance')}"),
     ]
     fig.legend(handles=handles, loc="upper center", bbox_to_anchor=(.54, .85),
                ncol=2, frameon=False, fontsize=9, columnspacing=2.5,
@@ -673,7 +644,7 @@ def plot_primary_rows(metrics, out_dir):
     ax.set_xlim(-.008*distance_max, 1.035*distance_max)
     ax.xaxis.set_major_locator(mticker.MultipleLocator(.05))
     ax.xaxis.set_major_formatter(mticker.FormatStrFormatter("%.2f"))
-    ax.set_xlabel(r"Distance to the same closest front assignment, $P^*$", fontsize=9)
+    ax.set_xlabel(f"Distance to the same closest front assignment, {nt.math('closest_point')}", fontsize=9)
     ax.tick_params(axis="y", labelsize=9, length=0, pad=7)
     ax.tick_params(axis="x", labelsize=8)
     ax.spines[["top", "right", "left"]].set_visible(False)
@@ -710,8 +681,8 @@ def plot_primary_rows(metrics, out_dir):
         axes = [fig.add_axes([left+.105, .115, .077, .68]),
                 fig.add_axes([left+.213, .115, .087, .68])]
         for ax, xmax, ticks, title, color in (
-            (axes[0], 1., [0., .5, 1.], r"Position, $u$", U_COLOR),
-            (axes[1], dmax, [0., dmax/2, dmax], r"Distance, $d_{LP}$", LP_COLOR),
+            (axes[0], 1., [0., .5, 1.], nt.heading("canonical_position"), U_COLOR),
+            (axes[1], dmax, [0., dmax/2, dmax], f"Distance, {nt.math('natural_front_distance')}", LP_COLOR),
         ):
             ax.set_ylim(row_count-.25, -1.1)
             ax.set_xlim(-.07*xmax, 1.07*xmax)
@@ -748,12 +719,12 @@ def plot_primary_rows(metrics, out_dir):
                                edgecolor="white", linewidth=.35, zorder=3)
             row_number += 2
     fig.text(.02, .045,
-             r"$u=0$: travel optimum; $u=1$: cell-state optimum.  Bold names also appear in A.",
+             f"${nt.symbol('canonical_position')}=0$: travel optimum; ${nt.symbol('canonical_position')}=1$: cell-state optimum.  Bold names also appear in A.",
              fontsize=8, color="#444444")
     save(fig, "fig5B_ce_canonical_all_subtrees")
 
 
-def plot_summary(metrics, metric, component_names, out_dir=OUT,
+def plot_summary(metrics, metric, component_names, out_dir,
                  panel_letters=("A", "B", "C")):
     """Render and split the primary d_LP or supplementary cousin-r summary."""
     if metric == "dlp":
@@ -808,58 +779,27 @@ def plot_summary(metrics, metric, component_names, out_dir=OUT,
     plt.close(fig)
 
 
-def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--metrics", type=Path, default=DEFAULT_METRICS)
-    parser.add_argument("--out", type=Path, default=OUT)
-    parser.add_argument("--min-cells", type=int, default=MIN_CELLS)
-    parser.add_argument("--iteration", type=int, default=ITERATION)
-    parser.add_argument("--primary-only", action="store_true",
-                        help="Render Figure 5 without rebuilding Figure S1.")
-    parser.add_argument(
-        "--profile",
-        choices=("embryo1_legacy", "embryo1_matched", "pooled_tracking_v1"),
-        help="Read validated metrics from an isolated profile run.",
-    )
-    parser.add_argument("--run-id")
-    parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
-    args = parser.parse_args(argv)
+FIGURE1_STEM = "fig1_endpoint_normalization_amendment"
+
+
+def render_figure1_amendment(out_dir: Path) -> None:
+    """Standalone endpoint/canonical schematic for co-author Figure 1 integration."""
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
     ps.configure()
-    context = None
-    if args.profile is not None:
-        context = build_analysis_context(
-            args.profile, run_id=args.run_id, output_root=args.output_root,
-            sweep_intervals=args.iteration)
-        if args.metrics == DEFAULT_METRICS:
-            args.metrics = (context.run_paths.analysis
-                            / "ce_subtree_canonical_metrics.csv")
-        if args.out == OUT:
-            args.out = context.run_paths.display("endpoint")
-    # Rendering validates the existing cache and never rewrites its provenance.
-    metrics = load_metrics(
-        args.metrics, min_cells=args.min_cells,
-        iteration=args.iteration, context=context)
-    if args.profile is None:
-        primary_names = (
-            "fig5A_ce_canonical_definition",
-            "fig5B_ce_canonical_major_subtrees",
-            "fig5C_ce_canonical_all_subtrees",
-        )
-        primary_letters = ("A", "B", "C")
-        plot_summary(metrics, metric="dlp", component_names=primary_names,
-                     out_dir=args.out, panel_letters=primary_letters)
-    else:
-        plot_primary_rows(metrics, args.out)
-    if not args.primary_only:
-        plot_summary(metrics, metric="r",
-                     component_names=(
-                         "figS1A_ce_cousin_r_definition",
-                         "figS1B_ce_cousin_r_major_subtrees",
-                         "figS1C_ce_cousin_r_all_subtrees",
-                     ),
-                     out_dir=args.out)
-    print(f"Wrote canonical summaries for {len(metrics)} subtrees to {args.out}")
+    fig, ax = plt.subplots(figsize=(7.0, 3.6))
+    fig.subplots_adjust(left=.16, right=.84, bottom=.18, top=.84)
+    plot_definition_dlp(ax, panel_letter="")
+    for label in ax.texts:
+        label.set_fontsize(label.get_fontsize() * 1.35)
+    ax.set_title("Endpoint coordinates and canonical metrics",
+                 fontsize=13, loc="left", pad=12)
+    with plt.rc_context({"pdf.fonttype": 42, "svg.fonttype": "none"}):
+        for extension in ("pdf", "png", "svg"):
+            fig.savefig(out_dir / f"{FIGURE1_STEM}.{extension}", dpi=300,
+                        bbox_inches="tight", facecolor="white")
+    plt.close(fig)
 
 
-if __name__ == "__main__":
-    main()
+SUPPLEMENT_COMPONENTS = ("figS1A_ce_cousin_r_definition", "figS1B_ce_cousin_r_major_subtrees",
+                         "figS1C_ce_cousin_r_all_subtrees")

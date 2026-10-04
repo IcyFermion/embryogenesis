@@ -1,0 +1,78 @@
+"""Pooled full-tree Figure 7/S4: cache-only build against the approved working layout."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import shutil
+import tempfile
+import unittest
+
+import numpy as np
+import pandas as pd
+
+from publication import provenance, registry
+from publication.adapters import full_tree as full_tree_adapter
+from publication.parity import compare
+from publication.tests.support import no_experiments
+
+APPROVED = provenance.ROOT / "publication/output/production"
+HAS_TEX = shutil.which("tectonic") is not None or shutil.which("pdflatex") is not None
+
+
+@unittest.skipUnless(HAS_TEX, "tectonic or pdflatex required")
+class CacheOnlyPooledBuild(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp(prefix="publication-pooled-"))
+        with no_experiments():
+            cls.record = registry.build("full-tree-pooled", cls.tmp / "build")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp)
+
+    def test_inventory_matches_approved_working_build(self):
+        released = json.loads((APPROVED / "release_manifest.json").read_text())
+        approved = {name for name in released["families"]["full-tree-pooled"]["files"]
+                    if Path(name).suffix in (".pdf", ".png", ".tex")}
+        self.assertEqual(set(self.record["files"]), approved)
+        self.assertEqual(set(self.record["files"]), set(registry.FAMILIES["full-tree-pooled"].owned_assets))
+        self.assertEqual(self.record["figure_numbers"],
+                         {"fig7_ce_full_tree_layerwise": "7", "figs_ce_full_tree_heuristics": "S4"})
+
+    def test_panels_match_approved_layout(self):
+        names = [n for n in self.record["files"] if n.endswith(".png")]
+        for name, result in compare(self.tmp / "build", APPROVED, names).items():
+            self.assertTrue(result["identical"], name)
+
+    def test_only_vertical_overflow_is_tolerated(self):
+        compiled = {stem: figure["compiled"] for stem, figure in self.record["figures"].items()}
+        for result in compiled.values():
+            self.assertTrue(all("Float too large for page" in w for w in result["warnings"]))
+        self.assertEqual({c["pages"] for c in compiled.values()}, {1})
+
+
+class EndpointDisplay(unittest.TestCase):
+    def test_endpoint_transform_does_not_change_raw_scores(self):
+        frame = pd.DataFrame(dict(weight_index=[0, 1, 2], travel=[3., 2., 1.], state=[1., 2., 4.]))
+        before = frame.copy(deep=True)
+        transform = full_tree_adapter.endpoint(frame, "aggregate")
+        x, y = transform.transform(frame.travel.to_numpy(), frame.state.to_numpy())
+        pd.testing.assert_frame_equal(frame, before)
+        np.testing.assert_allclose([x[2], y[2], x[0], y[0]], [0, 1, 1, 0])
+        # Reference values outside the endpoints are not clipped.
+        nx, ny = transform.transform(5., 7.)
+        self.assertGreater(nx, 1)
+        self.assertGreater(ny, 1)
+
+
+
+class Ownership(unittest.TestCase):
+    def test_families_sharing_a_production_root_own_disjoint_assets(self):
+        by_root = {}
+        for family in registry.FAMILIES.values():
+            self.assertTrue(family.owned_assets, family.key)
+            by_root.setdefault(family.production, []).append(set(family.owned_assets))
+        for root, owned in by_root.items():
+            self.assertEqual(sum(map(len, owned)), len(set().union(*owned)), root)

@@ -72,6 +72,12 @@ Recommended notebook execution order:
 
 Results land in `expression_embedding/results/`. Scripts inside `expression_embedding/` use `bundle_paths.py` to add the repo root to `sys.path` so shared modules import cleanly.
 
+### Pareto analyses and publication figures
+
+- `terminal_pareto/` and `full_tree_pareto/` are numerical back ends (analyses, caches under `output/runs/*/*/analysis/`, validators). They do not draw figures.
+- `publication/` is the front end: notation (`publication/notation.py` is the single source of displayed symbols), figures, captions, Table 1 and releases. Production figures live in `publication/output/production/`; builds go to `publication/output/candidates/<name>/`. Read `publication/README.md` before figure or notation work.
+- Typical flow: `python -m publication build --all --output-dir publication/output/candidates/NAME`, then `python -m publication release --build ... --rehearse` and `--apply`.
+
 ### Path Conventions
 
 All scripts assume they are run from the **repository root**. Data paths are relative (`data/cell_lineage.json`, etc.). The `expression_embedding/` bundle writes outputs to `expression_embedding/results/` rather than back to root.

@@ -1,6 +1,20 @@
 # Publication-figure handoff
 
-Updated 2026-10-02.
+> **Layout change, 2026-10-04.** Figures, captions and releases moved to
+> [`publication/`](publication/README.md); production is `publication/output/production/`.
+> This package is numerical only. Figure material that this record places in
+> run folders (`figures/`, `publication/`, `layout_history/`) or in the old
+> `output/publication/` is archived in
+> `publication/output/archive/migrated_20261004/` and removed after the
+> refactor PR. Commands named below that drew or released figures are retired;
+> see the package README for current commands.
+
+Updated 2026-10-04.
+
+All figures, captions and Table 1 are built and released by the shared
+presentation package; see [publication/README.md](publication/README.md).
+Production is `publication/output/production/` (released 2026-10-04 with
+`d_CP`/`C` notation and one universal style). Older paths below are historical.
 
 ## Terminal figures: pooled release promoted
 
@@ -89,11 +103,11 @@ tests passed. No pooled Figure 7 promotion or manuscript integration occurred.
 
 ## Full-tree Pareto analysis: pooled Figure 7 and supplement
 
-**Promotion coordination:** the older Figure 7 builder replaces the full
-production directory and now refuses to replace a Figures 10/11 release.
-Before any future `publication_build --publish`, adapt
-that release workflow to preserve Figures 10/11 and refresh their recorded
-preserved-file hashes. Do not overwrite the mixed production release directly.
+**Released 2026-10-04:** pooled Figure 7 and provisional S4 are in
+`full_tree_pareto/output/publication/` beside Figures 10/11, via the staged
+mixed release in `publication/release.py`; the former directory is archived
+under `full_tree_pareto/output/legacy/releases/20261004T024949483965Z/`. See
+`full_tree_pareto/POOLED_HANDOFF.md`.
 
 The author requested one main full-tree figure and one supplementary comparison,
 replacing the two-main-figure arrangement. Current scientific specification and
