@@ -38,11 +38,16 @@ def stale_files(hashes: dict[str, str], base: Path = ROOT) -> list[str]:
                   if not (Path(base) / name).is_file() or sha256(Path(base) / name) != digest)
 
 
+# Maintenance tools that never influence rendered assets.
+NON_RENDERING = {"migration.py", "parity.py"}
+
+
 def presentation_sources() -> dict[str, str]:
-    """Every non-test publication source and asset; any change invalidates rendered assets."""
+    """Every publication source and asset that can affect a build; any change invalidates rendered assets."""
     files = [*PACKAGE.rglob("*.py"), *(PACKAGE / "assets").rglob("*")]
     return {str(path.relative_to(ROOT)): sha256(path) for path in sorted(files)
-            if path.is_file() and not {"tests", "output", "__pycache__"} & set(path.relative_to(PACKAGE).parts)}
+            if path.is_file() and path.relative_to(PACKAGE).as_posix() not in NON_RENDERING
+            and not {"tests", "output", "__pycache__"} & set(path.relative_to(PACKAGE).parts)}
 
 
 def presentation_id(sources: dict[str, str], notation_snapshot: dict) -> str:

@@ -483,3 +483,17 @@ purged with the old production folders after the PR; open the PR.
 - Figure material archived (30 paths, 418 files) in
   `publication/output/archive/migrated_20261004/`; purge after the PR with
   `python -m publication.migration --purge --confirm`.
+
+### Post-merge cleanup (2026-10-04)
+
+- PR #2 merged with author fixes (render hooks exit 0 after successful builds;
+  tests read production). Batch `migrated_20261004` purged (30 paths), which
+  also removed ten formerly tracked old wrapper `.tex` files from Git.
+- Batch `legacy_20261004`: figure history in both `output/legacy/` folders
+  (6 paths, 242 files) archived, verified and purged; the numerical tarballs
+  stay in `terminal_pareto/output/legacy/`. The validator's archived-figure
+  check moved to `publication/tests/test_migration.py` (validator: 23 checks).
+- Intermediate candidates removed. Maintenance tools (`migration.py`,
+  `parity.py`) no longer count as presentation source; production was rebuilt
+  (figures identical) and re-released at `20261004T213512971027Z` from
+  `candidates/production_20261004b/`, the only candidate kept.

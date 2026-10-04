@@ -48,11 +48,6 @@ def _checkpoint_mismatches(checkpoint: Path, manifest_name: str) -> list[str]:
     """Compare a pre-organization hash snapshot with its original files."""
     record = json.loads((checkpoint / manifest_name).read_text())
     root = Path(record["root"])
-    # Promotion freezes the previous publication at this location. Historical
-    # checkpoints continue to verify those exact bytes, not the new release.
-    legacy_publication = ROOT / "terminal_pareto/output/legacy/embryo1/publication"
-    if manifest_name == "accepted_publication_sha256.json" and legacy_publication.exists():
-        root = legacy_publication
     return [
         relative for relative, expected in record["files"].items()
         if not (root / relative).exists()
@@ -384,8 +379,9 @@ def validate(run_id: str, output_root: Path) -> dict:
     checkpoint = (pooled.run_paths.validation
                   / "organization_checkpoint_20260922")
     for label, manifest_name in (
+        # The accepted pre-organization figures are now verified in the
+        # publication archive by publication/tests/test_migration.py.
         ("analysis caches", "analysis_sha256.json"),
-        ("accepted publication assets", "accepted_publication_sha256.json"),
         ("tracking sensitivity inputs", "tracking_sensitivity_sha256.json"),
     ):
         mismatches = (_checkpoint_mismatches(checkpoint, manifest_name)

@@ -16,6 +16,7 @@ Migration plan and progress:
 | `publication/output/candidates/<name>/` | Builds for review (`build --all` writes one folder per family plus `build_set.json`) |
 | `publication/output/archive/releases/<stamp>/` | Previous production states, hash-checked, written by every release |
 | `publication/output/archive/migrated_20261004/` | Figure material moved out of the back ends (old production folders, run `figures/`, `publication/`, `layout_history/`, render logs) |
+| `publication/output/archive/legacy_20261004/` | Former `output/legacy/` figure history: old production release archives, the original embryo-1 figures, diagnostic plots |
 | `publication/output/baseline_20261002/` | Pre-refactor backup tar and hash lists |
 | `terminal_pareto/output/runs/*/*/analysis/`, `full_tree_pareto/output/runs/*/*/analysis/` | Numerical inputs (unchanged; read through adapters) |
 
@@ -129,5 +130,6 @@ point is `C` (formerly `N`).
   `analysis/s3_cross_geometry/`.
 - `terminal_pareto/plot_style.py` re-exports `style.py` for historical
   exploratory scripts. Historical single-embryo full-tree renderers
-  (`fig7_fig8_*`, `heuristic_inventory.py`) and both packages' `output/legacy/`
-  archives are untouched and not part of any family.
+  (`fig7_fig8_*`, `heuristic_inventory.py`) are not part of any family; they
+  only write to `output/legacy/rebuild/` if rerun. `terminal_pareto/output/legacy/`
+  keeps the numerical pilot-output and pre-promotion run tarballs.
