@@ -17,13 +17,13 @@ from full_tree_pareto import cross_species_publication as cross_species
 from full_tree_pareto import publication_build as pooled
 from publication import provenance, release
 
-HISTORICAL = ("brownian_covariance_mle_derivation.pdf", "parametric_brownian_bootstrap.pdf",
-              "separate_clock_reference.pdf", "fig7A_ce_full_tree_layerwise_rounds.pdf",
+HISTORICAL = ("fig7A_ce_full_tree_layerwise_rounds.pdf",
               "fig7A_ce_full_tree_layerwise_rounds.png", "fig7_ce_full_tree_layerwise.pdf",
               "fig7_ce_full_tree_layerwise.tex", "figs_ce_full_tree_heuristics.pdf",
               "figs_ce_full_tree_heuristics_panel.pdf", "figs_ce_full_tree_heuristics_panel.png",
               *release.FULL_TREE_POOLED_RETIRES)
-METHODS_PDFS = HISTORICAL[:3]
+METHODS_PDFS = ("brownian_covariance_mle_derivation.pdf", "parametric_brownian_bootstrap.pdf",
+                "separate_clock_reference.pdf")
 POOLED = ("fig7A_ce_full_tree_layerwise_rounds.pdf", "fig7A_ce_full_tree_layerwise_rounds.png",
           "fig7B_ce_full_tree_collective.pdf", "fig7B_ce_full_tree_collective.png",
           "fig7_ce_full_tree_layerwise.pdf", "fig7_ce_full_tree_layerwise.tex",
@@ -89,8 +89,10 @@ class MixedFullTreeRelease(unittest.TestCase):
             self.assertEqual((self.production / name).read_bytes(), (self.build / name).read_bytes(), name)
         for name in release.FULL_TREE_POOLED_RETIRES:
             self.assertFalse((self.production / name).exists(), name)
-        for name in METHODS_PDFS:
-            self.assertEqual((self.production / name).read_bytes(), f"historical {name}".encode())
+        for name in METHODS_PDFS:  # retired from production, kept in the archive
+            self.assertFalse((self.production / name).exists(), name)
+            self.assertEqual((self.archive_root / "20261003T000000000000Z/publication" / name).read_bytes(),
+                             f"historical {name}".encode())
         pooled.verify_release(self.production)
         cross = cross_species.verify_release(self.production, check_archive=False)
         self.assertEqual(set(cross["preserved_files"]) & set(POOLED), set(POOLED))

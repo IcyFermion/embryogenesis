@@ -40,8 +40,7 @@ class CacheOnlyTerminalBuild(unittest.TestCase):
         self.assertEqual(set(self.record["figures"]), set(CAPTIONED_FIGURES) | {"table1_ce_subtree_statistics"})
         for stem, figure in self.record["figures"].items():
             self.assertEqual(figure["compiled"]["pages"], 1, stem)
-            expected = list(registry.TABLE1_KNOWN_WARNINGS) if stem.startswith("table1") else []
-            self.assertEqual([w for w in figure["compiled"]["warnings"] if not any(k in w for k in expected)], [], stem)
+            self.assertTrue(all("Float too large for page" in w for w in figure["compiled"]["warnings"]), stem)
 
     def test_rendered_inventory_matches_production_figures(self):
         released = set(json.loads((PRODUCTION / "release_manifest.json").read_text())["files"])

@@ -3,8 +3,9 @@
 ``render`` is copied verbatim from ``terminal_pareto/figS3_cross_geometry.py``.
 That script computes and replay-checks the cross-geometry projections and its
 source hash is pinned by the pooled-migration validator, so it stays
-byte-identical (a documented compatibility exception). This module draws from
-its validated projection table and references.
+byte-identical (a documented compatibility exception) and its own CLI keeps
+its original typography. This module draws from the validated projection
+table and references in the shared publication style.
 """
 
 import matplotlib
@@ -101,10 +102,7 @@ def render(frame,references,zoom,insets=False,*,out_dir,publication=False):
     plt.close(fig)
 
 
-# Typography the S3 script applies before rendering (kept for parity).
-S3_RC = {"font.family": "DejaVu Sans", "font.size": 9, "pdf.fonttype": 42, "svg.fonttype": "none"}
-
-
 def render_publication(frame, references, *, out_dir):
-    with style.matplotlib_defaults(**S3_RC):
-        render(frame, references, zoom=False, insets=True, out_dir=out_dir, publication=True)
+    """S3 in the shared publication style (the legacy script applies its own typography)."""
+    style.configure()
+    render(frame, references, zoom=False, insets=True, out_dir=out_dir, publication=True)

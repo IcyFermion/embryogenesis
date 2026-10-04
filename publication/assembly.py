@@ -21,6 +21,8 @@ PREAMBLE = r"""\documentclass[10pt]{article}
 \pagestyle{empty}
 \begin{document}
 """
+# Author decision 2026-10-03: vertical overflow is acceptable (two-page rendering on release).
+TOLERATED_WARNINGS = ("Float too large for page",)
 TEX_WARNINGS = re.compile(r"Overfull|Underfull|LaTeX Warning|Missing character|undefined", re.IGNORECASE)
 
 
@@ -40,12 +42,11 @@ def write_figure_wrapper(out: Path, stem: str, *, number: str, graphic: str, cap
     return write_wrapper(out, stem, number=number, body=body)
 
 
-def compile_wrapper(wrapper: Path, *, label: str, pages: int = 1, known_warnings: tuple[str, ...] = (),
-                    kind: str = "Figure") -> dict:
+def compile_wrapper(wrapper: Path, *, label: str, pages: int = 1, kind: str = "Figure") -> dict:
     """Compile with tectonic (or pdflatex); check page count, printed label and TeX warnings.
 
-    ``known_warnings`` lists exact substrings of pre-existing, reviewed warnings
-    that are recorded rather than fatal; any other warning fails the build.
+    Vertical float overflow (usually a long caption) is recorded, not fatal:
+    release can switch to a two-page layout. Any other TeX warning fails.
     """
     compiler = shutil.which("tectonic") or shutil.which("pdflatex")
     if compiler is None:
@@ -69,7 +70,7 @@ def compile_wrapper(wrapper: Path, *, label: str, pages: int = 1, known_warnings
     tex_log = wrapper.with_suffix(".log")
     log_text = (tex_log.read_text(errors="replace") if tex_log.exists() else "") + result.stdout
     warnings = sorted({line.strip() for line in log_text.splitlines() if TEX_WARNINGS.search(line)})
-    unexpected = [w for w in warnings if not any(known in w for known in known_warnings)]
+    unexpected = [w for w in warnings if not any(ok in w for ok in TOLERATED_WARNINGS)]
     if unexpected:
         raise ValueError(f"{wrapper.stem}: TeX warnings: {unexpected}")
     return dict(pages=found, label=f"{kind} {label}", warnings=warnings)

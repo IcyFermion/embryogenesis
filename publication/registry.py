@@ -82,15 +82,9 @@ def _build_terminal_primary(family, data, out):
         figures[stem] = dict(number=number, compiled=assembly.compile_wrapper(wrapper, label=number))
     table = out / f"{tables.TABLE1_STEM}.tex"
     figures[table.stem] = dict(number="1", compiled=assembly.compile_wrapper(
-        table, label="1", kind="Table", known_warnings=TABLE1_KNOWN_WARNINGS))
+        table, label="1", kind="Table"))
     artifacts = sorted(p for p in out.iterdir() if p.suffix in (".pdf", ".png", ".svg", ".tex"))
     return dict(artifacts=artifacts, figures=figures, extra={})
-
-
-# Reviewed, pre-existing warnings (one-page outputs): the approved 2026-09-30 Figure 7 build,
-# and published Table 1, whose standalone TeX was never compiled in production.
-TABLE1_KNOWN_WARNINGS = ("Float too large for page by 3.75319pt",)
-FULL_TREE_KNOWN_WARNINGS = {"fig7_ce_full_tree_layerwise": ("Float too large for page by 8.2687pt",)}
 
 
 def _build_full_tree_pooled(family, data, out):
@@ -104,8 +98,7 @@ def _build_full_tree_pooled(family, data, out):
                                                (captions.figure7, captions.supplement)):
         wrapper = assembly.write_wrapper(out, stem, number=number, body=body(meta), preamble=captions.PREAMBLE,
                                          numbering_tex=numbering)
-        figures[stem] = dict(number=number, compiled=assembly.compile_wrapper(
-            wrapper, label=number, known_warnings=FULL_TREE_KNOWN_WARNINGS.get(stem, ())))
+        figures[stem] = dict(number=number, compiled=assembly.compile_wrapper(wrapper, label=number))
     artifacts = sorted(p for p in out.iterdir() if p.suffix in (".pdf", ".png", ".tex"))
     return dict(artifacts=artifacts, figures=figures, extra=dict(display_transforms=transforms))
 

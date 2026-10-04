@@ -20,10 +20,8 @@ def render_panels(data, out: Path) -> None:
     out = Path(out)
     style.configure()
     terminal_canonical.render_figure1_amendment(out)
-    # Published Figure 2 was drawn with Matplotlib defaults (see style.matplotlib_defaults).
-    with style.matplotlib_defaults():
-        plt.close(terminal_global.plot_main(data.global_twr, data.global_nulls, display=data.global_display,
-                                            out_dir=out, panel_letter=None))
+    plt.close(terminal_global.plot_main(data.global_twr, data.global_nulls, display=data.global_display,
+                                        out_dir=out, panel_letter=None))
     plt.close(terminal_global.plot_support_b(data.global_twr, display=data.global_display, out_dir=out))
     plt.close(terminal_global.plot_support_c(data.global_twr, display=data.global_display, out_dir=out))
     shutil.copy2(NULL_SCHEMATIC, out / NULL_SCHEMATIC.name)

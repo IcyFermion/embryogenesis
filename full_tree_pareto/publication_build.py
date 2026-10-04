@@ -22,7 +22,6 @@ from publication import assembly
 from publication.adapters import full_tree as full_tree_adapter
 from publication.captions import full_tree as ft_captions
 from publication.figures import full_tree as full_tree_figures
-from publication.registry import FULL_TREE_KNOWN_WARNINGS
 from publication.figures.full_tree import plot_comparison, plot_rounds, retention_front  # noqa: F401  (re-exported)
 from terminal_pareto.front_coordinates import EndpointTransform
 
@@ -62,8 +61,7 @@ def write_wrappers(ctx, out):
 
 def compile_wrappers(out):
     for stem, label in zip(WRAPPERS, ("7", "S4")):
-        assembly.compile_wrapper(Path(out) / f"{stem}.tex", label=label,
-                                 known_warnings=FULL_TREE_KNOWN_WARNINGS.get(stem, ()))
+        assembly.compile_wrapper(Path(out) / f"{stem}.tex", label=label)
 
 
 def archive_working_publication(run):
@@ -123,8 +121,9 @@ def promote(run):
     root = pa.ROOT / "full_tree_pareto/output"
     target = root / "publication"
     if (target / "cross_species_release_manifest.json").exists():
-        raise ValueError("Production includes Figures 10/11. Coordinate an additive Figure 7 release "
-                         "that preserves them and updates their preserved-file hashes.")
+        raise ValueError("Production includes Figures 10/11; this whole-directory promoter would drop them. Use "
+                         "`python -m publication release --family full-tree-pooled --build PATH --apply`, which "
+                         "preserves Figures 10/11 and updates their preserved-file hashes.")
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     # Revalidate source/config and replay parent arrays before promotion.
     ctx, _, _, _ = pa.build(run=run, layout_only=True, **sweep_settings())

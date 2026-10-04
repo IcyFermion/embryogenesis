@@ -51,6 +51,9 @@ def _render_single_panel_fig2(context, out_dir: Path) -> None:
     )
     from terminal_pareto.front_coordinates import null_sd_coordinates
     from terminal_pareto.global_analysis import load_global_analysis
+    from publication import style
+
+    style.configure()  # Shared publication style (published Figure 2 predates this).
 
     result = load_global_analysis(context)
     names = {

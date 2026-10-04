@@ -99,12 +99,15 @@ FULL_TREE_RELEASE_MANIFEST = "release_manifest.json"
 FULL_TREE_PRESENTATION_COPY = "full_tree_pooled_presentation_manifest.json"
 CROSS_SPECIES_RELEASE_MANIFEST = "cross_species_release_manifest.json"
 # Historical single-embryo Figure 7/supplement assets superseded by the pooled
-# family without a same-named replacement. Methods PDFs are deliberately not
-# listed: retiring them is an editorial decision, so they are preserved.
+# family without a same-named replacement, plus the phylogenetic-reference
+# methods notes the author chose to drop from production for now (2026-10-03);
+# every retired file stays recoverable in the hash-checked release archive.
 FULL_TREE_POOLED_RETIRES = (
     "fig7B_ce_full_tree_layerwise_aggregate.pdf", "fig7B_ce_full_tree_layerwise_aggregate.png",
     "table_ce_full_tree_heuristics.pdf", "ce_full_tree_heuristic_inventory.csv",
     "ce_full_tree_heuristic_inventory_rows.tex",
+    "brownian_covariance_mle_derivation.pdf", "parametric_brownian_bootstrap.pdf",
+    "separate_clock_reference.pdf",
 )
 
 
