@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import shutil
 import tempfile
@@ -15,7 +16,7 @@ from publication.adapters import full_tree as full_tree_adapter
 from publication.parity import compare
 from publication.tests.support import no_experiments
 
-APPROVED = provenance.ROOT / "full_tree_pareto/output/runs/pooled_full_tree_v1/terminal_clamped_20260927/publication"
+APPROVED = provenance.ROOT / "publication/output/production"
 HAS_TEX = shutil.which("tectonic") is not None or shutil.which("pdflatex") is not None
 
 
@@ -32,7 +33,9 @@ class CacheOnlyPooledBuild(unittest.TestCase):
         shutil.rmtree(cls.tmp)
 
     def test_inventory_matches_approved_working_build(self):
-        approved = {p.name for p in APPROVED.iterdir() if p.suffix in (".pdf", ".png", ".tex")}
+        released = json.loads((APPROVED / "release_manifest.json").read_text())
+        approved = {name for name in released["families"]["full-tree-pooled"]["files"]
+                    if Path(name).suffix in (".pdf", ".png", ".tex")}
         self.assertEqual(set(self.record["files"]), approved)
         self.assertEqual(set(self.record["files"]), set(registry.FAMILIES["full-tree-pooled"].owned_assets))
         self.assertEqual(self.record["figure_numbers"],

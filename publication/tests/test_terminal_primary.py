@@ -19,7 +19,7 @@ from publication.figures import terminal_canonical
 from publication.tables import subtree_statistics_tex
 from publication.tests.support import no_experiments
 
-PRODUCTION = provenance.ROOT / "terminal_pareto/output/publication"
+PRODUCTION = provenance.ROOT / "publication/output/production"
 HAS_TEX = shutil.which("tectonic") is not None or shutil.which("pdflatex") is not None
 MARKER = r"\Delta_{\mathrm{test}}"
 
@@ -43,12 +43,11 @@ class CacheOnlyTerminalBuild(unittest.TestCase):
             self.assertTrue(all("Float too large for page" in w for w in figure["compiled"]["warnings"]), stem)
 
     def test_rendered_inventory_matches_production_figures(self):
-        released = set(json.loads((PRODUCTION / "release_manifest.json").read_text())["files"])
-        figure_assets = {name for name in released if Path(name).suffix in (".pdf", ".png", ".svg", ".tex")
-                         and not name.startswith(("fig8_", "fig9_"))}
-        # The build also compiles Table 1 to check its fit; production keeps only its TeX.
-        self.assertEqual(set(self.record["files"]), figure_assets | {"table1_ce_subtree_statistics.pdf"})
-        self.assertEqual(figure_assets | {"table1_ce_subtree_statistics.pdf"},
+        released = set(json.loads((PRODUCTION / "release_manifest.json").read_text())
+                       ["families"]["terminal-primary"]["files"])
+        figure_assets = {name for name in released if Path(name).suffix in (".pdf", ".png", ".svg", ".tex")}
+        self.assertEqual(set(self.record["files"]), figure_assets)
+        self.assertEqual(figure_assets,
                          set(registry.FAMILIES["terminal-primary"].owned_assets))
         self.assertTrue(provenance.verify_build(self.tmp / "build")["ready"])
 

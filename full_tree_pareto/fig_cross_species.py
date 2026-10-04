@@ -9,4 +9,7 @@ COMMAND = "python -m publication build --family full-tree-cross-species --output
 
 
 def render(run):
-    raise SystemExit(f"Figures are no longer drawn into {run}; build them with `{COMMAND}`.")
+    # The hash-pinned caller also reaches this hook after a successful build.
+    # Exit before its obsolete figure-path message, with a successful status.
+    print(f"Numerical results are ready in {run}; build figures with `{COMMAND}`.")
+    raise SystemExit(0)

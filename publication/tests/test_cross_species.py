@@ -8,6 +8,8 @@ Uses the published numerical runs read-only. Run from the repository root:
 from __future__ import annotations
 
 import json
+import io
+from contextlib import ExitStack, redirect_stdout
 from pathlib import Path
 import shutil
 import tempfile
@@ -185,8 +187,38 @@ class RetiredBackEndDrawing(unittest.TestCase):
         from full_tree_pareto import fig_cross_species
         from terminal_pareto import fig_terminal_cross_species
         for module in (fig_terminal_cross_species, fig_cross_species):
-            with self.assertRaisesRegex(SystemExit, "python -m publication build"):
+            output = io.StringIO()
+            with redirect_stdout(output), self.assertRaises(SystemExit) as stopped:
                 module.render(Path("run"))
+            self.assertEqual(stopped.exception.code, 0)
+            self.assertIn("python -m publication build", output.getvalue())
+
+    def test_successful_numerical_commands_exit_successfully(self):
+        from terminal_pareto import cross_species_analysis as terminal
+        from full_tree_pareto import cross_species_analysis as full_tree
+        for module, operations in ((terminal, ("load_inputs", "write_analysis", "validate_run")),
+                                   (full_tree, ("build",))):
+            with self.subTest(module=module.__name__), ExitStack() as stack:
+                stack.enter_context(mock.patch("sys.argv", ["analysis", "--run-id", "test-completed-run"]))
+                calls = [stack.enter_context(mock.patch.object(module, name, return_value={}))
+                         for name in operations]
+                output = stack.enter_context(redirect_stdout(io.StringIO()))
+                with self.assertRaises(SystemExit) as stopped:
+                    module.main()
+                self.assertEqual(stopped.exception.code, 0)
+                for call in calls:
+                    call.assert_called_once()
+                self.assertIn("Numerical results are ready", output.getvalue())
+
+    def test_numerical_failures_still_propagate(self):
+        from terminal_pareto import cross_species_analysis as terminal
+        from full_tree_pareto import cross_species_analysis as full_tree
+        for module in (terminal, full_tree):
+            with self.subTest(module=module.__name__), \
+                    mock.patch("sys.argv", ["analysis", "--render-only"]), \
+                    mock.patch.object(module, "validate_run", side_effect=ValueError("invalid cache")), \
+                    self.assertRaisesRegex(ValueError, "invalid cache"):
+                module.main()
 
     def test_plot_style_shim_reexports_shared_style(self):
         from terminal_pareto import plot_style as legacy_style
