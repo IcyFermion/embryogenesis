@@ -93,114 +93,117 @@ def transaction(target: Path, mutate: Callable[[Path, dict], dict], verify: Call
     return dict(summary or {}, archive=str(archive), published_at=when)
 
 
-# ---------------------------------------------------------------- full tree
+# ---------------------------------------------------------- production
 
-FULL_TREE_RELEASE_MANIFEST = "release_manifest.json"
-FULL_TREE_PRESENTATION_COPY = "full_tree_pooled_presentation_manifest.json"
-CROSS_SPECIES_RELEASE_MANIFEST = "cross_species_release_manifest.json"
-# Historical single-embryo Figure 7/supplement assets superseded by the pooled
-# family without a same-named replacement, plus the phylogenetic-reference
-# methods notes the author chose to drop from production for now (2026-10-03);
-# every retired file stays recoverable in the hash-checked release archive.
-FULL_TREE_POOLED_RETIRES = (
-    "fig7B_ce_full_tree_layerwise_aggregate.pdf", "fig7B_ce_full_tree_layerwise_aggregate.png",
-    "table_ce_full_tree_heuristics.pdf", "ce_full_tree_heuristic_inventory.csv",
-    "ce_full_tree_heuristic_inventory_rows.tex",
-    "brownian_covariance_mle_derivation.pdf", "parametric_brownian_bootstrap.pdf",
-    "separate_clock_reference.pdf",
-)
+PRODUCTION = provenance.PACKAGE / "output" / "production"
+RELEASE_ARCHIVE = provenance.PACKAGE / "output" / "archive" / "releases"
+PRODUCTION_MANIFEST = "release_manifest.json"
 
 
-def _default_full_tree_verifiers():
-    from full_tree_pareto import cross_species_publication as cross_species
-    from full_tree_pareto import publication_build as pooled
-    return pooled.verify_release, cross_species.verify_release
+def family_manifest(key: str) -> str:
+    return f"{key}.presentation_manifest.json"
 
 
-def release_full_tree_pooled(build: Path, production: Path, *, archive_root: Path | None = None,
-                             verifiers=None, when: str | None = None) -> dict:
-    """Mixed full-tree release: pooled Figure 7/S4 in, Figures 10/11 preserved with refreshed records.
+def builds_in(path: Path) -> dict[str, Path]:
+    """Family key -> build directory, for one family build or a build set."""
+    from publication.registry import BUILD_SET
+    path = Path(path)
+    if (path / BUILD_SET).exists():
+        families = json.loads((path / BUILD_SET).read_text())["families"]
+        return {key: path / entry["directory"] for key, entry in families.items()}
+    return {json.loads((path / provenance.MANIFEST).read_text())["family"]: path}
 
-    ``build`` is a verified ``full-tree-pooled`` presentation build. The pooled
-    ``release_manifest.json`` keeps the legacy format read by
-    ``publication_build --verify``; the cross-species release manifest's
-    preserved-file record is rewritten to the new inventory (previous record
-    kept under ``preserved_files_history``) so both verifiers agree.
+
+def release(build: Path, *, families=None, production: Path = PRODUCTION, archive_root: Path = RELEASE_ARCHIVE,
+            when: str | None = None) -> dict:
+    """Release family builds into the single flat production folder.
+
+    Each family may add, replace or retire only its registry-owned assets
+    (plus its manifest copy and the shared release manifest); every other
+    production file must stay byte-identical. Builds must be intact and built
+    from the current presentation source.
     """
-    build, production = Path(build), Path(production)
-    status = provenance.verify_build(build)
-    record = json.loads((build / provenance.MANIFEST).read_text())
-    if record["family"] != "full-tree-pooled":
-        raise ValueError(f"Not a full-tree-pooled build: {record['family']}")
-    verify_pooled, verify_cross_species = verifiers or _default_full_tree_verifiers()
-    when = when or stamp()
-    archive_root = Path(archive_root) if archive_root else production.parent / "legacy/releases"
     from publication.registry import FAMILIES
-    family_assets = set(FAMILIES["full-tree-pooled"].owned_assets)
-    build_files = sorted(record["files"])
-    if set(build_files) - family_assets:
-        raise ValueError(f"Build lists assets the full-tree-pooled family does not own: "
-                         f"{sorted(set(build_files) - family_assets)}")
-    owned = family_assets | {FULL_TREE_RELEASE_MANIFEST, FULL_TREE_PRESENTATION_COPY, CROSS_SPECIES_RELEASE_MANIFEST}
-    retired = set(FULL_TREE_POOLED_RETIRES)
-    run = Path(record["run"])
+    available = builds_in(build)
+    selected = list(families or available)
+    if unknown := set(selected) - set(available):
+        raise ValueError(f"Families not in this build: {sorted(unknown)}")
+    records = {}
+    for key in selected:
+        status = provenance.verify_build(available[key])
+        if not status["ready"]:
+            raise ValueError(f"{key} build is stale ({status['stale_sources']}); rebuild before releasing")
+        record = json.loads((available[key] / provenance.MANIFEST).read_text())
+        if extra := set(record["files"]) - set(FAMILIES[key].owned_assets):
+            raise ValueError(f"{key} build lists assets the family does not own: {sorted(extra)}")
+        records[key] = record
+    owned = {PRODUCTION_MANIFEST} | {family_manifest(k) for k in selected}
+    owned |= {name for k in selected for name in FAMILIES[k].owned_assets}
+    production = Path(production)
+    production.mkdir(parents=True, exist_ok=True)
+    when = when or stamp()
 
     def mutate(stage: Path, before: dict) -> dict:
-        removed = {name: before[name] for name in FULL_TREE_POOLED_RETIRES if name in before}
-        for name in removed:
-            (stage / name).unlink()
-        for name in build_files:
-            shutil.copy2(build / name, stage / name)
-        shutil.copy2(build / provenance.MANIFEST, stage / FULL_TREE_PRESENTATION_COPY)
-        files = {name: sha256(stage / name) for name in [*build_files, FULL_TREE_PRESENTATION_COPY]}
-        pooled_record = dict(
-            version="full-tree-pooled-release-2", profile="pooled_full_tree_v1", run=str(run), published_at=when,
-            presentation_id=record["presentation_id"], figure_numbers=record["figure_numbers"], files=files,
-            analysis_files={name.removeprefix("analysis/"): digest for name, digest in record["input_files"].items()
-                            if name.startswith("analysis/")},
-            retired_files=removed, previous_publication=str(archive_root / when))
-        (stage / FULL_TREE_RELEASE_MANIFEST).write_text(json.dumps(pooled_record, indent=2) + "\n")
-        cross = stage / CROSS_SPECIES_RELEASE_MANIFEST
-        if cross.exists():
-            cross_record = json.loads(cross.read_text())
-            current = inventory(stage)
-            preserved = {name: digest for name, digest in current.items()
-                         if name not in cross_record["files"] and name != CROSS_SPECIES_RELEASE_MANIFEST}
-            history = cross_record.get("preserved_files_history", [])
-            history.append(dict(updated_at=when, by="full-tree-pooled release", previous=cross_record["preserved_files"]))
-            cross_record.update(preserved_files=preserved, preserved_files_history=history)
-            cross.write_text(json.dumps(cross_record, indent=2) + "\n")
-        return check_ownership(before, inventory(stage), owned=owned, retired=retired)
+        path = stage / PRODUCTION_MANIFEST
+        manifest = (json.loads(path.read_text()) if path.exists()
+                    else dict(version="publication-release-1", families={}, history=[]))
+        retired = set()
+        for key in selected:
+            record, source = records[key], available[key]
+            previous = set(manifest["families"].get(key, {}).get("files", {}))
+            for name in previous - set(record["files"]) - {family_manifest(key)}:
+                (stage / name).unlink()
+                retired.add(name)
+            for name in record["files"]:
+                shutil.copy2(source / name, stage / name)
+            shutil.copy2(source / provenance.MANIFEST, stage / family_manifest(key))
+            manifest["families"][key] = dict(
+                released_at=when, status=FAMILIES[key].status, build=str(source.resolve()),
+                presentation_id=record["presentation_id"], run=record["run"], analysis_id=record["analysis_id"],
+                figure_numbers=record["figure_numbers"], input_files=record["input_files"],
+                files={name: sha256(stage / name) for name in [*sorted(record["files"]), family_manifest(key)]})
+        manifest["history"].append(dict(released_at=when, families=selected,
+                                        previous=str(Path(archive_root) / when) if before else None))
+        path.write_text(json.dumps(manifest, indent=2) + "\n")
+        return dict(check_ownership(before, inventory(stage), owned=owned, retired=retired), families=selected)
 
-    def verify(directory: Path) -> None:
-        verify_pooled(directory)
-        check(directory, {name: digest for name, digest in record["files"].items()})
-        if (directory / CROSS_SPECIES_RELEASE_MANIFEST).exists():
-            verify_cross_species(directory, check_archive=False)
-
-    result = transaction(production, mutate, verify, archive_root=archive_root, when=when)
-    return dict(result, build=str(build), stale_presentation_sources=status["stale_sources"])
+    return transaction(production, mutate, lambda d: verify_production(d), archive_root=archive_root, when=when)
 
 
-def rehearse_full_tree_pooled(build: Path, production: Path, *, keep: Path | None = None) -> dict:
-    """Run the mixed release against a scratch copy of ``production`` with the real verifiers.
-
-    Production itself is only read. With ``keep``, the rehearsed directory is
-    left there for inspection; otherwise it is removed.
-    """
+def verify_production(production: Path = PRODUCTION, *, check_inputs: bool = True) -> dict:
+    """Integrity of released files (and their numerical inputs); stale presentation source is reported."""
     production = Path(production)
-    before = inventory(production)
+    manifest = json.loads((production / PRODUCTION_MANIFEST).read_text())
+    expected = {PRODUCTION_MANIFEST}
+    stale, summary = set(), {}
+    for key, entry in manifest["families"].items():
+        check(production, entry["files"])
+        expected |= set(entry["files"])
+        if check_inputs:
+            check(Path(entry["run"]), entry["input_files"])
+        recorded = json.loads((production / family_manifest(key)).read_text())["presentation_sources"]
+        stale |= set(provenance.stale_files(recorded))
+        summary[key] = dict(files=len(entry["files"]), released_at=entry["released_at"])
+    if set(inventory(production)) != expected:
+        raise ValueError(f"Unexpected or missing production files: "
+                         f"{sorted(set(inventory(production)) ^ expected)}")
+    return dict(families=summary, stale_presentation_sources=sorted(stale))
+
+
+def rehearse(build: Path, *, families=None, production: Path = PRODUCTION, keep: Path | None = None) -> dict:
+    """Release into a scratch copy of production with the real checks; production is only read."""
+    production = Path(production)
+    before = inventory(production) if production.exists() else {}
     scratch = Path(keep) if keep else Path(tempfile.mkdtemp(prefix="publication-rehearsal-"))
-    copy = scratch / "output/publication"
+    copy = scratch / "production"
     if copy.exists():
         raise FileExistsError(copy)
-    shutil.copytree(production, copy)
+    if production.exists():
+        shutil.copytree(production, copy)
     try:
-        result = release_full_tree_pooled(build, copy, archive_root=scratch / "output/legacy/releases")
-        if (copy / CROSS_SPECIES_RELEASE_MANIFEST).exists():
-            from full_tree_pareto import cross_species_publication
-            cross_species_publication.verify_release(copy, check_archive=True)
-        if inventory(production) != before:
+        result = release(build, families=families, production=copy, archive_root=scratch / "archive")
+        verify_production(copy)
+        if (inventory(production) if production.exists() else {}) != before:
             raise ValueError("Production changed during the rehearsal")
         return dict(result, rehearsal=str(copy) if keep else None, production_unchanged=True)
     finally:

@@ -103,7 +103,7 @@ def _build_full_tree_pooled(family, data, out):
     return dict(artifacts=artifacts, figures=figures, extra=dict(display_transforms=transforms))
 
 
-# Production assets of the terminal primary release (the build also compiles Table 1 to check fit).
+# Production assets of the terminal primary family (Table 1 is released as TeX and its compiled PDF).
 TERMINAL_PRIMARY_ASSETS = (
     "fig1_ce_endpoint_normalization_amendment.pdf",
     "fig1_ce_endpoint_normalization_amendment.tex",
@@ -156,6 +156,7 @@ TERMINAL_PRIMARY_ASSETS = (
     "figS3_four_geometries_with_insets.pdf",
     "figS3_four_geometries_with_insets.png",
     "figS3_four_geometries_with_insets.svg",
+    "table1_ce_subtree_statistics.pdf",
     "table1_ce_subtree_statistics.tex",
 )
 
@@ -170,15 +171,15 @@ FAMILIES = {family.key: family for family in (
     Family("terminal-primary",
            "Pooled 275-edge terminal analysis, 42 subtrees (cosine molecular distance); Figures 1-6, S1-S3, Table 1",
            "publication.adapters.terminal:primary", _build_terminal_primary,
-           production="terminal_pareto/output/publication",
+           production="publication/output/production",
            status="active: published 2026-09-23 (Figure 1 amendment pending co-author integration)",
            wrappers=TERMINAL_WRAPPERS, owned_assets=TERMINAL_PRIMARY_ASSETS),
     Family("full-tree-pooled",
            "Pooled full tree, 978 nodes/974 edges, layerwise and four other reconstructions (Euclidean molecular distance)",
            "publication.adapters.full_tree:pooled", _build_full_tree_pooled,
-           status="approved working build 2026-09-30; NOT promoted (S4 numbering provisional)",
+           status="active: Figure 7 and provisional S4 released 2026-10-04",
            wrappers=(("fig7_ce_full_tree_layerwise", "7"), ("figs_ce_full_tree_heuristics", "S4")),
-           production="full_tree_pareto/output/publication",
+           production="publication/output/production",
            owned_assets=tuple(f"{stem}{suffix}" for stem, suffixes in (
                ("fig7A_ce_full_tree_layerwise_rounds", (".pdf", ".png")),
                ("fig7B_ce_full_tree_collective", (".pdf", ".png")),
@@ -188,7 +189,7 @@ FAMILIES = {family.key: family for family in (
     Family("terminal-cross-species",
            "Pooled 187-edge terminal CE protein/CE RNA/CB RNA comparison (cosine molecular distance)",
            "publication.adapters.terminal:cross_species", _build_specs,
-           production="terminal_pareto/output/publication",
+           production="publication/output/production",
            status="active: Figures 8-9 published 2026-10-01",
            figures=(FigureSpec("8", "fig8_terminal_cross_species_comparison", "fig:terminal_cross_species_8",
                                partial(cs_figures.comparison_figure,
@@ -201,7 +202,7 @@ FAMILIES = {family.key: family for family in (
     Family("full-tree-cross-species",
            "Terminal-anchored partial forest, 485 cells/454 edges (Euclidean molecular distance)",
            "publication.adapters.full_tree:cross_species", _build_specs,
-           production="full_tree_pareto/output/publication",
+           production="publication/output/production",
            status="active: Figures 10-11 published 2026-10-01",
            figures=(FigureSpec("10", "fig10_full_tree_cross_species_comparison", "fig:full_tree_cross_species_10",
                                partial(cs_figures.comparison_figure,

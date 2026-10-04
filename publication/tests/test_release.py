@@ -1,8 +1,4 @@
-"""Mixed full-tree release on temporary fixtures: Figure 7/S4 in, Figures 10/11 preserved.
-
-Uses the real pooled and cross-species release verifiers; only the scientific
-replay of the cross-species run is stubbed. Production is never touched.
-"""
+"""Unified production releases on temporary fixtures (production itself is never touched)."""
 
 from __future__ import annotations
 
@@ -13,133 +9,128 @@ import tempfile
 import unittest
 from unittest import mock
 
-from full_tree_pareto import cross_species_publication as cross_species
-from full_tree_pareto import publication_build as pooled
 from publication import provenance, release
+from publication.registry import BUILD_SET, FAMILIES
 
-HISTORICAL = ("fig7A_ce_full_tree_layerwise_rounds.pdf",
-              "fig7A_ce_full_tree_layerwise_rounds.png", "fig7_ce_full_tree_layerwise.pdf",
-              "fig7_ce_full_tree_layerwise.tex", "figs_ce_full_tree_heuristics.pdf",
-              "figs_ce_full_tree_heuristics_panel.pdf", "figs_ce_full_tree_heuristics_panel.png",
-              *release.FULL_TREE_POOLED_RETIRES)
-METHODS_PDFS = ("brownian_covariance_mle_derivation.pdf", "parametric_brownian_bootstrap.pdf",
-                "separate_clock_reference.pdf")
-POOLED = ("fig7A_ce_full_tree_layerwise_rounds.pdf", "fig7A_ce_full_tree_layerwise_rounds.png",
-          "fig7B_ce_full_tree_collective.pdf", "fig7B_ce_full_tree_collective.png",
-          "fig7_ce_full_tree_layerwise.pdf", "fig7_ce_full_tree_layerwise.tex",
-          "figs_ce_full_tree_heuristics.pdf", "figs_ce_full_tree_heuristics.tex",
-          "figs_ce_full_tree_heuristics_panel.pdf", "figs_ce_full_tree_heuristics_panel.png")
+TERMINAL, PARTIAL = "terminal-cross-species", "full-tree-cross-species"
 
 
-class MixedFullTreeRelease(unittest.TestCase):
+class ProductionRelease(unittest.TestCase):
     def setUp(self):
         self.root = Path(tempfile.mkdtemp(prefix="publication-release-"))
-        self.production = self.root / "output/publication"
-        self.production.mkdir(parents=True)
-        for name in HISTORICAL:
-            (self.production / name).write_bytes(f"historical {name}".encode())
-        for name in cross_species.publication_files():
-            (self.production / name).write_bytes(f"released {name}".encode())
-        assembly = json.dumps(dict(analysis_id="toy")).encode()
-        (self.production / cross_species.ASSEMBLY_COPY).write_bytes(assembly)
-        cs_run = self.root / "cs_run"
-        (cs_run / "publication").mkdir(parents=True)
-        (cs_run / "publication/publication_manifest.json").write_bytes(assembly)
-        files = {name: provenance.sha256(self.production / name)
-                 for name in sorted(cross_species.publication_files() | {cross_species.ASSEMBLY_COPY})}
-        preserved = {name: provenance.sha256(self.production / name) for name in HISTORICAL}
-        (self.production / cross_species.RELEASE_MANIFEST).write_text(json.dumps(dict(
-            version="full-tree-cross-species-release-1", run=str(cs_run), analysis_id="toy",
-            figure_numbers={stem: number for stem, (number, _) in cross_species.FIGURES.items()},
-            files=files, preserved_files=preserved, previous_publication=None)))
-        self.cross_species_bytes = {name: (self.production / name).read_bytes() for name in files}
-        self.before = release.inventory(self.production)
-        run = self.root / "pooled_run"
-        (run / "analysis").mkdir(parents=True)
-        (run / "analysis/fronts.csv").write_text("method,scope\n")
-        self.build = self.root / "build"
-        self.build.mkdir()
-        for name in POOLED:
-            (self.build / name).write_bytes(f"pooled {name}".encode())
-        self.write_build_manifest(POOLED, run)
-        self.archive_root = self.root / "output/legacy/releases"
-        self.verify_patch = mock.patch.object(cross_species, "verify", return_value=dict(analysis_id="toy"))
-        self.verify_patch.start()
+        self.run = self.root / "run"
+        (self.run / "analysis").mkdir(parents=True)
+        (self.run / "analysis/metrics.csv").write_text("x\n1\n")
+        self.production = self.root / "production"
+        self.archive = self.root / "archive"
+        self.set_dir = self.root / "set"
+        self.make_set("v1")
 
     def tearDown(self):
-        self.verify_patch.stop()
         shutil.rmtree(self.root)
 
-    def write_build_manifest(self, names, run):
+    def make_family(self, directory: Path, key: str, tag: str, names=None):
+        directory.mkdir(parents=True)
+        names = list(names or FAMILIES[key].owned_assets)
+        for name in names:
+            (directory / name).write_bytes(f"{tag} {name}".encode())
         provenance.write_manifest(
-            self.build, family="full-tree-pooled", artifacts=[self.build / name for name in names],
-            inputs=dict(run=str(run), analysis_id="pooled",
-                        input_files={"analysis/fronts.csv": provenance.sha256(run / "analysis/fronts.csv")}),
-            extra=dict(figure_numbers={"fig7_ce_full_tree_layerwise": "7", "figs_ce_full_tree_heuristics": "S4"}))
+            directory, family=key, artifacts=[directory / name for name in names],
+            inputs=dict(run=str(self.run), analysis_id=f"{key}-id",
+                        input_files={"analysis/metrics.csv": provenance.sha256(self.run / "analysis/metrics.csv")}),
+            extra=dict(figure_numbers=FAMILIES[key].numbers))
 
-    def run_release(self, **options):
-        return release.release_full_tree_pooled(self.build, self.production, archive_root=self.archive_root,
-                                                when="20261003T000000000000Z", **options)
+    def make_set(self, tag, names=None):
+        if self.set_dir.exists():
+            shutil.rmtree(self.set_dir)
+        for key in (TERMINAL, PARTIAL):
+            self.make_family(self.set_dir / key, key, tag, names.get(key) if names else None)
+        (self.set_dir / BUILD_SET).write_text(json.dumps(dict(families={
+            key: dict(directory=key) for key in (TERMINAL, PARTIAL)})))
 
-    def test_release_preserves_figures_10_11_and_both_verifiers_agree(self):
-        result = self.run_release()
-        for name, data in self.cross_species_bytes.items():
-            self.assertEqual((self.production / name).read_bytes(), data, name)
-        for name in POOLED:
-            self.assertEqual((self.production / name).read_bytes(), (self.build / name).read_bytes(), name)
-        for name in release.FULL_TREE_POOLED_RETIRES:
-            self.assertFalse((self.production / name).exists(), name)
-        for name in METHODS_PDFS:  # retired from production, kept in the archive
-            self.assertFalse((self.production / name).exists(), name)
-            self.assertEqual((self.archive_root / "20261003T000000000000Z/publication" / name).read_bytes(),
-                             f"historical {name}".encode())
-        pooled.verify_release(self.production)
-        cross = cross_species.verify_release(self.production, check_archive=False)
-        self.assertEqual(set(cross["preserved_files"]) & set(POOLED), set(POOLED))
-        self.assertIn(release.FULL_TREE_RELEASE_MANIFEST, cross["preserved_files"])
-        self.assertEqual(len(cross["preserved_files_history"]), 1)
-        archived = self.archive_root / "20261003T000000000000Z"
-        release.check(archived / "publication", self.before)
-        self.assertEqual(json.loads((archived / "manifest.json").read_text())["files"], self.before)
-        self.assertEqual(sorted(result["removed"]), sorted(release.FULL_TREE_POOLED_RETIRES))
+    def apply(self, **options):
+        return release.release(self.set_dir, production=self.production, archive_root=self.archive, **options)
 
-    def test_release_refuses_assets_owned_by_another_family(self):
-        intruder = "fig10_full_tree_cross_species_comparison.pdf"
-        (self.build / intruder).write_bytes(b"not mine")
-        self.write_build_manifest((*POOLED, intruder), Path(json.loads(
-            (self.build / provenance.MANIFEST).read_text())["run"]))
+    def test_first_release_creates_flat_production_with_family_sections(self):
+        result = self.apply(when="T1")
+        status = release.verify_production(self.production)
+        self.assertEqual(set(status["families"]), {TERMINAL, PARTIAL})
+        manifest = json.loads((self.production / release.PRODUCTION_MANIFEST).read_text())
+        self.assertIsNone(manifest["history"][0]["previous"])
+        for key in (TERMINAL, PARTIAL):
+            for name in FAMILIES[key].owned_assets:
+                self.assertEqual((self.production / name).read_bytes(), f"v1 {name}".encode())
+        self.assertEqual(sorted(result["families"]), sorted([TERMINAL, PARTIAL]))
+
+    def test_family_rerelease_changes_only_its_assets_and_retires_dropped_ones(self):
+        self.apply(when="T1")
+        other = {name: (self.production / name).read_bytes() for name in FAMILIES[PARTIAL].owned_assets}
+        dropped = FAMILIES[TERMINAL].owned_assets[0]
+        kept = [n for n in FAMILIES[TERMINAL].owned_assets if n != dropped]
+        self.make_set("v2", names={TERMINAL: kept})
+        before = release.inventory(self.production)
+        result = self.apply(families=[TERMINAL], when="T2")
+        self.assertEqual(result["removed"], [dropped])
+        for name, data in other.items():
+            self.assertEqual((self.production / name).read_bytes(), data)
+        for name in kept:
+            self.assertEqual((self.production / name).read_bytes(), f"v2 {name}".encode())
+        release.check(self.archive / "T2/publication", before)
+        release.verify_production(self.production)
+
+    def test_build_listing_another_familys_asset_is_refused(self):
+        intruder = FAMILIES[PARTIAL].owned_assets[0]
+        shutil.copy2(self.set_dir / PARTIAL / intruder, self.set_dir / TERMINAL / intruder)
+        names = [*FAMILIES[TERMINAL].owned_assets, intruder]
+        shutil.rmtree(self.set_dir / TERMINAL)
+        self.make_family(self.set_dir / TERMINAL, TERMINAL, "v1", names)
         with self.assertRaisesRegex(ValueError, "does not own"):
-            self.run_release()
-        self.assertEqual(release.inventory(self.production), self.before)
-        self.assertFalse(self.archive_root.exists())
+            self.apply()
+        self.assertFalse(self.archive.exists())
 
-    def test_failed_final_verification_restores_production(self):
+    def test_failed_final_verification_restores_previous_production(self):
+        self.apply(when="T1")
+        before = release.inventory(self.production)
+        self.make_set("v2")
         calls = []
+        real = release.verify_production
 
-        def flaky(directory):
+        def flaky(directory, **kwargs):
             calls.append(directory)
             if len(calls) == 2:
                 raise ValueError("injected final failure")
-            return pooled.verify_release(directory)
-        with self.assertRaisesRegex(ValueError, "injected"):
-            self.run_release(verifiers=(flaky, cross_species.verify_release))
-        self.assertEqual(release.inventory(self.production), self.before)
-        self.assertFalse((self.archive_root / "20261003T000000000000Z").exists())
+            return real(directory, **kwargs)
+        with mock.patch.object(release, "verify_production", flaky), \
+                self.assertRaisesRegex(ValueError, "injected"):
+            self.apply(when="T2")
+        self.assertEqual(release.inventory(self.production), before)
+        self.assertFalse((self.archive / "T2").exists())
 
-    def test_failed_staged_verification_leaves_production_untouched(self):
-        def failing(directory):
-            raise ValueError("staged verification failed")
-        with self.assertRaisesRegex(ValueError, "staged"):
-            self.run_release(verifiers=(failing, cross_species.verify_release))
-        self.assertEqual(release.inventory(self.production), self.before)
-        self.assertFalse(self.archive_root.exists())
-        self.assertEqual([p.name for p in self.production.parent.iterdir() if p.name.startswith(".release")], [])
+    def test_stale_build_is_refused(self):
+        live = provenance.presentation_sources()
+        with mock.patch.object(provenance, "presentation_sources",
+                               return_value=dict(live, **{"publication/style.py": "0" * 64})), \
+                self.assertRaisesRegex(ValueError, "stale"):
+            self.apply()
 
-    def test_altered_build_is_refused_before_staging(self):
-        (self.build / POOLED[0]).write_bytes(b"tampered")
-        with self.assertRaisesRegex(ValueError, "Changed or missing build artifacts"):
-            self.run_release()
-        self.assertEqual(release.inventory(self.production), self.before)
+    def test_verify_detects_tampering_and_strays(self):
+        self.apply(when="T1")
+        (self.production / "stray.pdf").write_bytes(b"?")
+        with self.assertRaisesRegex(ValueError, "Unexpected or missing"):
+            release.verify_production(self.production)
+        (self.production / "stray.pdf").unlink()
+        name = FAMILIES[TERMINAL].owned_assets[0]
+        (self.production / name).write_bytes(b"tampered")
+        with self.assertRaisesRegex(ValueError, "Hash mismatch"):
+            release.verify_production(self.production)
+
+    def test_rehearsal_leaves_production_untouched(self):
+        self.apply(when="T1")
+        before = release.inventory(self.production)
+        self.make_set("v2")
+        result = release.rehearse(self.set_dir, production=self.production)
+        self.assertTrue(result["production_unchanged"])
+        self.assertEqual(release.inventory(self.production), before)
 
 
 if __name__ == "__main__":
