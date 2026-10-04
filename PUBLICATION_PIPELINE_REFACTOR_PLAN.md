@@ -440,3 +440,22 @@ No verifier changed any output file (hash diff empty).
   29/29 migration checks, 13/13 profile tests, both production verifiers,
   13,828 + 9,012 assignment replays; all 1,822 back-end output files and every
   validator-pinned source byte-identical to the phase 0 baseline.
+
+### Post-review decisions and Figure 7 release (2026-10-03/04)
+
+- Author decisions: one universal style for all figures (Figure 2 and S3
+  restyled in builds); vertical overflow accepted (recorded, not fatal);
+  phylogenetic methods PDFs dropped from full-tree production for now (kept in
+  the archive); promote pooled Figure 7.
+- Restyled terminal candidates: `publication/output/candidates/restyle_20261003/`
+  (Figure 2 and S3 inspected; other assets unchanged). Terminal production not
+  re-released.
+- Figure 7/S4 release: candidate `candidates/release_fig7_20261003/` (identical
+  to the approved build), rehearsed, then applied with `python -m publication
+  release --family full-tree-pooled --apply` at `20261004T024949483965Z`.
+  Archive: `full_tree_pareto/output/legacy/releases/20261004T024949483965Z/`.
+  Post-release: `publication_build --verify` passes (it failed at baseline for
+  lack of a release manifest), Figures 10/11 production and archive verify,
+  terminal production verifies; only full-tree production and the new archive
+  differ from the baseline hashes. Snapshot:
+  `publication/output/baseline_20261002/output_sha256_after_fig7_release_20261004.txt`.

@@ -1,8 +1,8 @@
 # Pooled full-tree figure rebuild
 
-Updated 2026-10-01. **Computation, rendering and visual review are complete.**
-The author approved the revised figures and requested a repository checkpoint
-on 2026-09-30. Publication promotion remains a separate, unperformed step.
+Updated 2026-10-04. **Computation, rendering, review and publication are complete.**
+The author approved the revised figures on 2026-09-30 and requested promotion
+on 2026-10-03; see Release below.
 [README.md](README.md) holds the scientific specification and build commands.
 
 The subsequent cross-species layerwise comparison is a separate, completed
@@ -51,28 +51,32 @@ Open review finding: `resume_paired` still needs to create `run/analysis/`
 before assembling its final cache on a completely fresh run. The worker-default
 change does not fix this separate issue; the completed existing run is unaffected.
 
-When pooled Figure 7 publication promotion is explicitly requested, **first
-adapt/coordinate promotion to preserve production Figures 10/11 and refresh
-their preserved-file hashes**. The existing `publication_build --publish`
-replaces the entire directory and now refuses a production folder containing
-the Figures 10/11 release manifest. The historical command sequence below is
-deferred until that change:
+## Release
+
+Released 2026-10-04 (UTC stamp `20261004T024949483965Z`) at the author's
+request: pooled Figure 7 and provisional S4 are in `output/publication/`
+alongside Figures 10/11, built by `python -m publication build --family
+full-tree-pooled` and promoted with `python -m publication release --family
+full-tree-pooled --build PATH --apply`. Figures 10/11 are byte-identical and
+their `cross_species_release_manifest.json` preserved-file record was rewritten
+(previous record kept in `preserved_files_history`). Retired from production:
+the historical single-embryo Figure 7B aggregate panel, heuristic table and
+inventory CSV/TeX, and the three phylogenetic-reference methods PDFs (author
+decision: useful backup, skipped for now). The entire former 25-file directory
+is recoverable with verified hashes in `full_tree_pareto/output/legacy/releases/20261004T024949483965Z/publication/`.
 
 ```bash
-python -m full_tree_pareto.publication_build --layout-only --publish
 python -m full_tree_pareto.publication_build --verify
+python -m full_tree_pareto.cross_species_publication --verify-production
 ```
 
-Promotion archives the former bundle under `output/legacy/releases/<stamp>/`
-with hashes. On failure it restores the former bundle and removes its staging
-folder and partial archive. Then record the archive path here. The current
-repository checkpoint includes source, caption templates, tests and handoffs;
-generated figures, caches and local archives remain Git-ignored.
+The legacy `publication_build --publish` whole-directory promoter still refuses
+this mixed directory and points to the release command above.
 
-**Do not edit `pooled_analysis.py`** before promotion. Its source hash is part
+**Do not edit `pooled_analysis.py`**. Its source hash is part
 of every cache identity, so any edit invalidates the expensive paired
-sweep. Caption/layout changes belong in `publication_build.py`, which is not
-hashed. Higher-cousin code lives in `cousin_references.py` with a separate
+sweep. Caption/layout changes belong in `publication/figures/full_tree.py`
+and `publication/captions/full_tree.py`, which are not scientifically hashed. Higher-cousin code lives in `cousin_references.py` with a separate
 source-pinned cache under `analysis/cousin_shuffles/`. Changing it invalidates
 only those add-on draws; do not rewrite its manifest to force stale reuse.
 Normal builds generate missing add-on draws; layout-only requires existing

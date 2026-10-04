@@ -24,10 +24,9 @@ python -m full_tree_pareto.publication_build --workers 8
 # Replay-validate assignments and redraw without rerunning solvers.
 python -m full_tree_pareto.publication_build --layout-only
 
-# Explicit promotion; preserve the former publication in a hashed archive.
-# Currently deferred: first coordinate preservation of production Figures 10/11
-# (this older Figure 7 promoter replaces the entire directory).
-python -m full_tree_pareto.publication_build --layout-only --publish
+# Promotion into the mixed production directory (preserves Figures 10/11):
+python -m publication build --family full-tree-pooled --output-dir PATH
+python -m publication release --family full-tree-pooled --build PATH --rehearse   # then --apply
 
 python -m full_tree_pareto.publication_build --verify
 python -m unittest discover -s full_tree_pareto -p 'test_*.py'
@@ -50,7 +49,7 @@ full-tree-pooled --output-dir PATH` renders the same assets from validated
 caches. A staged mixed release that preserves Figures 10/11 exists in
 `publication/release.py` and can be rehearsed with
 `python -m publication release --family full-tree-pooled --build PATH --rehearse`;
-the guard below still applies to `publication_build --publish`.
+the legacy `publication_build --publish` promoter stays blocked on mixed production.
 
 Promotion copies figures to `output/publication/` with a release manifest,
 preserving the former bundle in `output/legacy/releases/`. A failed promotion
@@ -312,10 +311,19 @@ All 29 numerical artifacts and 15 other production files were hash-checked
 unchanged. Figure 7 and its supplement were not promoted or changed, and the
 terminal publication directory is untouched.
 
-**Do not use the older `publication_build --publish` directly on this mixed
-production directory.** Its whole-bundle replacement is now blocked when the
-Figures 10/11 release manifest is present. A later pooled Figure 7 promotion must first be coordinated to preserve
-the cross-species assets and update their preserved-file release hashes.
+**Pooled Figure 7/S4 release (2026-10-04).** Released 2026-10-04 (UTC stamp `20261004T024949483965Z`) at the author's
+request: pooled Figure 7 and provisional S4 are in `output/publication/`
+alongside Figures 10/11, built by `python -m publication build --family
+full-tree-pooled` and promoted with `python -m publication release --family
+full-tree-pooled --build PATH --apply`. Figures 10/11 are byte-identical and
+their `cross_species_release_manifest.json` preserved-file record was rewritten
+(previous record kept in `preserved_files_history`). Retired from production:
+the historical single-embryo Figure 7B aggregate panel, heuristic table and
+inventory CSV/TeX, and the three phylogenetic-reference methods PDFs (author
+decision: useful backup, skipped for now). The entire former 25-file directory
+is recoverable with verified hashes in `full_tree_pareto/output/legacy/releases/20261004T024949483965Z/publication/`.
+The older `publication_build --publish` whole-bundle promoter remains blocked
+on this mixed directory.
 
 ## Source map
 

@@ -12,7 +12,7 @@ progress: [`PUBLICATION_PIPELINE_REFACTOR_PLAN.md`](../PUBLICATION_PIPELINE_REFA
 |---|---|---|---|---|
 | `terminal-primary` | 1 amendment, 2-6, S1-S3, Table 1 | `terminal_pareto/output/runs/pooled_tracking_v1/migration_candidate_20260920` | `terminal_pareto/output/publication` | published |
 | `terminal-cross-species` | 8, 9 | `.../cross_species_terminal_v1/pooled_comparison_20260930` | `terminal_pareto/output/publication` | published |
-| `full-tree-pooled` | 7, provisional S4 | `full_tree_pareto/output/runs/pooled_full_tree_v1/terminal_clamped_20260927` | `full_tree_pareto/output/publication` | approved, **not promoted** |
+| `full-tree-pooled` | 7, provisional S4 | `full_tree_pareto/output/runs/pooled_full_tree_v1/terminal_clamped_20260927` | `full_tree_pareto/output/publication` | published 2026-10-04 |
 | `full-tree-cross-species` | 10, 11 | `.../cross_species_layerwise_v1/terminal_anchored_20260930` | `full_tree_pareto/output/publication` | published |
 
 `python -m publication list` prints this from `registry.py`, which also holds
@@ -28,7 +28,7 @@ python -m publication list
 python -m publication build --family terminal-primary --output-dir PATH   # one family
 python -m publication build --all --output-dir PATH                       # all families + build_set.json
 python -m publication verify --build PATH                                 # a family build or a build set
-python -m publication release --family full-tree-pooled --build PATH --rehearse [--keep DIR]
+python -m publication release --family full-tree-pooled --build PATH --rehearse [--keep DIR]   # or --apply
 python -m publication.parity --candidate BUILD --reference PRODUCTION     # TeX bytes, pixel diffs
 python -m unittest discover -s publication/tests -t .
 ```
@@ -38,8 +38,8 @@ Builds are cache-only: adapters call the back ends' validators/loaders
 write into a new or empty directory outside both back ends' `output/`. A
 complete `--all` build takes about 30 s. Missing caches fail with the command
 that creates them. `release --rehearse` applies the mixed full-tree release
-to a scratch copy of production with the real verifiers; actual promotion is
-not exposed and remains a separate, approved step.
+to a scratch copy of production with the real verifiers; `--apply` performs
+it on production (staged, archived, rolled back on failure). Rehearse first.
 
 ## Layout
 
@@ -88,9 +88,11 @@ release; with the old symbols restored, builds reproduce production (below).
   current source.
 - Each family owns explicit production assets; a release refuses to change
   anything else. The mixed full-tree release retires the superseded historical
-  Figure 7/supplement assets listed in `release.FULL_TREE_POOLED_RETIRES`,
-  preserves the three methods PDFs and Figures 10/11, and rewrites the Figures
-  10/11 preserved-file record (previous record kept in its history).
+  Figure 7/supplement assets and the phylogenetic methods PDFs listed in
+  `release.FULL_TREE_POOLED_RETIRES` (recoverable from the archive), preserves
+  Figures 10/11, and rewrites their preserved-file record (previous record kept
+  in its history). Applied 2026-10-04; archive
+  `full_tree_pareto/output/legacy/releases/20261004T024949483965Z/`.
 
 ## Compatibility boundaries
 
@@ -109,13 +111,16 @@ release; with the old symbols restored, builds reproduce production (below).
 - Historical single-embryo full-tree renderers (`fig7_fig8_*`,
   `heuristic_inventory.py`) are unchanged and not part of any family.
 - The terminal and Figures 10/11 promoters keep their own tested transaction
-  code; only the new mixed full-tree release uses `release.py` so far.
+  code; only the mixed full-tree release uses `release.py` so far. The legacy
+  `publication_build --publish` whole-directory promoter stays blocked on the
+  mixed full-tree directory.
 
-## Known items for the author
+## Style and compilation policy (author decisions, 2026-10-03)
 
-- Published Figure 2 and S3 were drawn with Matplotlib defaults, not the house
-  style (Figure 2 via the `--layout-only` path, S3 by its script). Builds
-  reproduce this through `style.matplotlib_defaults`; restyling is a decision.
-- Recorded, pre-existing TeX warnings (pages still one page): Figure 7 float
-  8.27 pt too tall; Table 1 3.75 pt too tall when compiled standalone.
-- Whether the mixed release should also retire the three methods PDFs.
+- One universal style (`style.configure`) for every figure. Figure 2 and S3,
+  published with Matplotlib defaults, are restyled in builds; production
+  terminal assets change only at the next terminal release. The legacy S3
+  script (validator-pinned) keeps its own typography when run directly.
+- Vertical float overflow ("Float too large for page", e.g. Figure 7 by
+  8.27 pt, standalone Table 1 by 3.75 pt) is recorded, not fatal; release can
+  use two-page rendering. Every other TeX warning fails the build.

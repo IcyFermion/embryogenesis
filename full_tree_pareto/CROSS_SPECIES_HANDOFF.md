@@ -28,7 +28,9 @@ supplement and does not edit the manuscript.
 - The prior unnumbered captioned assembly is preserved under the run's
   `layout_history/20261001T150500070345Z/`. All **29 numerical artifacts** remain
   byte-identical; numbering/promotion did not rerun assignments or null draws.
-- **Future pooled Figure 7 promotion needs coordination.** The older
+- **Pooled Figure 7 was promoted on 2026-10-04 without touching Figures 10/11**
+  (see `POOLED_HANDOFF.md`); this release's preserved-file record was updated
+  then, with the previous record kept in `preserved_files_history`. Historical note: The older
   `publication_build --publish` replaces the whole directory and now refuses
   a folder containing the Figures 10/11 release manifest. Preserve Figures 10/11 and refresh cross-species preserved-file
   hashes when replacing Figure 7 assets.
