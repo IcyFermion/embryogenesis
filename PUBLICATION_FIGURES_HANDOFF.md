@@ -1,12 +1,20 @@
 # Publication-figure handoff
 
-Updated 2026-10-03.
+> **Layout change, 2026-10-04.** Figures, captions and releases moved to
+> [`publication/`](publication/README.md); production is `publication/output/production/`.
+> This package is numerical only. Figure material that this record places in
+> run folders (`figures/`, `publication/`, `layout_history/`) or in the old
+> `output/publication/` is archived in
+> `publication/output/archive/migrated_20261004/` and removed after the
+> refactor PR. Commands named below that drew or released figures are retired;
+> see the package README for current commands.
 
-All active figures, captions and Table 1 are now built by the shared
-presentation package; see [publication/README.md](publication/README.md) for
-families, commands, the notation-change recipe and release boundaries.
-The first-cousin-null-mean distance is displayed as `d_CP` (null mean `C`)
-from 2026-10-03; production assets still show `d_NP` until the next release.
+Updated 2026-10-04.
+
+All figures, captions and Table 1 are built and released by the shared
+presentation package; see [publication/README.md](publication/README.md).
+Production is `publication/output/production/` (released 2026-10-04 with
+`d_CP`/`C` notation and one universal style). Older paths below are historical.
 
 ## Terminal figures: pooled release promoted
 

@@ -1,20 +1,11 @@
-"""Figure 6A and Figure S2: fate-specific terminal-front changes.
+"""Cell-type caches behind Figure 6A and Figure S2 (numerical only).
 
-Panel A is a display-smoothed heatmap of natural-edge retention for each
-terminal cell type across the observed Pareto assignments. Horizontal
-position is normalized arc length along the same travel-to-cell-state
-direction used by Figure 5. For presentation only, the irregularly spaced
-assignments are resampled to a uniform grid and locally averaged; all
-analysis and marked keypoints retain their exact unsmoothed values.
-
-The endpoint cost-gain ledger is retained as a supplementary figure. It shows
-the per-cell change relative to the natural lineage at the travel optimum,
-maximum-retention compromise, and cell-state optimum. Travel and cell-state
-axes remain separate and are never combined or compared linearly.
-
-The established optimization and terminal-child attribution are unchanged.
-The full-front retention cache simply evaluates the existing Pareto sweep at
-all distinct assignments rather than keeping only three keypoints.
+Computes and validates the full-front retention by terminal cell type and the
+per-cell cost changes at the travel optimum, maximum-retention compromise and
+cell-state optimum. ``merge_small_retention`` merges n<=4 fate groups for
+display. Figures are drawn by ``python -m publication build --family
+terminal-primary``; smoothing and layout live in
+``publication/figures/terminal_cell_types.py``.
 """
 
 import argparse
@@ -33,16 +24,9 @@ if str(REPO_ROOT) not in sys.path:
 from terminal_pareto import data_loader as dl
 from terminal_pareto import lineage_metrics as lm
 from terminal_pareto import pareto_engine as pe
-from publication import style as ps
-from publication.figures import terminal_cell_types as cell_type_figures
-from publication.figures.terminal_cell_types import (  # noqa: F401  (re-exported)
-    HEATMAP_BINS, HEATMAP_SMOOTH_BANDWIDTH, KEYPOINT_COLORS, KEYPOINT_LABELS, KEYPOINT_MARKERS, ORDER,
-    display_type_name, marker_area, ordered_types, smooth_retention_profiles,
-)
 from terminal_pareto.subtree_analysis import build_type_map
 from terminal_pareto.subtree_explore import (
     SMALL_TYPES,
-    _merge_small,
     decompose_global_front_by_type,
     decompose_global_front_retention_by_type,
 )
@@ -52,7 +36,6 @@ from terminal_pareto.analysis_context import (
     build_analysis_context,
 )
 
-OUT = Path(__file__).resolve().parent / "output" / "legacy" / "rebuild" / "publication"
 ANALYSIS_OUT = Path(__file__).resolve().parent / "output"
 FULL_RETENTION_CACHE = ANALYSIS_OUT / "global_front_retention_by_cell_type.csv"
 KEYPOINT_CACHE = ANALYSIS_OUT / "global_front_by_cell_type.csv"
@@ -217,16 +200,6 @@ def merge_small_retention(full_df):
     return pd.concat([retained, pd.DataFrame(merged_rows)], ignore_index=True)
 
 
-def plot_retention_heatmap(full_df, out_dir=OUT):
-    """Figure 6A from the raw cached table (merges n<=4 groups first)."""
-    return cell_type_figures.plot_retention_heatmap(merge_small_retention(full_df), out_dir=out_dir)
-
-
-def plot_endpoint_ledger(keypoint_df, out_dir=OUT):
-    """Figure S2 from the raw cached keypoint table (merges n<=4 groups first)."""
-    return cell_type_figures.plot_endpoint_ledger(_merge_small(keypoint_df), out_dir=out_dir)
-
-
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--iteration", type=int, default=300,
@@ -244,21 +217,15 @@ def main(argv=None):
     )
     parser.add_argument("--run-id")
     parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
-    parser.add_argument("--out", type=Path)
     args = parser.parse_args(argv)
-    ps.configure()
 
     context = None
     analysis_out = ANALYSIS_OUT
-    out = args.out or OUT
     if args.profile is not None:
         context = build_analysis_context(
             args.profile, run_id=args.run_id, output_root=args.output_root,
             sweep_intervals=args.iteration)
         analysis_out = context.run_paths.analysis
-        if args.out is None:
-            out = context.run_paths.display("endpoint")
-    out.mkdir(parents=True, exist_ok=True)
     full_cache = analysis_out / FULL_RETENTION_CACHE.name
     keypoint_cache = analysis_out / KEYPOINT_CACHE.name
     if args.reuse_cache:
@@ -282,12 +249,8 @@ def main(argv=None):
               f"{full_cache} and {len(keypoint_df)} keypoint rows "
               f"to {keypoint_cache}; manifest {manifest}.")
 
-    # These panels retain their canonical-position and interpretable ledger
-    # axes; endpoint display normalization is intentionally not applied.
-    plot_retention_heatmap(full_df, out_dir=out)
-    plot_endpoint_ledger(keypoint_df, out_dir=out)
-    print("Figure 6A and Figure S2 panels written to", out)
-
+    print("Figure 6A/S2 inputs are cached; draw them with "
+          "`python -m publication build --family terminal-primary --output-dir PATH`.")
 
 if __name__ == "__main__":
     main()

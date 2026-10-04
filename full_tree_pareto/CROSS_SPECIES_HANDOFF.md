@@ -1,5 +1,14 @@
 # Terminal-anchored partial-forest cross-species comparison
 
+> **Layout change, 2026-10-04.** Figures, captions and releases moved to
+> [`publication/`](../publication/README.md); production is `publication/output/production/`.
+> This package is numerical only. Figure material that this record places in
+> run folders (`figures/`, `publication/`, `layout_history/`) or in the old
+> `output/publication/` is archived in
+> `publication/output/archive/migrated_20261004/` and removed after the
+> refactor PR. Commands named below that drew or released figures are retired;
+> see the package README for current commands.
+
 Updated 2026-10-02. Numerical build, captioned assembly and visual review are
 complete. The author approved production **Figures 10 and 11**, now released
 in `output/publication/`. This analysis does not replace Figure 7 or its
@@ -134,25 +143,11 @@ Retention compares biological parents over all 454 edges, not slot identity.
 Run: `output/runs/cross_species_layerwise_v1/terminal_anchored_20260930/`.
 
 ```bash
-env OPENBLAS_NUM_THREADS=1 MPLCONFIGDIR=/tmp/embryogenesis_cross_species_full_tree_mpl \
-  conda run --no-capture-output -n dev python -m full_tree_pareto.cross_species_analysis
-
-env OPENBLAS_NUM_THREADS=1 MPLCONFIGDIR=/tmp/embryogenesis_cross_species_full_tree_mpl \
-  conda run --no-capture-output -n dev python -m full_tree_pareto.cross_species_analysis --verify-only
-
-# Display-only redraw, then reassemble captions; each archives prior layouts.
-env OPENBLAS_NUM_THREADS=1 MPLCONFIGDIR=/tmp/embryogenesis_cross_species_full_tree_mpl \
-  conda run --no-capture-output -n dev python -m full_tree_pareto.cross_species_analysis --render-only
-env OPENBLAS_NUM_THREADS=1 MPLCONFIGDIR=/tmp/embryogenesis_cross_species_full_tree_mpl \
-  conda run --no-capture-output -n dev python -m full_tree_pareto.cross_species_publication
-env OPENBLAS_NUM_THREADS=1 MPLCONFIGDIR=/tmp/embryogenesis_cross_species_full_tree_mpl \
-  conda run --no-capture-output -n dev python -m full_tree_pareto.cross_species_publication --verify
-
-# Explicitly rebuild and release Figures 10/11; preserve unrelated production.
-env OPENBLAS_NUM_THREADS=1 MPLCONFIGDIR=/tmp/embryogenesis_cross_species_full_tree_mpl \
-  conda run --no-capture-output -n dev python -m full_tree_pareto.cross_species_publication --publish
-env OPENBLAS_NUM_THREADS=1 MPLCONFIGDIR=/tmp/embryogenesis_cross_species_full_tree_mpl \
-  conda run --no-capture-output -n dev python -m full_tree_pareto.cross_species_publication --verify-production
+env OPENBLAS_NUM_THREADS=1 conda run --no-capture-output -n dev python -m full_tree_pareto.cross_species_analysis
+env OPENBLAS_NUM_THREADS=1 conda run --no-capture-output -n dev python -m full_tree_pareto.cross_species_analysis --verify-only
+# Figures 10/11 (replaces --render-only, numbered assembly and --publish):
+python -m publication build --family full-tree-cross-species --output-dir publication/output/candidates/NAME
+python -m publication release --build publication/output/candidates/NAME --rehearse   # then --apply
 ```
 
 Scientific caches pin cohort, data/source hashes, dependency versions, settings

@@ -20,7 +20,6 @@ from terminal_pareto.front_coordinates import (
     EndpointTransform,
 )
 from terminal_pareto import pareto_engine as pe
-from terminal_pareto.fig2_fig3_ce_terminal_pareto import proportional_limits
 from terminal_pareto.fig5_table1_ce_canonical_metrics import (
     CANONICAL_CACHE_MANIFEST,
     load_validated_canonical_metrics,
@@ -32,7 +31,6 @@ from terminal_pareto.fig6a_figs2_ce_cell_types import (
     load_validated_cell_type_caches,
     write_cell_type_cache_manifest,
 )
-from terminal_pareto.fig6bc_ce_within_type import build_parser as fig6bc_parser
 from terminal_pareto.global_analysis import (
     compute_global_analysis,
     load_global_analysis,
@@ -210,20 +208,6 @@ def test_global_cache_rejects_cross_profile_reuse(tmp_path):
         raise AssertionError("A pooled cache leaked into a matched-profile run")
 
 
-def test_full_random_inset_padding_scales_with_data():
-    np.testing.assert_allclose(
-        proportional_limits([10.0, 20.0]), [8.8, 21.2])
-    base = np.asarray(proportional_limits([10.0, 20.0]))
-    scaled = np.asarray(proportional_limits([100.0, 200.0]))
-    np.testing.assert_allclose(scaled, 10.0 * base)
-
-
-def test_figure6_legacy_display_default_is_null_sd():
-    parser = fig6bc_parser()
-    assert parser.parse_args([]).display == "null_sd"
-    assert parser.parse_args(["--display", "endpoint"]).display == "endpoint"
-
-
 def test_cell_type_cache_mismatch_rejected_before_loading(tmp_path):
     analysis_out = tmp_path / "analysis"
     analysis_out.mkdir()
@@ -331,9 +315,7 @@ def main() -> None:
     test_endpoint_transform_roundtrip_and_outside_points()
     test_endpoint_transform_rejects_degenerate_span()
     test_exact_pooled_null_matches_shared_permutation_enumeration()
-    test_full_random_inset_padding_scales_with_data()
-    test_figure6_legacy_display_default_is_null_sd()
-    print("13 pooled-migration tests passed")
+    print("11 pooled-migration tests passed")
 
 
 if __name__ == "__main__":

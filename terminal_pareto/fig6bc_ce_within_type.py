@@ -1,4 +1,4 @@
-"""Figure 6 panels B--C: optimization within terminal cell types.
+"""Within-type optimization behind Figure 6B--C (numerical only; drawn by publication/).
 
 This analysis asks a different question from ``fig6a_figs2_ce_cell_types.py``. Instead
 of decomposing assignments from the unrestricted embryo-wide Pareto front,
@@ -22,7 +22,6 @@ a silent replacement for a degenerate cousin null.
 """
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
@@ -37,7 +36,6 @@ if str(REPO_ROOT) not in sys.path:
 from terminal_pareto import data_loader as dl
 from terminal_pareto import lineage_metrics as lm
 from terminal_pareto import pareto_engine as pe
-from publication import style as ps
 from terminal_pareto.subtree_analysis import (
     build_type_map,
     exact_cousin_stats,
@@ -54,16 +52,9 @@ from terminal_pareto.front_coordinates import (
 )
 
 
-OUT = Path(__file__).resolve().parent / "output" / "legacy" / "rebuild" / "publication"
 ANALYSIS_OUT = Path(__file__).resolve().parent / "output"
 ITERATION = 300
 MIN_DISPLAY_N = 12
-from publication.figures.terminal_within_type import (  # noqa: E402,F401  (re-exported drawing API)
-    CELL_STATE_COLOR, TRAVEL_COLOR, TYPE_COLORS, TYPE_ORDER, TYPE_RESTRICTED_COLOR, UNRESTRICTED_COLOR,
-    plot_within_type, save_panel_crops, unique_front,
-)
-
-
 def load_primary_data(context: AnalysisContext | None = None):
     if context is not None:
         tn, tp = context.terminal_nodes, context.terminal_parents
@@ -295,74 +286,35 @@ def analyze(iteration=ITERATION, *, context: AnalysisContext | None = None):
 
 
 def build_parser():
-    """Build the CLI parser so legacy display defaults are regression-tested."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--iteration", type=int, default=ITERATION)
-    parser.add_argument("--out", type=Path, default=OUT)
     parser.add_argument(
-        "--profile",
+        "--profile", required=True,
         choices=("embryo1_legacy", "embryo1_matched", "pooled_tracking_v1"),
-        help="Opt into an isolated profile-aware run (omission keeps legacy paths).",
+        help="Profile-aware run whose analysis/ folder receives the tables.",
     )
     parser.add_argument("--run-id")
     parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
-    parser.add_argument(
-        "--display", choices=("null_sd", "endpoint"), default="null_sd",
-        help=("Figure coordinate system. Legacy-compatible null_sd is the "
-              "default; endpoint must be requested explicitly."),
-    )
     return parser
 
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
-    ps.configure()
-    context = None
-    analysis_out = ANALYSIS_OUT
-    if args.profile is not None:
-        context = build_analysis_context(
-            args.profile, run_id=args.run_id, output_root=args.output_root,
-            sweep_intervals=args.iteration)
-        context.write()
-        analysis_out = context.run_paths.analysis
-        if args.out == OUT:
-            args.out = context.run_paths.display(args.display)
+    context = build_analysis_context(
+        args.profile, run_id=args.run_id, output_root=args.output_root,
+        sweep_intervals=args.iteration)
+    context.write()
+    analysis_out = context.run_paths.analysis
     analysis_out.mkdir(parents=True, exist_ok=True)
-    args.out.mkdir(parents=True, exist_ok=True)
-    fronts, summary, aggregate, endpoints = analyze(
-        iteration=args.iteration, context=context)
+    fronts, summary, aggregate, endpoints = analyze(iteration=args.iteration, context=context)
     fronts.to_csv(analysis_out / "within_type_fronts.csv", index=False)
     summary.to_csv(analysis_out / "within_type_summary.csv", index=False)
-    aggregate.to_csv(analysis_out / "type_preserving_aggregate_front.csv",
-                     index=False)
-    display_manifest = {
-        "profile": context.profile if context is not None else "embryo1_legacy",
-        "display_mode": args.display,
-        "aggregate_reference": (
-            endpoints["endpoint_metadata"] if args.display == "endpoint"
-            else {
-                "display_mode": "null_sd",
-                "reference_analysis_id": (
-                    context.cache_key if context is not None
-                    else "legacy_global_first_cousin_null"),
-                "natural_lineage": [0.0, 0.0],
-            }
-        ),
-        "type_references": summary[[
-            "type", "endpoint_display_valid", "endpoint_display_reference"
-        ]].to_dict(orient="records"),
-    }
-    (args.out / "fig6bc_display_manifest.json").write_text(
-        json.dumps(display_manifest, indent=2, sort_keys=True) + "\n")
-    plot_within_type(
-        fronts, summary, aggregate, endpoints, out_dir=args.out,
-        display_mode=args.display)
-    print(summary[["type", "n", "cousin_null_valid",
-                   "cousin_relative_distance", "full_random_relative_distance",
-                   "travel_reduction_per_cell", "state_reduction_per_cell"]]
-          .to_string(index=False))
+    aggregate.to_csv(analysis_out / "type_preserving_aggregate_front.csv", index=False)
+    print(summary[["type", "n", "cousin_null_valid", "cousin_relative_distance",
+                   "full_random_relative_distance", "travel_reduction_per_cell",
+                   "state_reduction_per_cell"]].to_string(index=False))
     print("Endpoint comparison:", endpoints)
-    print("Wrote within-type analysis and Figure 6 panels B--C to", args.out)
+    print(f"Wrote within-type tables to {analysis_out}")
 
 
 if __name__ == "__main__":

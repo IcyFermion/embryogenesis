@@ -20,10 +20,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from publication import assembly, notation, provenance, registry, style
+from publication import notation, provenance, registry, style
 from publication.adapters import full_tree as full_tree_adapter, terminal as terminal_adapter
 from publication.canonical_panels import canonical_records
-from publication.captions import cross_species as captions
 from publication.figures.cross_species import compose_overlay
 from publication.tests.support import no_experiments
 
@@ -179,20 +178,20 @@ class CacheOnlyBuild(unittest.TestCase):
             registry.build("terminal-cross-species", self.tmp / "terminal-cross-species")
 
 
-class CompatibilityShims(unittest.TestCase):
-    """Legacy modules re-export the publication implementations rather than copies."""
+class RetiredBackEndDrawing(unittest.TestCase):
+    """Back ends compute only; their retired render hooks point to the front end."""
 
-    def test_legacy_names_resolve_to_publication(self):
-        from terminal_pareto import fig_terminal_cross_species as legacy_figure
+    def test_render_only_hooks_redirect(self):
+        from full_tree_pareto import fig_cross_species
+        from terminal_pareto import fig_terminal_cross_species
+        for module in (fig_terminal_cross_species, fig_cross_species):
+            with self.assertRaisesRegex(SystemExit, "python -m publication build"):
+                module.render(Path("run"))
+
+    def test_plot_style_shim_reexports_shared_style(self):
         from terminal_pareto import plot_style as legacy_style
-        from terminal_pareto import publication_wrappers as legacy_wrappers
         for name in ("COLORS", "SPECIES_COLORS", "NULL_MODEL_COLORS", "SEMANTIC_COLORS", "configure"):
             self.assertIs(getattr(legacy_style, name), getattr(style, name))
-        self.assertIs(legacy_wrappers.PREAMBLE, assembly.PREAMBLE)
-        self.assertIs(legacy_figure.TRACKING_CAVEAT, captions.TRACKING_CAVEAT)
-        with tempfile.TemporaryDirectory() as tmp:
-            text = legacy_wrappers._write(Path(tmp), "fig1_x", "BODY").read_text()
-            self.assertIn(assembly.numbering("1 amendment"), text)
 
 
 if __name__ == "__main__":

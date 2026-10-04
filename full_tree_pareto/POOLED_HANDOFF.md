@@ -1,5 +1,14 @@
 # Pooled full-tree figure rebuild
 
+> **Layout change, 2026-10-04.** Figures, captions and releases moved to
+> [`publication/`](../publication/README.md); production is `publication/output/production/`.
+> This package is numerical only. Figure material that this record places in
+> run folders (`figures/`, `publication/`, `layout_history/`) or in the old
+> `output/publication/` is archived in
+> `publication/output/archive/migrated_20261004/` and removed after the
+> refactor PR. Commands named below that drew or released figures are retired;
+> see the package README for current commands.
+
 Updated 2026-10-04. **Computation, rendering, review and publication are complete.**
 The author approved the revised figures on 2026-09-30 and requested promotion
 on 2026-10-03; see Release below.
@@ -66,12 +75,12 @@ decision: useful backup, skipped for now). The entire former 25-file directory
 is recoverable with verified hashes in `full_tree_pareto/output/legacy/releases/20261004T024949483965Z/publication/`.
 
 ```bash
-python -m full_tree_pareto.publication_build --verify
-python -m full_tree_pareto.cross_species_publication --verify-production
+python -m full_tree_pareto.pooled_pipeline --layout-only        # replay-validate caches
+python -m publication verify --production                       # released figures
 ```
 
-The legacy `publication_build --publish` whole-directory promoter still refuses
-this mixed directory and points to the release command above.
+The legacy `publication_build --publish` promoter has since been removed
+(`publication_build.py` is now the compute-only `pooled_pipeline.py`).
 
 **Do not edit `pooled_analysis.py`**. Its source hash is part
 of every cache identity, so any edit invalidates the expensive paired

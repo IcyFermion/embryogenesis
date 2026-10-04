@@ -1,7 +1,7 @@
 """Pooled full-tree Figure 7 (round fronts A, aggregate comparison B) and supplement S4.
 
-Moved from ``full_tree_pareto/publication_build.py``, which keeps the sweep
-settings, cache-building CLI, working-layout archive and release mechanics.
+Moved from ``full_tree_pareto/publication_build.py`` (now the compute-only
+``pooled_pipeline.py``, which keeps the sweep settings and cache building).
 Inputs are replay-validated fronts, reference draws and endpoint transforms.
 """
 

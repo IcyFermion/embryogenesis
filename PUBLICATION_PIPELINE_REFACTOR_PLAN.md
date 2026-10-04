@@ -459,3 +459,27 @@ No verifier changed any output file (hash diff empty).
   terminal production verifies; only full-tree production and the new archive
   differ from the baseline hashes. Snapshot:
   `publication/output/baseline_20261002/output_sha256_after_fig7_release_20261004.txt`.
+
+### Production and back-end separation (2026-10-04)
+
+Author decisions: production moves to `publication/output/` (one flat folder);
+back-end commands compute only; figure material in runs is archived and then
+purged with the old production folders after the PR; open the PR.
+
+- `publication/output/production/`: one release manifest with a section per
+  family; releases refuse stale builds and foreign assets, archive to
+  `publication/output/archive/releases/`, roll back on failure. First release
+  of all four families (84 files, `d_CP`, unified style) at
+  `20261004T180225456854Z`.
+- Back ends compute only: `terminal_pareto/analysis_pipeline.py` (formerly
+  `publication_build.py`) and `full_tree_pareto/pooled_pipeline.py`; figure
+  scripts reduced to analyses or removed; render/assembly/release modules
+  removed (`--render-only` hooks in the hash-pinned analysis CLIs now point to
+  `publication`). Display helpers moved into `publication/`. The S3
+  projection table moved to the pooled run's `analysis/s3_cross_geometry/`.
+- Migration validator is numerical only (24 checks); its five figure checks
+  are covered by `publication/tests` (compiled pages, inventories, wrapper
+  organization).
+- Figure material archived (30 paths, 418 files) in
+  `publication/output/archive/migrated_20261004/`; purge after the PR with
+  `python -m publication.migration --purge --confirm`.

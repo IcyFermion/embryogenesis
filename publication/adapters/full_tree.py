@@ -51,6 +51,29 @@ def cross_species(run=fcs.DEFAULT_RUN) -> FrontComparisonInput:
 
 
 POOLED_FAMILY = "full-tree-pooled"
+POOLED_DISPLAY_DRAWS = 1000
+
+
+def endpoint(frame, scope):
+    """Endpoint display transform from one layerwise front (travel optimum at the largest weight index)."""
+    from full_tree_pareto import pooled_analysis as pa
+    from terminal_pareto.front_coordinates import EndpointTransform
+    a = frame.loc[frame.weight_index.idxmax()]
+    b = frame.loc[frame.weight_index.idxmin()]
+    return EndpointTransform.from_endpoints(
+        reference_analysis_id=f"{pa.PROFILE}:layerwise:{scope}",
+        travel_optimum_assignment_id=f"layerwise:{scope}:{int(a.weight_index)}",
+        state_optimum_assignment_id=f"layerwise:{scope}:{int(b.weight_index)}",
+        travel_optimum_costs=(a.travel, a.state),
+        state_optimum_costs=(b.travel, b.state))
+
+
+def reference_sets():
+    """Figure 7B shows the three cousin shuffles; S4 adds every other reference family."""
+    from full_tree_pareto import cousin_references as cr
+    from full_tree_pareto import pooled_analysis as pa
+    main = (pa.NULLS[0], *cr.REFERENCES)
+    return main, (*main, *pa.NULLS[1:])
 
 
 def caption_meta(data) -> dict:
@@ -61,7 +84,7 @@ def caption_meta(data) -> dict:
 def pooled_from_results(run, ctx, fronts, layers, nulls):
     """Contract from replay-validated ``pooled_analysis.build`` / ``cousin_references.build`` results."""
     from full_tree_pareto import pooled_analysis as pa
-    from full_tree_pareto import publication_build as legacy
+    from full_tree_pareto import pooled_pipeline as settings
     from publication.contracts import FullTreePooledInput
 
     run = Path(run)
@@ -75,11 +98,11 @@ def pooled_from_results(run, ctx, fronts, layers, nulls):
         edges=len(ctx.edges), leaves=len(ctx.leaves), internal=len(ctx.internal),
         round_edges=tuple(len(layer) for layer in ctx.layers), natural=tuple(map(float, ctx.natural)),
         fronts=fronts, layers=layers, references=dict(nulls), methods=tuple(pa.METHODS),
-        main_references=tuple(legacy.MAIN_REFERENCES), supplement_references=tuple(legacy.SUPPLEMENT_REFERENCES),
+        main_references=reference_sets()[0], supplement_references=reference_sets()[1],
         inset_reference="Random rebuild",
-        round_transforms={scope: legacy.endpoint(layerwise[layerwise.scope == scope], scope) for scope in rounds},
-        aggregate_transform=legacy.endpoint(layerwise[layerwise.scope == "aggregate"], "aggregate"),
-        settings=dict(weights=legacy.INTERVALS + 1, draws=legacy.DRAWS, display_draws=legacy.DISPLAY_DRAWS),
+        round_transforms={scope: endpoint(layerwise[layerwise.scope == scope], scope) for scope in rounds},
+        aggregate_transform=endpoint(layerwise[layerwise.scope == "aggregate"], "aggregate"),
+        settings=dict(weights=settings.INTERVALS + 1, draws=settings.DRAWS, display_draws=POOLED_DISPLAY_DRAWS),
         validation=dict(assignments_replayed=validation.get("assignments_replayed"), nodes=validation.get("nodes"),
                         edges=validation.get("edges"), rounds=validation.get("rounds")),
         input_files={str(p.relative_to(run)): sha256(p) for p in files})
@@ -89,13 +112,13 @@ def pooled(run=None):
     """Pooled full-tree Figure 7/S4 inputs; replays all saved forests and reference draws."""
     from full_tree_pareto import cousin_references as cr
     from full_tree_pareto import pooled_analysis as pa
-    from full_tree_pareto import publication_build as legacy
+    from full_tree_pareto import pooled_pipeline as settings
 
     run = Path(run) if run is not None else Path(pa.DEFAULT_RUN)
     if not (run / "analysis/validation.json").is_file():
         raise FileNotFoundError(f"No pooled full-tree caches at {run}; create them with "
-                                "`python -m full_tree_pareto.resume_paired` then `python -m full_tree_pareto.publication_build`")
-    ctx, fronts, layers, nulls = pa.build(run=run, layout_only=True, **legacy.sweep_settings())
+                                "`python -m full_tree_pareto.resume_paired` then `python -m full_tree_pareto.pooled_pipeline`")
+    ctx, fronts, layers, nulls = pa.build(run=run, layout_only=True, **settings.sweep_settings())
     nulls = dict(nulls)
-    nulls.update(cr.build(ctx, run, draws=legacy.DRAWS, seed=legacy.SEED, layout_only=True))
+    nulls.update(cr.build(ctx, run, draws=settings.DRAWS, seed=settings.SEED, layout_only=True))
     return pooled_from_results(run, ctx, fronts, layers, nulls)

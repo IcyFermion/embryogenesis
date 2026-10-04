@@ -44,6 +44,14 @@ def options(family, index):
     return FAMILIES[family].figures[index].render.keywords
 
 
+class Limits(unittest.TestCase):
+    def test_full_random_inset_padding_scales_with_data(self):
+        from publication.artists import proportional_limits
+        np.testing.assert_allclose(proportional_limits([10.0, 20.0]), [8.8, 21.2])
+        base = np.asarray(proportional_limits([10.0, 20.0]))
+        np.testing.assert_allclose(proportional_limits([100.0, 200.0]), 10.0 * base)
+
+
 class CanonicalMetrics(unittest.TestCase):
     def test_closest_attained_point_not_maximum_retention(self):
         data = fixture(TERMINAL_REFERENCES)

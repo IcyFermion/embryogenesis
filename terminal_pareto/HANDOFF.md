@@ -1,5 +1,14 @@
 # Terminal publication handoff
 
+> **Layout change, 2026-10-04.** Figures, captions and releases moved to
+> [`publication/`](../publication/README.md); production is `publication/output/production/`.
+> This package is numerical only. Figure material that this record places in
+> run folders (`figures/`, `publication/`, `layout_history/`) or in the old
+> `output/publication/` is archived in
+> `publication/output/archive/migrated_20261004/` and removed after the
+> refactor PR. Commands named below that drew or released figures are retired;
+> see the package README for current commands.
+
 Updated 2026-10-01. The author approved switching to pooled travel and
 endpoint-normalized fronts. The current publication is `output/publication/`;
 its release manifest identifies the working run and records artifact/cache

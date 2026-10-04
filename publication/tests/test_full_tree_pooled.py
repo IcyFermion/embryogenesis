@@ -7,7 +7,11 @@ import shutil
 import tempfile
 import unittest
 
+import numpy as np
+import pandas as pd
+
 from publication import provenance, registry
+from publication.adapters import full_tree as full_tree_adapter
 from publication.parity import compare
 from publication.tests.support import no_experiments
 
@@ -44,6 +48,21 @@ class CacheOnlyPooledBuild(unittest.TestCase):
         for result in compiled.values():
             self.assertTrue(all("Float too large for page" in w for w in result["warnings"]))
         self.assertEqual({c["pages"] for c in compiled.values()}, {1})
+
+
+class EndpointDisplay(unittest.TestCase):
+    def test_endpoint_transform_does_not_change_raw_scores(self):
+        frame = pd.DataFrame(dict(weight_index=[0, 1, 2], travel=[3., 2., 1.], state=[1., 2., 4.]))
+        before = frame.copy(deep=True)
+        transform = full_tree_adapter.endpoint(frame, "aggregate")
+        x, y = transform.transform(frame.travel.to_numpy(), frame.state.to_numpy())
+        pd.testing.assert_frame_equal(frame, before)
+        np.testing.assert_allclose([x[2], y[2], x[0], y[0]], [0, 1, 1, 0])
+        # Reference values outside the endpoints are not clipped.
+        nx, ny = transform.transform(5., 7.)
+        self.assertGreater(nx, 1)
+        self.assertGreater(ny, 1)
+
 
 
 class Ownership(unittest.TestCase):

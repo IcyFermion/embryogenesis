@@ -1,7 +1,7 @@
 """Canonical-metric drawings: Figure 1 amendment, Figure 5 rows and Figure S1.
 
-Moved from ``terminal_pareto/fig5_figs1_ce_canonical_summary.py`` (which keeps
-its CLI and validated loader). Inputs are validated canonical-metric tables;
+Moved from the retired ``terminal_pareto/fig5_figs1_ce_canonical_summary.py``
+and ``fig1_endpoint_amendment.py``. Inputs are validated canonical-metric tables;
 persisted column names (``d_lp``, ``d_np``, ``u_lineage_lp``) are unchanged.
 Every displayed symbol comes from ``publication.notation``.
 """

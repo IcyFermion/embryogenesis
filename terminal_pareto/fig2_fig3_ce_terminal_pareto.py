@@ -1,8 +1,11 @@
-"""Generate C. elegans terminal-cell Pareto Figures 2 and 3."""
+"""Global terminal-cell Pareto analysis behind Figures 2 and 3 (numerical only).
+
+Figures are drawn by ``python -m publication build --family terminal-primary``.
+``_load_analysis`` keeps the historical no-profile reconstruction used by the
+migration validator.
+"""
 
 import argparse
-import hashlib
-import json
 from pathlib import Path
 import sys
 
@@ -15,27 +18,14 @@ if str(REPO_ROOT) not in sys.path:
 from terminal_pareto import data_loader as dl
 from terminal_pareto import lineage_metrics as lm
 from terminal_pareto import pareto_engine as pe
-from publication import style as ps
-from publication.artists import proportional_limits  # noqa: F401  (re-exported)
-from publication.figures.terminal_global import (  # noqa: F401  (re-exported drawing API)
-    CELL_STATE_COLOR, FIRST_COUSIN_COLOR, FULL_RANDOM_COLOR, SECOND_COUSIN_COLOR, SUPPORT_AXES_BOTTOM,
-    THIRD_COUSIN_COLOR, TRAVEL_COLOR, TREE_DISTANCE_COLOR, plot_main, plot_support_b, plot_support_c,
-)
 from terminal_pareto.analysis_context import (
     DEFAULT_OUTPUT_ROOT,
     build_analysis_context,
 )
-from terminal_pareto.front_coordinates import (
-    build_endpoint_transform,
-    null_sd_coordinates,
-    percent_natural_coordinates,
-)
+from terminal_pareto.front_coordinates import null_sd_coordinates
 from terminal_pareto.global_analysis import get_or_compute_global_analysis
 
 
-OUT = Path(__file__).resolve().parent / "output" / "legacy" / "rebuild" / "publication"
-DIAGNOSTIC_OUT = Path(__file__).resolve().parent / "output" / "legacy" / "rebuild" / "ce_protein"
-EDGE_RETENTION_CMAP = ps.EDGE_RETENTION_CMAP
 
 
 def _standardize(x, y, reference):
@@ -104,136 +94,18 @@ def _profile_analysis(context, *, force=False):
     return result.twr, nulls, result
 
 
-def _display_data(twr, nulls, *, mode, result=None, context=None):
-    """Return plot coordinates without modifying saved numerical results."""
-    reference = context.cache_key if context is not None else "legacy"
-    if mode == "null_sd":
-        return dict(
-            x=np.asarray(twr["xyz_arr"], dtype=float),
-            y=np.asarray(twr["exp_arr"], dtype=float),
-            nulls=nulls,
-            natural=(0.0, 0.0),
-            xlabel=("Travel distance\n(null standard deviations; "
-                    "natural lineage = 0)"),
-            ylabel=("Cell-state distance\n(null standard deviations; "
-                    "natural lineage = 0)"),
-            metadata={"display_mode": "null_sd",
-                      "reference_analysis_id": reference},
-        )
-    if result is None or context is None:
-        raise ValueError(f"Display mode {mode!r} requires a saved profile result")
-    key_map = {
-        1: "first_cousin", 2: "second_cousin",
-        3: "third_cousin", "full": "full_random",
-    }
-    if mode == "endpoint":
-        transform = build_endpoint_transform(
-            result.raw_front_travel, result.raw_front_state,
-            travel_optimum_index=context.spec.sweep_intervals,
-            state_optimum_index=0,
-            reference_analysis_id=result.analysis_cache_key,
-            assignment_ids=[f"sweep:{index}" for index in range(
-                context.spec.sweep_intervals + 1)],
-        )
-        x, y = transform.transform(
-            result.raw_front_travel, result.raw_front_state)
-        natural_x, natural_y = transform.transform(
-            np.asarray([result.natural_costs[0]]),
-            np.asarray([result.natural_costs[1]]))
-        display_nulls = {
-            key: transform.transform(*result.null_raw[raw_key])
-            for key, raw_key in key_map.items()
-        }
-        return dict(
-            x=x, y=y, nulls=display_nulls,
-            natural=(float(natural_x[0]), float(natural_y[0])),
-            xlabel="Travel distance\n(fraction of endpoint cost span)",
-            ylabel="Cell-state distance\n(fraction of endpoint cost span)",
-            metadata=transform.metadata(clipping=False),
-        )
-    if mode == "percent_natural":
-        x, y = percent_natural_coordinates(
-            result.raw_front_travel, result.raw_front_state,
-            natural_costs=result.natural_costs)
-        display_nulls = {
-            key: percent_natural_coordinates(
-                *result.null_raw[raw_key], natural_costs=result.natural_costs)
-            for key, raw_key in key_map.items()
-        }
-        return dict(
-            x=x, y=y, nulls=display_nulls, natural=(0.0, 0.0),
-            xlabel="Travel-distance change from natural lineage (%)",
-            ylabel="Cell-state-distance change from natural lineage (%)",
-            metadata={"display_mode": "percent_natural",
-                      "reference_analysis_id": result.analysis_cache_key,
-                      "natural_costs": list(result.natural_costs)},
-        )
-    raise ValueError(f"Unsupported display mode: {mode}")
-
-
 def main(argv=None):
-    parser = argparse.ArgumentParser(
-        description="Generate the terminal-cell publication figure panels."
-    )
-    parser.add_argument(
-        "--tree-distance-mode",
-        choices=("changed_edges", "all_edges", "both"),
-        default="changed_edges",
-        help=("Tree-distance definition(s) for supporting panel B "
-              "(default: changed_edges; all_edges is diagnostic-only)."),
-    )
-    parser.add_argument(
-        "--profile",
-        choices=("embryo1_legacy", "embryo1_matched", "pooled_tracking_v1"),
-        help="Opt into an isolated profile-aware run (omission keeps legacy paths).",
-    )
+    parser = argparse.ArgumentParser(description="Compute or validate the cached global terminal front.")
+    parser.add_argument("--profile", required=True,
+                        choices=("embryo1_legacy", "embryo1_matched", "pooled_tracking_v1"))
     parser.add_argument("--run-id")
     parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
-    parser.add_argument("--display", choices=("null_sd", "endpoint",
-                                               "percent_natural"),
-                        default="null_sd")
-    parser.add_argument(
-        "--main-panel-letter",
-        help="Optional panel letter for the Figure 2 front component.",
-    )
     parser.add_argument("--force-analysis", action="store_true")
     args = parser.parse_args(argv)
-    ps.configure()
-    display = None
-    out_dir = OUT
-    diagnostic_out = DIAGNOSTIC_OUT
-    if args.profile is None:
-        twr, nulls = _load_analysis()
-    else:
-        context = build_analysis_context(
-            args.profile, run_id=args.run_id, output_root=args.output_root)
-        context.write()
-        twr, nulls, result = _profile_analysis(
-            context, force=args.force_analysis)
-        display = _display_data(
-            twr, nulls, mode=args.display, result=result, context=context)
-        out_dir = context.run_paths.display(args.display)
-        diagnostic_out = context.run_paths.analysis / "diagnostics" / args.display
-        out_dir.mkdir(parents=True, exist_ok=True)
-        diagnostic_out.mkdir(parents=True, exist_ok=True)
-        metadata = dict(display["metadata"])
-        metadata.update({
-            "profile": context.profile,
-            "context_cache_key": context.cache_key,
-            "analysis_cache_key": result.analysis_cache_key,
-            "assignment_ids_hash": hashlib.sha256(
-                result.assignments.tobytes()).hexdigest(),
-        })
-        (out_dir / "fig2_fig3_display_manifest.json").write_text(
-            json.dumps(metadata, indent=2, sort_keys=True) + "\n")
-    plot_main(twr, nulls, display=display, out_dir=out_dir,
-              panel_letter=args.main_panel_letter)
-    modes = ("changed_edges", "all_edges") if args.tree_distance_mode == "both" else (args.tree_distance_mode,)
-    for mode in modes:
-        plot_support_b(twr, distance_mode=mode, display=display,
-                       out_dir=out_dir, diagnostic_out=diagnostic_out)
-    plot_support_c(twr, display=display, out_dir=out_dir)
-    print("Publication figure panels written to", out_dir)
+    context = build_analysis_context(args.profile, run_id=args.run_id, output_root=args.output_root)
+    context.write()
+    _, _, result = _profile_analysis(context, force=args.force_analysis)
+    print(f"Global front cache {result.analysis_cache_key} in {context.run_paths.analysis}")
 
 
 if __name__ == "__main__":

@@ -1,56 +1,48 @@
 # Terminal-cell Pareto analysis
 
-**Current release, extended 2026-10-01:** C. elegans protein analysis using pooled travel
-from three embryos and endpoint-normalized Pareto displays. This replaces the
-single-embryo publication set. [HANDOFF.md](HANDOFF.md) records current status,
-validation, remaining manuscript work, and the short development history.
-These are the module's two maintained Markdown documents. The resumed
-cross-species terminal comparison is described below and uses its own run;
-Figures 8 and 9 are now published alongside the preceding figures.
+C. elegans terminal-cell analysis using pooled travel from three embryos and
+endpoint-normalized Pareto displays, plus the 187-edge cross-species
+comparison. [HANDOFF.md](HANDOFF.md) records validation, remaining manuscript
+work and the development history.
+
+**Layout since 2026-10-04:** this package is numerical only. Figures, captions,
+Table 1 and releases belong to the front end in [`publication/`](../publication/README.md);
+production figures are in `publication/output/production/`. Figure material
+formerly written into runs (and the old `output/publication/`) is archived in
+`publication/output/archive/migrated_20261004/` and removed after the
+refactor PR.
 
 ## Start here
 
-- **Manuscript figures:** `output/publication/` (frozen published copy).
-- **Published identity:** `output/publication/release_manifest.json` (profile,
-  run, rendered-file hashes, and analysis-cache hashes).
-- **Working run:** `output/runs/pooled_tracking_v1/migration_candidate_20260920/`.
-  The historical run ID is retained to preserve cache identity; it is now the
-  source of the release, not an unapproved scientific alternative.
-- **Previous figures:** `output/legacy/embryo1/publication/`.
-- **Older diagnostic plots:** `output/legacy/diagnostics/`.
-- **Archived prototypes/pilots:** compact source and output archives described
-  in the handoff. They are outside the active build.
+- **Manuscript figures:** `publication/output/production/` (all families,
+  `release_manifest.json` with a section per family).
+- **Working runs (numerical):** `output/runs/pooled_tracking_v1/migration_candidate_20260920/analysis/`
+  (primary 275-edge analysis; the S3 projection table is in
+  `analysis/s3_cross_geometry/`) and
+  `output/runs/cross_species_terminal_v1/pooled_comparison_20260930/analysis/`.
+  Run IDs are historical and retained to preserve cache identity.
+- **Previous figures and older diagnostics:** `output/legacy/`.
+- **Archived prototypes/pilots:** compact archives described in the handoff.
 
 Run commands from the repository root in the `dev` Conda environment.
 
 ```bash
-# Verify the published bundle without rebuilding.
-python terminal_pareto/publication_release.py --verify
+# Numerical pipeline (global front, subtrees, canonical metrics, cell types,
+# within-type fronts, S3 projections) into the run's analysis/ folder.
+python terminal_pareto/analysis_pipeline.py
 
-# Rebuild layout from validated caches in the working run.
-python terminal_pareto/publication_build.py --layout-only
-
-# Validate, compile, then publish a revised layout; preserve the previous release.
-python terminal_pareto/publication_build.py --layout-only --publish
-
-# Full pooled pipeline (includes downstream analysis/rendering).
-python terminal_pareto/publication_build.py
-
-# Validate scientific results, source identity, and the legacy regression baseline.
+# Validate scientific results, source identity and the legacy regression baseline.
 python terminal_pareto/validate_pooled_migration.py
 python terminal_pareto/test_analysis_context.py
-python -m unittest terminal_pareto.test_publication_release
+
+# Figures from the validated caches, then release (see publication/README.md).
+python -m publication build --family terminal-primary --output-dir publication/output/candidates/NAME
+python -m publication release --build publication/output/candidates/NAME --rehearse   # then --apply
+python -m publication verify --production
 ```
 
-A build writes into its run directory. Publication is explicit via `--publish`
-or `publication_release.py`; it validates first, checks compiled one-page
-wrappers, stages a copy, preserves the previous publication, and writes the
-release manifest. Editing working figures does not silently change the release.
-Pooled-layout promotion retains the published cross-species Figures 8/9 and
-their separate cohort/provenance section rather than dropping them.
-Generated PDFs, arrays, and local output archives are Git-ignored and need the
-project's external backup. Versioned wrapper templates and source archives do
-not replace those data backups.
+Generated outputs, caches and archives are Git-ignored and need the
+project's external backup.
 
 ## Analysis conventions
 
@@ -124,9 +116,8 @@ it is a sensitivity statistic, and d_NP multiplied by r need not equal d_LP.
 
 ## Published figures
 
-All wrapper stems below are in `output/publication/` as PDF and TeX unless
-specified otherwise. Panel PDF/PNG assets, S3 SVG and projection data, and
-provenance accompany the wrappers.
+All wrapper stems below are in `publication/output/production/` as PDF and TeX
+unless specified otherwise, with their panel PDF/PNG assets and the S3 SVG.
 
 | Item | Wrapper stem | Content |
 |---|---|---|
@@ -186,8 +177,8 @@ Working comparison:
 The author assigned the six-panel comparison to **Figure 8** and the paired
 front overlays plus canonical-metric rows to **Figure 9**. On 2026-10-01 their
 captioned PDFs, editable TeX and panel PDF/PNG files were added to
-`output/publication/`. The source assembly remains in the run's `publication/`
-for reproducibility; its numerical scope is separate from the primary
+`output/publication/` (now `publication/output/production/`; the run's former
+`publication/` assembly is archived); its numerical scope is separate from the primary
 275-edge analysis and from the September pilot checkpoint.
 
 Comparison headings were revised on 2026-10-01: each panel shows its
@@ -233,26 +224,15 @@ Individual row exports (`terminal_cross_species_existing_3d` and
 primary figures above supply Figures 8 and 9. The captioned build reuses the
 same numerical checkpoint and changes no metrics.
 
-| Figure | Wrapper stem under `output/publication/` (also retained in the run) |
+| Figure | Wrapper stem in `publication/output/production/` |
 |---|---|
 | Figure 8: six-panel 3D/XY comparison | `fig8_terminal_cross_species_comparison` |
 | Figure 9: paired overlays and canonical metrics | `fig9_terminal_cross_species_overlays` |
 
-Each wrapper has editable TeX and a compiled one-page PDF in the same style
-as the earlier terminal publication figures. Panel PDF/PNG files accompany
-them. `publication_manifest.json` records figure numbering, rendered-source
-identity, artifact hashes and unchanged analysis hashes. Rebuilding preserves
-the preceding assembled layout with verified hashes under `layout_history/`.
-Assembly alone does not publish or edit the manuscript. Explicit release uses
-`publication_release.py --cross-species`: it validates the numbered assembly,
-replays all 13,828 assignments and checks 20 source hashes, adds only the eight
-figure assets and `cross_species_publication_manifest.json`, then extends the
-existing `release_manifest.json` with a separate `cross_species` section and
-the nine comparison analysis hashes. The original 57 release assets and all
-numerical caches are unchanged. The resulting release verifies 66 assets.
-The complete preceding 58-file production folder, including its manifest,
-is recoverable with checked hashes under
-`output/legacy/releases/20261001T154243342749Z/publication/`.
+Each wrapper has editable TeX and a compiled one-page PDF. They were first
+released on 2026-10-01 into the former `output/publication/`; since
+2026-10-04 they are built and released by `publication/` (family
+`terminal-cross-species`). Numerical caches are unchanged.
 
 From the repository root in `dev`:
 
@@ -260,19 +240,12 @@ From the repository root in `dev`:
 # Generate a new numerical run (an existing completed run is never overwritten).
 python terminal_pareto/cross_species_analysis.py --run-id YOUR_NEW_RUN_ID
 
-# Rebuild presentation only from the current, identity-checked caches.
-python terminal_pareto/cross_species_analysis.py --render-only
-
-# Assemble and compile captioned Figures 8 and 9 from verified panels.
-python terminal_pareto/cross_species_publication.py
-
-# Add the validated Figures 8/9 assembly to production without rebuilding.
-python terminal_pareto/publication_release.py --cross-species
-python terminal_pareto/publication_release.py --verify
-
-# Replay every assignment and check source/cache hashes without rendering.
+# Replay every assignment and check source/cache hashes.
 python terminal_pareto/cross_species_analysis.py --verify-only
-python -m unittest terminal_pareto.test_cross_species_terminal terminal_pareto.test_cross_species_publication
+python -m unittest terminal_pareto.test_cross_species_terminal
+
+# Figures 8/9 (the former --render-only now points here).
+python -m publication build --family terminal-cross-species --output-dir publication/output/candidates/NAME
 ```
 
 The C. briggsae 3D caveat belongs in the figure captions, not plot titles:
@@ -287,26 +260,20 @@ external backup as other runs.
 
 ## Source map and reproducibility
 
-Presentation (drawing, captions, notation, Table 1 formatting, wrapper
-assembly) now lives in [`publication/`](../publication/README.md); the modules
-below keep analysis, cache loaders, CLIs and release mechanics and delegate
-drawing to it. `python -m publication build --family terminal-primary` (or
-`terminal-cross-species`) renders from these caches into a separate directory.
-Displayed symbols come from `publication/notation.py`; the cache field
-`d_NP` is now displayed as `d_CP` (null mean `C`).
+Numerical code only; drawing, captions, notation (the cache field `d_NP` is
+displayed as `d_CP`, null mean `C`), Table 1 formatting and releases are in
+[`publication/`](../publication/README.md).
 
 | Files | Role |
 |---|---|
-| `publication_build.py`, `publication_release.py`, `publication_wrappers.py` | Build orchestration, validated pooled/additive cross-species promotion; wrapper captions delegate to `publication/captions/terminal.py` |
+| `analysis_pipeline.py` | Compute-only orchestration of the pooled terminal caches |
 | `analysis_context.py`, `global_analysis.py`, `front_coordinates.py` | Profiles, identity-checked caches, display transforms |
-| `cross_species_analysis.py`, `fig_terminal_cross_species.py`, `test_cross_species_terminal.py` | Pooled molecular/species comparison, `--render-only` entrypoint (drawing in `publication/figures/cross_species.py`), scientific checks |
-| `cross_species_publication.py`, `test_cross_species_publication.py` | Figures 8/9 numbered assembly and archive checks (captions in `publication/captions/cross_species.py`) |
-| `fig1_endpoint_amendment.py`, `fig2_fig3_*.py`, `fig4_*.py`, `fig5_*.py`, `fig6*.py`, `figS3_cross_geometry.py` | Figure CLIs, loaders and analyses; drawing delegates to `publication/figures/terminal_*.py`. `figS3_cross_geometry.py` and `fig5_table1_*` stay byte-identical (source hashes are pinned by validators) |
-| `data_loader.py`, `pareto_engine.py`, `lineage_metrics.py`, `subtree_analysis.py`, `subtree_explore.py` | Shared analysis support; `plot_style.py` re-exports `publication/style.py` |
+| `cross_species_analysis.py`, `test_cross_species_terminal.py` | Pooled molecular/species comparison and scientific checks (`fig_terminal_cross_species.py` only redirects `--render-only`) |
+| `fig2_fig3_*.py`, `fig5_table1_*.py`, `fig6a_*.py`, `fig6bc_*.py`, `figS3_cross_geometry.py` | Analyses behind the figures (historical file names). `fig5_table1_*` and `figS3_cross_geometry.py` stay byte-identical because validators pin their source; they still write presentation side-files, which the pipeline discards |
+| `data_loader.py`, `pareto_engine.py`, `lineage_metrics.py`, `subtree_analysis.py`, `subtree_explore.py` | Shared analysis support; `plot_style.py` re-exports `publication/style.py` for historical scripts |
 | `tracking_geometry_sensitivity.py`, `figS3_ce_tracking_robustness.py` | Saved tracking sweeps and historical tracking audit support |
 | `main.py` | Historical exploratory CLI, not the primary publication coordinator |
-| `../publication/assets/fig3A_ce_null_models.tex` | Versioned common null schematic (moved from `assets/` on 2026-10-03) |
-| `validate_pooled_migration.py`, `test_analysis_context.py`, `test_publication_release.py` | Scientific, cache, and promotion checks |
+| `validate_pooled_migration.py`, `test_analysis_context.py` | Scientific and cache checks (figure checks are in `publication/tests`) |
 | `legacy/development_sources_20260923.tar.gz` and `.json` | Exact pre-consolidation sources/docs, hashes, original paths |
 
 Required local inputs beyond source datasets are the working run's `analysis/`

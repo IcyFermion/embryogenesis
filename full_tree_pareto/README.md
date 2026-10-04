@@ -1,35 +1,35 @@
 # Full-tree Pareto analysis
 
-Updated 2026-09-29. The current rebuild produces **one main Figure 7** and
-**one supplementary figure with a heuristic inventory**, using pooled travel
-from all three *C. elegans* tracking embryos and endpoint-normalized displays.
-See [POOLED_HANDOFF.md](POOLED_HANDOFF.md) for current execution/validation
-status and resumption instructions. The former two-main-figure configuration
-is preserved in [LEGACY_EMBRYO1.md](LEGACY_EMBRYO1.md).
+Updated 2026-10-04. Pooled travel from all three *C. elegans* tracking embryos
+feeds **Figure 7** and a **supplementary figure with a heuristic inventory**,
+plus the partial-forest cross-species Figures 10/11. See
+[POOLED_HANDOFF.md](POOLED_HANDOFF.md) for execution/validation status and the
+former two-main-figure configuration in [LEGACY_EMBRYO1.md](LEGACY_EMBRYO1.md).
+
+**Layout since 2026-10-04:** this package is numerical only. Figures,
+captions and releases belong to [`publication/`](../publication/README.md);
+production figures are in `publication/output/production/`. Figure material
+formerly in runs and the old `output/publication/` is archived in
+`publication/output/archive/migrated_20261004/` and removed after the
+refactor PR.
 
 ## Build and outputs
 
 Run from the repository root in the `dev` Conda environment:
 
 ```bash
-# Build/resume scientific caches, render and compile both figures.
-# On a fresh run, checkpoint the expensive paired sweep first:
-python -m full_tree_pareto.resume_paired
-python -m full_tree_pareto.publication_build
+# Build/resume scientific caches. On a fresh run, checkpoint the expensive
+# paired sweep first (both commands default to 24 workers):
+python -m full_tree_pareto.resume_paired [--workers 8]
+python -m full_tree_pareto.pooled_pipeline [--workers 8]
 
-# Optional override for another machine (both commands default to 24 workers).
-python -m full_tree_pareto.resume_paired --workers 8
-python -m full_tree_pareto.publication_build --workers 8
-
-# Replay-validate assignments and redraw without rerunning solvers.
-python -m full_tree_pareto.publication_build --layout-only
-
-# Promotion into the mixed production directory (preserves Figures 10/11):
-python -m publication build --family full-tree-pooled --output-dir PATH
-python -m publication release --family full-tree-pooled --build PATH --rehearse   # then --apply
-
-python -m full_tree_pareto.publication_build --verify
+# Replay-validate existing caches without solving.
+python -m full_tree_pareto.pooled_pipeline --layout-only
 python -m unittest discover -s full_tree_pareto -p 'test_*.py'
+
+# Figures 7/S4 from the validated caches, then release (see publication/README.md).
+python -m publication build --family full-tree-pooled --output-dir publication/output/candidates/NAME
+python -m publication release --build publication/output/candidates/NAME --rehearse   # then --apply
 ```
 
 Working run: `output/runs/pooled_full_tree_v1/terminal_clamped_20260927/`.
@@ -37,26 +37,9 @@ Working run: `output/runs/pooled_full_tree_v1/terminal_clamped_20260927/`.
 parent-array sweeps, raw costs, null draws, Gaussian covariances and validation.
 `analysis/cousin_shuffles/` adds independently hash-pinned second- and
 third-cousin draws and leaf permutations, without changing the solver caches.
-`publication/` holds panels, two compiled wrappers and display transforms.
-Each redraw first saves a hash-checked preceding layout under `layout_history/`.
-Wrapper stems are `fig7_ce_full_tree_layerwise` and
-`figs_ce_full_tree_heuristics`; the latter is provisionally Figure S4, following
-terminal supplements S1--S3.
-Panels and captions are drawn by `publication/figures/full_tree.py` and
-`publication/captions/full_tree.py`; `publication_build.py` keeps settings,
-cache building and release mechanics. `python -m publication build --family
-full-tree-pooled --output-dir PATH` renders the same assets from validated
-caches. A staged mixed release that preserves Figures 10/11 exists in
-`publication/release.py` and can be rehearsed with
-`python -m publication release --family full-tree-pooled --build PATH --rehearse`;
-the legacy `publication_build --publish` promoter stays blocked on mixed production.
-
-Promotion copies figures to `output/publication/` with a release manifest,
-preserving the former bundle in `output/legacy/releases/`. A failed promotion
-removes its staging folder and partial archive and restores the former bundle.
-The manuscript is not automatically edited. Everything under `output/`,
-including compiled wrappers and local archives, is Git-ignored and untracked
-(the two historical wrappers were untracked on 2026-09-29), so it requires
+`checkpoints/` holds the per-weight paired sweep. Wrapper stems are
+`fig7_ce_full_tree_layerwise` and `figs_ce_full_tree_heuristics`; the latter is
+provisionally Figure S4. Everything under `output/` is Git-ignored and requires
 external backup. `--run PATH` selects an isolated run;
 `--workers N` controls parallel solver processes (default **24** in both
 entrypoints; positive integers only). Use `--workers 1` for one solver process.
@@ -73,8 +56,8 @@ so the historical `figs_`/`table_ce_full_tree_heuristics.tex` wrappers compile
 only after such a rebuild.
 
 Sweep weights, draws and seed are the `INTERVALS`, `DRAWS` and `SEED`
-constants in `publication_build.py`; builds, `resume_paired`, captions and
-display subsets all read them. `DEFAULT_WORKERS = 24` in the same module is
+constants in `pooled_pipeline.py`; builds, `resume_paired` and the publication
+captions all read them. `DEFAULT_WORKERS = 24` in the same module is
 the shared runtime default for the build and checkpoint entrypoints; their
 `--workers` options override it. Worker count is not part of scientific cache
 identity. The frozen low-level `pooled_analysis.build` fallback remains four,
@@ -272,7 +255,7 @@ references/random-rebuild inset of Figure 7B. The separate overlay uses the
 Figure 9 layout, including canonical-metric panel C. On 2026-10-01 the author
 approved these as **publication Figures 10 and 11**, respectively. The
 captioned one-page PDFs, editable TeX and panel PDF/PNG files are released in
-`output/publication/` under these stems:
+`publication/output/production/` under these stems:
 
 - `fig10_full_tree_cross_species_comparison`
 - `fig11_full_tree_cross_species_overlays`
@@ -288,59 +271,40 @@ kept in the caption rather than titles (revision 2026-10-01).
 ```bash
 OPENBLAS_NUM_THREADS=1 python -m full_tree_pareto.cross_species_analysis
 python -m full_tree_pareto.cross_species_analysis --verify-only
-python -m full_tree_pareto.cross_species_analysis --render-only
-python -m full_tree_pareto.cross_species_publication
-python -m full_tree_pareto.cross_species_publication --verify
-# Explicit additive release; archive existing production, retire only old Figure 8.
-python -m full_tree_pareto.cross_species_publication --publish
-python -m full_tree_pareto.cross_species_publication --verify-production
 python -m unittest full_tree_pareto.test_cross_species
+# Figures 10/11 (the former --render-only now points here).
+python -m publication build --family full-tree-cross-species --output-dir publication/output/candidates/NAME
 ```
 
 All commands run from the repository root in `dev`. They accept `--run-id`
 for another isolated run. Completed case caches resume after identity/hash
 checks. Changed scientific inputs or source require a new run; do not edit
-manifests to force reuse. Rendering and caption assembly archive preceding
-layouts with hashes. Promotion preserves unrelated production files and writes
-`cross_species_release_manifest.json` plus a copy of the assembly manifest.
-The four obsolete `fig8_ce_full_tree_collective` PDF/TeX/panel PDF/panel PNG
-assets were removed from production. They remain recoverable in the verified
-pre-release archive
-`output/legacy/cross_species_releases/20261001T150611720032Z/publication/`.
-All 29 numerical artifacts and 15 other production files were hash-checked
-unchanged. Figure 7 and its supplement were not promoted or changed, and the
-terminal publication directory is untouched.
+manifests to force reuse.
 
-**Pooled Figure 7/S4 release (2026-10-04).** Released 2026-10-04 (UTC stamp `20261004T024949483965Z`) at the author's
-request: pooled Figure 7 and provisional S4 are in `output/publication/`
-alongside Figures 10/11, built by `python -m publication build --family
-full-tree-pooled` and promoted with `python -m publication release --family
-full-tree-pooled --build PATH --apply`. Figures 10/11 are byte-identical and
-their `cross_species_release_manifest.json` preserved-file record was rewritten
-(previous record kept in `preserved_files_history`). Retired from production:
-the historical single-embryo Figure 7B aggregate panel, heuristic table and
-inventory CSV/TeX, and the three phylogenetic-reference methods PDFs (author
-decision: useful backup, skipped for now). The entire former 25-file directory
-is recoverable with verified hashes in `full_tree_pareto/output/legacy/releases/20261004T024949483965Z/publication/`.
-The older `publication_build --publish` whole-bundle promoter remains blocked
-on this mixed directory.
+Release history: Figures 10/11 were first released on 2026-10-01 into the
+former `output/publication/` (retiring four obsolete `fig8_ce_full_tree_collective`
+files; pre-release archive under `output/legacy/cross_species_releases/`).
+Pooled Figure 7 and provisional S4 joined them on 2026-10-04 (archive
+`output/legacy/releases/20261004T024949483965Z/`), retiring the historical
+single-embryo Figure 7B panel, heuristic table/inventory and the three
+phylogenetic-reference methods PDFs (author decision: useful backup, skipped
+for now). Since 2026-10-04 all four figure families are released together
+into `publication/output/production/`.
 
 ## Source map
 
-Presentation lives in [`publication/`](../publication/README.md); modules below
-keep analysis, caches, CLIs and release mechanics.
+Numerical code only; drawing, captions and releases are in
+[`publication/`](../publication/README.md).
 
 | Source | Role |
 |---|---|
-| `cross_species_analysis.py` | Isolated terminal-anchored partial-forest cohort, six exact layerwise sweeps, references and replay guards |
-| `fig_cross_species.py`, `cross_species_publication.py` | `--render-only` entrypoint and numbered Figures 10/11 assembly/release (drawing and captions in `publication/`) |
+| `cross_species_analysis.py` | Isolated terminal-anchored partial-forest cohort, six exact layerwise sweeps, references and replay guards (`fig_cross_species.py` only redirects `--render-only`) |
 | `test_cross_species.py`, `CROSS_SPECIES_HANDOFF.md` | Partial-forest tests and cross-species execution checkpoint |
 | `pooled_analysis.py` | Cohort, matrices, five heuristics, references and replay-validated caches |
 | `cousin_references.py` | Separate second-/third-cousin caches using terminal ancestry definitions and full-edge replay |
-| `publication_build.py` | Sweep settings, cache build/replay, working-layout archive, guarded promotion; drawing delegates to `publication/figures/full_tree.py` |
+| `pooled_pipeline.py`, `test_pooled_pipeline.py` | Sweep settings and compute-only cache build/replay (formerly `publication_build.py`) |
 | `resume_paired.py` | Per-weight checkpointed paired sweep, assembled into the standard cache |
 | `test_pooled_analysis.py` | Pooled scoring, solver invariants, endpoints, clamping and cache guards |
-| `test_publication_build.py` | Endpoint display, release hashes, caption settings and promotion rollback |
 | `test_cousin_references.py` | Canonical groups, terminal sampler agreement, forest invariants and cache/replay guards |
 | `POOLED_HANDOFF.md` | Execution checkpoint and remaining work |
 | `publication_analysis.py`, `fig7_fig8_ce_full_tree_pareto.py` | Historical single-embryo pipeline |

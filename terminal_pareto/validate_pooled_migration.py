@@ -1,4 +1,8 @@
-"""Scientific and cache validation for the pooled-travel migration candidate."""
+"""Scientific and cache validation for the pooled-travel migration candidate.
+
+Numerical only. Figure organization, wrapper wording and page checks moved to
+``publication/tests`` when figures moved to the publication front end.
+"""
 
 from __future__ import annotations
 
@@ -6,7 +10,6 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
-import subprocess
 import sys
 
 import numpy as np
@@ -57,10 +60,10 @@ def _checkpoint_mismatches(checkpoint: Path, manifest_name: str) -> list[str]:
     ]
 
 
-def _validate_s3_projection(pooled, result, publication: Path) -> tuple[bool, str]:
+def _validate_s3_projection(pooled, result, projections: Path) -> tuple[bool, str]:
     """Independently replay every source/target/sweep projection."""
-    table_path = publication / "cross_geometry_coordinates.csv"
-    provenance_path = publication / "provenance.json"
+    table_path = projections / "cross_geometry_coordinates.csv"
+    provenance_path = projections / "provenance.json"
     if not table_path.exists() or not provenance_path.exists():
         return False, "missing S3 projection table or provenance"
     frame = pd.read_csv(table_path)
@@ -285,103 +288,10 @@ def validate(run_id: str, output_root: Path) -> dict:
     _check(checks, "display preserves dominance",
            np.array_equal(raw_dominance, display_dominance))
 
-    publication = pooled.run_paths.display("endpoint")
-    mode_manifests = [
-        pooled.run_paths.display(mode) / "fig2_fig3_display_manifest.json"
-        for mode in ("endpoint", "null_sd", "percent_natural")
-    ]
-    assignment_hashes = []
-    for path in mode_manifests:
-        if path.exists():
-            assignment_hashes.append(
-                json.loads(path.read_text())["assignment_ids_hash"])
-    _check(checks, "display modes share assignment IDs",
-           len(assignment_hashes) == 3 and len(set(assignment_hashes)) == 1,
-           f"manifests={len(assignment_hashes)}")
-
-    expected_panels = [
-        "fig1_endpoint_normalization_amendment.pdf",
-        "fig1_endpoint_normalization_amendment.png",
-        "fig1_endpoint_normalization_amendment.svg",
-        "fig2_ce_terminal_pareto_front.pdf",
-        "fig3A_ce_null_models.tex",
-        "fig3B_ce_edge_retention_tree_distance.pdf",
-        "fig3C_ce_structural_retention.pdf",
-        "fig4_ce_subtree_map_panel.pdf",
-        "fig5A_ce_canonical_major_subtrees.pdf",
-        "fig5B_ce_canonical_all_subtrees.pdf",
-        "fig6A_ce_retention_heatmap.pdf",
-        "fig6B_ce_within_type_fronts.pdf",
-        "fig6C_ce_type_restricted_aggregate.pdf",
-        "figS1A_ce_cousin_r_definition.pdf",
-        "figS1B_ce_cousin_r_major_subtrees.pdf",
-        "figS1C_ce_cousin_r_all_subtrees.pdf",
-        "figS2_ce_cell_type_cost_gain_panel.pdf",
-        "figS3_four_geometries_with_insets.pdf",
-        "figS3_four_geometries_with_insets.png",
-        "figS3_four_geometries_with_insets.svg",
-        "cross_geometry_coordinates.csv",
-        "provenance.json",
-        "fig1_ce_endpoint_normalization_amendment.tex",
-        "table1_ce_subtree_statistics.tex",
-    ]
-    missing = [name for name in expected_panels
-               if not (publication / name).exists()]
-    _check(checks, "candidate panel completeness", not missing,
-           f"missing={missing}")
-
-    figure1_wrapper = publication / "fig1_ce_endpoint_normalization_amendment.tex"
-    figure2_wrapper = publication / "fig2_ce_terminal_pareto_main.tex"
-    figure3_wrapper = publication / "fig3_ce_terminal_pareto_supporting.tex"
-    figure5_wrapper = publication / "fig5_ce_canonical_summary.tex"
-    figure_s3_wrapper = publication / "figS3_ce_tracking_robustness.tex"
-    wrappers_current = all(path.exists() for path in (
-        figure1_wrapper, figure2_wrapper, figure3_wrapper,
-        figure5_wrapper, figure_s3_wrapper))
-    if wrappers_current:
-        figure1_text = figure1_wrapper.read_text()
-        figure2_text = figure2_wrapper.read_text()
-        figure3_text = figure3_wrapper.read_text()
-        figure5_text = figure5_wrapper.read_text()
-        figure_s3_text = figure_s3_wrapper.read_text()
-        wrappers_current = (
-            "fig1_endpoint_normalization_amendment.pdf" in figure1_text
-            and "fig:ce_endpoint_normalization_amendment" in figure1_text
-            and "fig2A_ce_endpoint_coordinate_schematic" not in figure2_text
-            and "Figure~2A" not in figure2_text + figure5_text
-            and "width=\\textwidth]{fig2_ce_terminal_pareto_front.pdf}" in figure2_text
-            and "\\textbf{(B)}" not in figure2_text
-            and "maximum" in figure2_text and "$P^*$" in figure2_text
-            and "\\input{fig3A_ce_null_models.tex}" in figure3_text
-            and "\\textbf{(A)}" in figure3_text
-            and "Figure~1 amendment" in figure5_text
-            and "fig5A_ce_canonical_major_subtrees.pdf" in figure5_text
-            and "fig5B_ce_canonical_all_subtrees.pdf" in figure5_text
-            and "fig5A_ce_canonical_definition.pdf" not in figure5_text
-            and "figS3_four_geometries_with_insets.pdf" in figure_s3_text
-            and "figS3A_ce_tracking_replicate_fronts.pdf" not in figure_s3_text
-            and "figS3B_ce_tracking_replicate_metrics.pdf" not in figure_s3_text
-            and "leave-one-geometry-out" in figure_s3_text
-        )
-    _check(checks, "Figure 1/2/3/5/S3 organization recorded in wrappers",
-           wrappers_current)
-
-    s3_ok, s3_detail = _validate_s3_projection(pooled, result, publication)
+    projections = pooled.run_paths.analysis / "s3_cross_geometry"
+    s3_ok, s3_detail = _validate_s3_projection(pooled, result, projections)
     _check(checks, "S3 saved assignments and 4,816 projections replay",
            s3_ok, s3_detail)
-    s3_pdf = publication / "figS3_four_geometries_with_insets.pdf"
-    page_count = None
-    if s3_pdf.exists():
-        info = subprocess.run(
-            ["pdfinfo", str(s3_pdf)], capture_output=True, text=True,
-            check=False)
-        if info.returncode == 0:
-            for line in info.stdout.splitlines():
-                if line.startswith("Pages:"):
-                    page_count = int(line.split(":", 1)[1].strip())
-    _check(checks, "S3 composite is one vector PDF page",
-           page_count == 1, f"pages={page_count}")
-
     subtree_manifest_path = (pooled.run_paths.analysis
                              / "subtree_summary_min12_manifest.json")
     subtree_manifest_ok = False
@@ -424,15 +334,6 @@ def validate(run_id: str, output_root: Path) -> dict:
         )
     _check(checks, "Figure 6A cache identity manifest matches pooled run",
            fig6a_manifest_ok)
-    fig6bc_manifest_path = publication / "fig6bc_display_manifest.json"
-    fig6bc_endpoint = (
-        fig6bc_manifest_path.exists()
-        and json.loads(fig6bc_manifest_path.read_text()).get("display_mode")
-        == "endpoint"
-    )
-    _check(checks, "pooled Figure 6B-C explicitly use endpoint display",
-           fig6bc_endpoint)
-
     legacy_metrics = pd.read_csv(
         ROOT / "terminal_pareto" / "output" / "runs"
         / "baseline_legacy_20260920" / "archive"
@@ -506,7 +407,7 @@ def validate(run_id: str, output_root: Path) -> dict:
                 pooled.run_paths.analysis / "analysis_manifest.json"),
             "global_cache": _hash(
                 pooled.run_paths.analysis / "global_terminal_analysis.npz"),
-            "endpoint_display_manifest": _hash(mode_manifests[0]),
+            "s3_projection_table": _hash(projections / "cross_geometry_coordinates.csv"),
             "baseline_manifest": _hash(baseline_manifest),
         },
     }
