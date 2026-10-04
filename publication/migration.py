@@ -1,13 +1,21 @@
-"""One-off move of figure material out of the back ends (author decision 2026-10-04).
+"""Move figure material out of the back ends (author decisions 2026-10-04).
 
-    python -m publication.migration --archive        # copy + hash-verify into publication/output/archive/
-    python -m publication.migration --verify         # archive still matches its manifest
-    python -m publication.migration --purge --confirm  # after the PR: re-verify, then delete the originals
+    python -m publication.migration --batch NAME --archive           # copy + hash-verify into the archive
+    python -m publication.migration --batch NAME --verify            # archive still matches its manifest
+    python -m publication.migration --batch NAME --purge --confirm   # re-verify, then delete the originals
 
-Only figure-production material is listed: rendered panels, wrappers, layout
-snapshots and render logs written into run folders, plus the two old
-production folders. Numerical results (``analysis/``, ``checkpoints/``, replay
-and migration-validation reports) stay in ``terminal_pareto/`` and
+Batches (archived under ``publication/output/archive/<batch>/``):
+
+- ``migrated_20261004`` (purged after PR #2): rendered panels, wrappers,
+  layout snapshots and render logs written into run folders, plus the two old
+  production folders.
+- ``legacy_20261004``: figure history in both packages' ``output/legacy/``
+  (old production release archives, the original embryo-1 figures, diagnostic
+  plots and an old figure handoff). The mixed pilot-output and pre-promotion
+  run tarballs contain numerical results and stay in ``terminal_pareto``.
+
+Numerical results Numerical results (``analysis/``, ``checkpoints/``, replay and
+migration-validation reports) stay in ``terminal_pareto/`` and
 ``full_tree_pareto/``. The S3 projection table and provenance were copied into
 the pooled run's ``analysis/s3_cross_geometry/`` before archiving.
 """
@@ -21,7 +29,8 @@ import shutil
 
 from publication.provenance import ROOT, sha256
 
-ARCHIVE = ROOT / "publication/output/archive/migrated_20261004"
+ARCHIVE_ROOT = ROOT / "publication/output/archive"
+DEFAULT_BATCH = "migrated_20261004"
 MANIFEST = "manifest.json"
 TERMINAL_RUNS = "terminal_pareto/output/runs"
 FULL_TREE_RUNS = "full_tree_pareto/output/runs"
@@ -64,48 +73,61 @@ FIGURE_PATHS = (
 )
 
 
+LEGACY_PATHS = (
+    "terminal_pareto/output/legacy/diagnostics",
+    "terminal_pareto/output/legacy/embryo1",
+    "terminal_pareto/output/legacy/releases",
+    "terminal_pareto/output/legacy/repository_handoff_before_promotion.txt",
+    "full_tree_pareto/output/legacy/releases",
+    "full_tree_pareto/output/legacy/cross_species_releases",
+)
+BATCHES = {DEFAULT_BATCH: FIGURE_PATHS, "legacy_20261004": LEGACY_PATHS}
+
+
 def _files(path: Path) -> list[Path]:
     if path.is_symlink():
         raise ValueError(f"Refusing to migrate a symlink: {path}")
     return [path] if path.is_file() else sorted(p for p in path.rglob("*") if p.is_file())
 
 
-def present() -> list[str]:
-    return [name for name in FIGURE_PATHS if (ROOT / name).exists()]
+def present(batch: str = DEFAULT_BATCH) -> list[str]:
+    return [name for name in BATCHES[batch] if (ROOT / name).exists()]
 
 
-def archive() -> dict:
+def archive(batch: str = DEFAULT_BATCH) -> dict:
     """Copy every listed path into the archive and verify each file's hash."""
-    if (ARCHIVE / MANIFEST).exists():
-        raise FileExistsError(f"{ARCHIVE} already holds a migration archive")
+    target_root = ARCHIVE_ROOT / batch
+    if (target_root / MANIFEST).exists():
+        raise FileExistsError(f"{target_root} already holds a migration archive")
     hashes = {}
-    for name in present():
+    for name in present(batch):
         for source in _files(ROOT / name):
             relative = str(source.relative_to(ROOT))
-            target = ARCHIVE / relative
+            target = target_root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
             hashes[relative] = sha256(source)
             if sha256(target) != hashes[relative]:
                 raise ValueError(f"Archive copy mismatch: {relative}")
-    record = dict(version="figure-migration-1", paths=present(), files=hashes)
-    (ARCHIVE / MANIFEST).write_text(json.dumps(record, indent=2) + "\n")
+    record = dict(version="figure-migration-1", batch=batch, paths=present(batch), files=hashes)
+    (target_root / MANIFEST).write_text(json.dumps(record, indent=2) + "\n")
     return dict(paths=len(record["paths"]), files=len(hashes))
 
 
-def verify() -> dict:
-    record = json.loads((ARCHIVE / MANIFEST).read_text())
+def verify(batch: str = DEFAULT_BATCH) -> dict:
+    target_root = ARCHIVE_ROOT / batch
+    record = json.loads((target_root / MANIFEST).read_text())
     bad = [name for name, digest in record["files"].items()
-           if not (ARCHIVE / name).is_file() or sha256(ARCHIVE / name) != digest]
+           if not (target_root / name).is_file() or sha256(target_root / name) != digest]
     if bad:
         raise ValueError(f"Migration archive mismatch: {bad[:10]}")
     return dict(paths=len(record["paths"]), files=len(record["files"]))
 
 
-def purge() -> dict:
+def purge(batch: str = DEFAULT_BATCH) -> dict:
     """Delete migrated originals once the archive verifies and still covers them exactly."""
-    record = json.loads((ARCHIVE / MANIFEST).read_text())
-    verify()
+    record = json.loads((ARCHIVE_ROOT / batch / MANIFEST).read_text())
+    verify(batch)
     removed = []
     for name in record["paths"]:
         path = ROOT / name
@@ -126,11 +148,13 @@ def main(argv=None):
     action.add_argument("--archive", action="store_true")
     action.add_argument("--verify", action="store_true")
     action.add_argument("--purge", action="store_true")
+    parser.add_argument("--batch", default=DEFAULT_BATCH, choices=sorted(BATCHES))
     parser.add_argument("--confirm", action="store_true", help="Required with --purge")
     args = parser.parse_args(argv)
     if args.purge and not args.confirm:
         parser.error("--purge deletes the originals; add --confirm")
-    result = archive() if args.archive else verify() if args.verify else purge()
+    action = archive if args.archive else verify if args.verify else purge
+    result = action(args.batch)
     print(json.dumps(result, indent=2))
 
 

@@ -21,7 +21,9 @@ refactor PR.
   `analysis/s3_cross_geometry/`) and
   `output/runs/cross_species_terminal_v1/pooled_comparison_20260930/analysis/`.
   Run IDs are historical and retained to preserve cache identity.
-- **Previous figures and older diagnostics:** `output/legacy/`.
+- **Previous figures, old releases and diagnostics:** archived in
+  `publication/output/archive/legacy_20261004/` (moved 2026-10-04). `output/legacy/` keeps only the
+  numerical pilot-output and pre-promotion run tarballs.
 - **Archived prototypes/pilots:** compact archives described in the handoff.
 
 Run commands from the repository root in the `dev` Conda environment.

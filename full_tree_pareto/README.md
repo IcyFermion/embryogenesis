@@ -283,9 +283,9 @@ manifests to force reuse.
 
 Release history: Figures 10/11 were first released on 2026-10-01 into the
 former `output/publication/` (retiring four obsolete `fig8_ce_full_tree_collective`
-files; pre-release archive under `output/legacy/cross_species_releases/`).
+files; that pre-release archive is now under `publication/output/archive/legacy_20261004/`).
 Pooled Figure 7 and provisional S4 joined them on 2026-10-04 (archive
-`output/legacy/releases/20261004T024949483965Z/`), retiring the historical
+`publication/output/archive/legacy_20261004/full_tree_pareto/output/legacy/releases/20261004T024949483965Z/`), retiring the historical
 single-embryo Figure 7B panel, heuristic table/inventory and the three
 phylogenetic-reference methods PDFs (author decision: useful backup, skipped
 for now). Since 2026-10-04 all four figure families are released together
