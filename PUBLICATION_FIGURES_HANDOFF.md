@@ -17,6 +17,77 @@ presentation package; see [publication/README.md](publication/README.md).
 Production is `publication/output/production/` (released 2026-10-04 with
 `d_CP`/`C` notation and one universal style). Older paths below are historical.
 
+## Next session: start here (recorded 2026-10-04)
+
+Production state: all four families released and verified
+(`python -m publication verify --production`); the latest is a
+terminal-primary family release (Figure 6B-C z-order fix, `63ee580`).
+The only candidate build kept besides that release's
+`publication/output/candidates/fig6_zorder_20261004/` is
+`candidates/production_20261004b/` (the other three families' release).
+
+### 1. Per-family presentation staleness (small, do first)
+
+`publication/provenance.py` hashes *every* rendering-relevant
+`publication/` source into each build's presentation identity. A change that
+affects one family therefore marks the other families' builds and production
+entries stale too. Right now `verify --production` lists
+`publication/figures/terminal_within_type.py` for the three families that do
+not use it; this is harmless noise.
+
+Planned fix: record per-family dependencies instead of all sources.
+- Derive each family's entry modules from the registry: its adapter module,
+  the `__module__` of each `FigureSpec` render/caption function, and the
+  `publication.*` imports inside custom builder functions (`ast` over their
+  source). Follow `publication.*` imports transitively (also those inside
+  functions); always include `registry.py` (it holds layout options such as
+  titles and colorbar labels) but do not traverse it.
+- Declare non-Python assets per family (terminal-primary:
+  `assets/fig3A_ce_null_models.tex`).
+- `presentation_sources(family)` for `write_manifest`/`verify_build`; compare
+  live versus recorded over the union of names so a new dependency also
+  counts as stale; report staleness per family in `verify_production`.
+- Tests: terminal-cross-species excludes `terminal_within_type.py`;
+  terminal-primary includes it and the Figure 3A asset; full-tree-pooled
+  excludes `terminal_*` figure modules. Then rebuild and re-release all
+  families once so production records the new identities.
+This becomes necessary, not just tidier, if a new figure shares drawing code
+across families (item 2).
+
+### 2. Planned: by-cell-type analysis for the cross-species terminal comparison
+
+Front end: add a figure to the `terminal-cross-species` family (it then owns
+the new assets) and release only that family. Reusing the Figure 6A/6B
+drawing modules makes them a genuine shared dependency of both terminal
+families (see item 1).
+
+Back end, in `terminal_pareto/`:
+- Do **not** edit `cross_species_analysis.py`, `subtree_analysis.py` (holds
+  `build_type_map`), `front_coordinates.py`, `analysis_context.py`,
+  `data_loader.py`, `lineage_metrics.py` or `pareto_engine.py`: their source
+  hashes pin the cross-species cache (`subtree_analysis.py` also pins the
+  pooled full-tree caches). Write a separate add-on module with its own cache
+  under the cross-species run, tied to its `analysis_id` (pattern:
+  `full_tree_pareto/cousin_references.py`).
+- The existing cell-type code assumes the 275-edge pooled context
+  (`fig6bc_ce_within_type.load_primary_data`, the `subtree_explore`
+  decomposition functions). The cross-species analysis has its own matrices
+  (187 edges, three configurations, two geometries, per-configuration exact
+  null moments and endpoints). The matrix-level pieces (`solve_block_sweep`,
+  `exact_null_stats`) look reusable; these modules are not hash-pinned (the
+  cell-type caches key on configuration), and the scratch rerun of
+  `analysis_pipeline.py` can confirm Figure 6 caches stay byte-identical after
+  refactoring.
+- Add new solver/sampling functions to the guard in
+  `publication/tests/support.py`.
+
+Open scientific decisions for the author:
+- Cell types come from the *C. elegans* annotation joined on lineage names.
+  Can CE fates be assumed for the matched *C. briggsae* AF16 cells?
+- With 187 edges, small types (glial and alimentary are already 15-20 cells
+  in the 275-edge set) shrink further: merge threshold, and handling of
+  within-type fronts with degenerate endpoint spans.
+
 ## Terminal figures: pooled release promoted
 
 The author approved the pooled-travel, endpoint-normalized terminal figures.
