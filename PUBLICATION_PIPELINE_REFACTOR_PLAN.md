@@ -497,3 +497,11 @@ purged with the old production folders after the PR; open the PR.
   `parity.py`) no longer count as presentation source; production was rebuilt
   (figures identical) and re-released at `20261004T213512971027Z` from
   `candidates/production_20261004b/`, the only candidate kept.
+
+### Per-family presentation tracking (2026-10-05)
+
+Figure 6B-C z-order fix released as a single-family release (`63ee580`), which
+exposed cross-family staleness noise. Builds now record per-family
+dependencies; all families were rebuilt (figures identical) and re-released
+at `20261005T035146633045Z`; `verify --production` reports nothing stale.
+53 publication tests pass.

@@ -171,23 +171,24 @@ def release(build: Path, *, families=None, production: Path = PRODUCTION, archiv
 
 
 def verify_production(production: Path = PRODUCTION, *, check_inputs: bool = True) -> dict:
-    """Integrity of released files (and their numerical inputs); stale presentation source is reported."""
+    """Integrity of released files (and their numerical inputs); stale presentation source is reported per family."""
     production = Path(production)
     manifest = json.loads((production / PRODUCTION_MANIFEST).read_text())
     expected = {PRODUCTION_MANIFEST}
-    stale, summary = set(), {}
+    stale, summary = {}, {}
     for key, entry in manifest["families"].items():
         check(production, entry["files"])
         expected |= set(entry["files"])
         if check_inputs:
             check(Path(entry["run"]), entry["input_files"])
         recorded = json.loads((production / family_manifest(key)).read_text())["presentation_sources"]
-        stale |= set(provenance.stale_files(recorded))
+        if changed := provenance.changed_sources(recorded, provenance.presentation_sources(key)):
+            stale[key] = changed
         summary[key] = dict(files=len(entry["files"]), released_at=entry["released_at"])
     if set(inventory(production)) != expected:
         raise ValueError(f"Unexpected or missing production files: "
                          f"{sorted(set(inventory(production)) ^ expected)}")
-    return dict(families=summary, stale_presentation_sources=sorted(stale))
+    return dict(families=summary, stale_presentation_sources=stale)
 
 
 def rehearse(build: Path, *, families=None, production: Path = PRODUCTION, keep: Path | None = None) -> dict:

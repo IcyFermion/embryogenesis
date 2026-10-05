@@ -146,7 +146,7 @@ class CacheOnlyBuild(unittest.TestCase):
 
     def test_changed_presentation_source_is_stale_not_blessed(self):
         family = "terminal-cross-species"
-        live = provenance.presentation_sources()
+        live = provenance.presentation_sources(family)
         changed = dict(live, **{"publication/notation.py": "0" * 64})
         with mock.patch.object(provenance, "presentation_sources", return_value=changed):
             status = provenance.verify_build(self.tmp / family)

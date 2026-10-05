@@ -113,12 +113,15 @@ point is `C` (formerly `N`).
 ## Provenance boundaries
 
 - *Scientific* identity: back-end caches and validators (unchanged).
-- *Presentation* identity: hashes of every `publication/` source and asset
-  plus the notation snapshot (`presentation_manifest.json` per build).
+- *Presentation* identity, per family: hashes of the `publication/` sources
+  and assets that family's build depends on (derived from its registry entry
+  points through `publication` imports; `Family.assets` for non-Python files)
+  plus the notation snapshot (`presentation_manifest.json` per build). A
+  change outside a family's dependencies does not make it stale.
 - *Release* identity: `production/release_manifest.json` records, per family,
   the build, presentation identity, released files and the numerical input
-  hashes; `verify --production` checks files and inputs strictly and reports
-  presentation source that changed since release.
+  hashes; `verify --production` checks files and inputs strictly and reports,
+  per family, presentation source that changed since release.
 
 ## Remaining back-end exceptions
 

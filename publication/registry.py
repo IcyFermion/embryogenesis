@@ -43,6 +43,7 @@ class Family:
     wrappers: tuple[tuple[str, str], ...] = ()  # (stem, printed number) for multi-panel figures
     production: str | None = None  # production root (repository-relative) this family releases into
     owned_assets: tuple[str, ...] = ()  # production file names only this family may add, change or remove
+    assets: tuple[str, ...] = ()  # non-Python files under publication/ that its builds read
 
     def load(self, run_id: str | None = None):
         module, function = self.adapter.split(":")
@@ -173,7 +174,8 @@ FAMILIES = {family.key: family for family in (
            "publication.adapters.terminal:primary", _build_terminal_primary,
            production="publication/output/production",
            status="active: published 2026-09-23 (Figure 1 amendment pending co-author integration)",
-           wrappers=TERMINAL_WRAPPERS, owned_assets=TERMINAL_PRIMARY_ASSETS),
+           wrappers=TERMINAL_WRAPPERS, owned_assets=TERMINAL_PRIMARY_ASSETS,
+           assets=("assets/fig3A_ce_null_models.tex",)),
     Family("full-tree-pooled",
            "Pooled full tree, 978 nodes/974 edges, layerwise and four other reconstructions (Euclidean molecular distance)",
            "publication.adapters.full_tree:pooled", _build_full_tree_pooled,

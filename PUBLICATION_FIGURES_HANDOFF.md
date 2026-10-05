@@ -20,39 +20,21 @@ Production is `publication/output/production/` (released 2026-10-04 with
 ## Next session: start here (recorded 2026-10-04)
 
 Production state: all four families released and verified
-(`python -m publication verify --production`); the latest is a
-terminal-primary family release (Figure 6B-C z-order fix, `63ee580`).
-The only candidate build kept besides that release's
-`publication/output/candidates/fig6_zorder_20261004/` is
-`candidates/production_20261004b/` (the other three families' release).
+(`python -m publication verify --production`, nothing stale), last released
+at `20261005T035146633045Z` from `publication/output/candidates/production_20261005/`
+(the only candidate kept).
 
-### 1. Per-family presentation staleness (small, do first)
+### 1. Per-family presentation tracking (done 2026-10-05)
 
-`publication/provenance.py` hashes *every* rendering-relevant
-`publication/` source into each build's presentation identity. A change that
-affects one family therefore marks the other families' builds and production
-entries stale too. Right now `verify --production` lists
-`publication/figures/terminal_within_type.py` for the three families that do
-not use it; this is harmless noise.
-
-Planned fix: record per-family dependencies instead of all sources.
-- Derive each family's entry modules from the registry: its adapter module,
-  the `__module__` of each `FigureSpec` render/caption function, and the
-  `publication.*` imports inside custom builder functions (`ast` over their
-  source). Follow `publication.*` imports transitively (also those inside
-  functions); always include `registry.py` (it holds layout options such as
-  titles and colorbar labels) but do not traverse it.
-- Declare non-Python assets per family (terminal-primary:
-  `assets/fig3A_ce_null_models.tex`).
-- `presentation_sources(family)` for `write_manifest`/`verify_build`; compare
-  live versus recorded over the union of names so a new dependency also
-  counts as stale; report staleness per family in `verify_production`.
-- Tests: terminal-cross-species excludes `terminal_within_type.py`;
-  terminal-primary includes it and the Figure 3A asset; full-tree-pooled
-  excludes `terminal_*` figure modules. Then rebuild and re-release all
-  families once so production records the new identities.
-This becomes necessary, not just tidier, if a new figure shares drawing code
-across families (item 2).
+Each build now records only the `publication/` sources and assets its family
+depends on (`provenance.presentation_sources(family)`): registry entry points
+(the specific adapter function and same-module helpers it calls, figure and
+caption functions, custom-builder imports, plus the shared core and
+`registry.py`) followed through `publication` imports, and declared
+non-Python assets (`Family.assets`). `verify --production` reports staleness
+per family, so a Figure 6 fix flags only terminal-primary. Tests:
+`publication/tests/test_provenance.py`. A figure that reuses another family's
+drawing module automatically picks up that dependency.
 
 ### 2. Planned: by-cell-type analysis for the cross-species terminal comparison
 
