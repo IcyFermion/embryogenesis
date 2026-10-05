@@ -141,9 +141,10 @@ def plot_within_type(front_df, summary_df, aggregate, endpoints, *, out_dir,
                            if natural_x is not None else 0.0)
         local_natural_y = (float(data.iloc[0][natural_y])
                            if natural_y is not None else 0.0)
+        # Natural lineage stays visible when it coincides with an optimum marker.
         ax.scatter([local_natural_x], [local_natural_y],
                    marker="X", s=34, color="#222222",
-                   edgecolor="white", lw=0.5, zorder=5)
+                   edgecolor="white", lw=0.5, zorder=6)
         ax.scatter([data.iloc[-1][local_x]],
                    [data.iloc[-1][local_y]],
                    marker="o", s=22, facecolor=TRAVEL_COLOR,
@@ -182,7 +183,7 @@ def plot_within_type(front_df, summary_df, aggregate, endpoints, *, out_dir,
             label="Assignments restricted within cell type", zorder=3)
     ax.scatter([aggregate_natural[0]], [aggregate_natural[1]],
                marker="X", s=48, color="#222222",
-               edgecolor="white", lw=0.55, zorder=5, label="Natural lineage")
+               edgecolor="white", lw=0.55, zorder=6, label="Natural lineage")
     for xcol, ycol, color in [
         (global_x, global_y, UNRESTRICTED_COLOR),
         (restricted_x, restricted_y, TYPE_RESTRICTED_COLOR),
