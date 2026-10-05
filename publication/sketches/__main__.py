@@ -66,7 +66,39 @@ def cross_species_rounds(out):
     return entries
 
 
-SKETCHES = {"full-tree-rounds": full_tree_rounds, "cross-species-rounds": cross_species_rounds}
+def cross_species_partitions(out):
+    """Idea 2a-b: 187-edge cross-species terminal comparison by subtree and by cell type."""
+    from publication.sketches import data, partitions
+    d = data.terminal_partitions()
+    group_s, group_t = "Cross-species terminal by subtree", "Cross-species terminal by cell type"
+    entries = []
+    for geometry in ("raw3d", "xy"):
+        entries.append(dict(key=f"xs_subtree_map_{geometry}", group=group_s,
+                            file=_save(partitions.subtree_map(d, geometry), out, f"xs_subtree_map_{geometry}"),
+                            title=f"Subtree map, {geometry}",
+                            note="Figure 4 layout; per subtree three dots (CE protein, CE RNA, CB RNA) shaded by d_LP; "
+                                 "solid ring = natural exactly on the front."))
+        entries.append(dict(key=f"xs_subtree_metrics_{geometry}", group=group_s,
+                            file=_save(partitions.subtree_metrics(d, geometry), out, f"xs_subtree_metrics_{geometry}"),
+                            title=f"Canonical metrics by subtree, {geometry}",
+                            note="Figure 5B-style rows for the 25 subtrees with at least 12 matched terminal edges."))
+    entries.append(dict(key="xs_type_retention", group=group_t,
+                        file=_save(partitions.type_retention(d), out, "xs_type_retention"),
+                        title="Retention by cell type along the whole-cohort fronts",
+                        note="Figure 6A analogue for all three configurations and both geometries; no new solves."))
+    for geometry in ("raw3d", "xy"):
+        entries.append(dict(key=f"xs_within_type_fronts_{geometry}", group=group_t,
+                            file=_save(partitions.within_type_fronts(d, geometry), out, f"xs_within_type_fronts_{geometry}"),
+                            title=f"Within-type fronts, {geometry}",
+                            note="Figure 6B analogue for types with at least 15 cells; configurations overlaid."))
+    entries.append(dict(key="xs_type_metrics", group=group_t,
+                        file=_save(partitions.type_metrics(d), out, "xs_type_metrics"),
+                        title="Within-type canonical metrics", note="Rows are cell types; both geometries."))
+    return entries
+
+
+SKETCHES = {"full-tree-rounds": full_tree_rounds, "cross-species-rounds": cross_species_rounds,
+            "cross-species-partitions": cross_species_partitions}
 
 
 def main(argv=None):

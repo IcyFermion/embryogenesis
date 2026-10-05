@@ -12,13 +12,13 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 from matplotlib.lines import Line2D
 import numpy as np
+import pandas as pd
 
 from publication import notation as nt
 from publication import style
 from publication.artists import AXIS_LABELS, proportional_limits
 from publication.figures.cross_species import FAMILY_LABELS, _display
 
-CONFIG_MARKERS = {"ce_protein": "o", "ce_rna": "s", "cb_rna": "^"}
 
 
 def round_title(r, edges, last):
@@ -130,54 +130,17 @@ def figure2_single(data, out, stem, *, geometry="raw3d", config="ce_protein"):
 
 def round_metrics(metrics, *, configs, geometries, title, aggregate=None, degenerate_note=None):
     """Canonical metrics by round (rows), one marker per configuration; geometries stacked."""
-    keys = (("canonical_position", style.SEMANTIC_COLORS["canonical_u"]),
-            ("natural_front_distance", style.SEMANTIC_COLORS["lineage_front_distance"]),
-            ("null_front_distance", style.SEMANTIC_COLORS["first_cousin_null"]),
-            ("max_edge_retention", style.COLORS["blue"]))
-    rounds = sorted(metrics["round"].unique())
-    labels = [f"Round {r} · {int(metrics.loc[metrics['round'] == r, 'edges'].iloc[0])}" for r in rounds]
+    from publication.sketches.panels import metric_rows
+    table = metrics.copy()
+    rows = [(r, f"Round {r} \u00b7 {int(metrics.loc[metrics['round'] == r, 'edges'].iloc[0])}")
+            for r in sorted(metrics["round"].unique())]
+    separators = []
     if aggregate is not None:
-        labels.append("Aggregate")
-    n = len(labels)
-    fig, axes = plt.subplots(len(geometries), len(keys), figsize=(12.5, (.32 * n + 1.1) * len(geometries) + .9),
-                             sharey=True, squeeze=False)
-    fig.subplots_adjust(left=.12, right=.98, top=1 - .9 / fig.get_figheight(), bottom=.9 / fig.get_figheight(),
-                        hspace=.45, wspace=.12)
-    offsets = np.linspace(-.22, .22, len(configs)) if len(configs) > 1 else [0.]
-    for g, geometry in enumerate(geometries):
-        for k, (key, color) in enumerate(keys):
-            ax = axes[g, k]
-            for c, (config, offset) in enumerate(zip(configs, offsets)):
-                rows = metrics[(metrics.geometry == geometry) & (metrics.config == config)].set_index("round")
-                values = [rows[key].get(r, np.nan) for r in rounds]
-                if aggregate is not None:
-                    a = aggregate[(aggregate.geometry == geometry) & (aggregate.config == config)]
-                    values.append(float(a[key].iloc[0]) if len(a) else np.nan)
-                y = np.arange(n) + offset
-                single = len(configs) == 1
-                ax.hlines(y, 0, values, color=color if single else style.SPECIES_COLORS[config], lw=.8, alpha=.4)
-                ax.scatter(values, y, s=26, marker=CONFIG_MARKERS[config], zorder=3, edgecolor="white", lw=.4,
-                           color=color if single else style.SPECIES_COLORS[config],
-                           label=nt.CONFIG_LABELS[config] if (g, k) == (0, 0) else None)
-            if aggregate is not None:
-                ax.axhline(n - 1.5, color="#BBBBBB", lw=.6, ls="--")
-            ax.set_ylim(n - .4, -.6)
-            ax.set_yticks(range(n), labels)
-            ax.tick_params(axis="y", labelleft=k == 0)
-            ax.grid(axis="x", color="#E8E8E8", lw=.55)
-            ax.set_xlim(left=-.02 * max(1e-9, np.nanmax(metrics[key])))
-            heading = nt.heading(key) if key != "max_edge_retention" else "Maximum edge retention"
-            ax.set_title(heading if g == 0 else "", fontsize=9, color=color)
-            if k == 0:
-                ax.set_ylabel(f"{nt.GEOMETRY_LABELS[geometry]} tracking", fontsize=9, weight="bold")
-    fig.suptitle(title, fontsize=11, y=.995)
-    u = nt.symbol("canonical_position")
-    note = (f"${u}=0$: travel optimum; ${u}=1$: cell-state optimum. Both distances use each round's own "
-            f"{nt.math('closest_point')} and exact first-cousin null mean {nt.math('null_mean')}.")
+        table = pd.concat([table, aggregate.assign(round="aggregate")], ignore_index=True)
+        separators.append(len(rows))
+        rows.append(("aggregate", "Aggregate"))
+    note = f"Both distances use each round's own {nt.math('closest_point')} and exact first-cousin null mean {nt.math('null_mean')}."
     if degenerate_note:
         note += " " + degenerate_note
-    fig.text(.12, .012, note, fontsize=7.8, color="#444444")
-    if len(configs) > 1:
-        fig.legend(*axes[0, 0].get_legend_handles_labels(), loc="upper center", ncol=len(configs), fontsize=8,
-                   bbox_to_anchor=(.55, 1 - .35 / fig.get_figheight()))
-    return fig
+    return metric_rows(table, row_key="round", rows=rows, configs=configs, geometries=geometries, title=title,
+                       note=note, separators=separators)

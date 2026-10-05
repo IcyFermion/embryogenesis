@@ -63,3 +63,32 @@ def cross_species_rounds():
     from full_tree_pareto import cross_species_analysis as fcs
     labels = {f"{g}__{c}": (g, c) for g in fcs.GEOMETRIES for c in fcs.PRIMARY}
     return _rounds(fcs.run_path(fcs.DEFAULT_RUN), "cross_species", family="sketch-cross-species-rounds", labels=labels)
+
+
+def terminal_partitions():
+    """187-edge cross-species terminal comparison split by subtree and by cell type (read-only)."""
+    from terminal_pareto import cross_species_analysis as tcs
+    from terminal_pareto import cross_species_partitions as tcp
+    loaded = tcp.load()  # Verifies its own identity, sources and files against the validated run.
+    analysis = tcs.run_path(tcs.DEFAULT_RUN) / "analysis"
+    global_metrics = pd.read_csv(analysis / "metrics.csv")
+    global_metrics = global_metrics[global_metrics.cohort == "base"].rename(columns=CANONICAL_FIELDS)
+    return dict(metrics=loaded["metrics"].rename(columns=CANONICAL_FIELDS), fronts=loaded["fronts"],
+                retention=loaded["type_retention"], manifest=pd.read_csv(analysis / "cell_manifest.csv"),
+                global_metrics=global_metrics, record=loaded["record"], identity=loaded["identity"])
+
+
+def lineage_preorder(names):
+    """``names`` in lineage preorder (root first, anterior daughter first)."""
+    from terminal_pareto.cross_species_analysis import ROOT
+    from utils import load_json, lineage_name_mapping
+    wanted, order = set(names), []
+
+    def walk(node):
+        name = lineage_name_mapping(node.get("did", node.get("name", "")))
+        if name in wanted:
+            order.append(name)
+        for child in node.get("children", []):
+            walk(child)
+    walk(load_json(ROOT / "data/cell_lineage.json"))
+    return order

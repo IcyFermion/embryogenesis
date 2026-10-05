@@ -84,6 +84,7 @@ modules and the validators (see the package READMEs).
 | `release.py` | Production releases, rehearsal, verification, archives, transactions |
 | `migration.py` | One-off archive and post-PR purge of figure material left in the back ends |
 | `registry.py`, `__main__.py`, `parity.py` | Families and CLI; candidate/production comparison |
+| `sketches/` | Exploratory figures for discussion (branch `figure-ideas`); outside the registry, never released; writes `output/sketches/<name>/` |
 
 ## Changing displayed notation
 

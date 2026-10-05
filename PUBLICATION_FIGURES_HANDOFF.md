@@ -24,6 +24,36 @@ Production state: all four families released and verified
 at `20261005T035146633045Z` from `publication/output/candidates/production_20261005/`
 (the only candidate kept).
 
+### 0. Branch `figure-ideas`: exploratory sketches for collaborators (2026-10-05)
+
+Exploratory figures live in `publication/sketches/` (not in `registry.py`, never
+released): `python -m publication.sketches --output-dir publication/output/sketches/NAME`.
+Author decisions: per-round cousin null for every contraction round; keep the
+global leaf first-cousin SD scaling of the cached layerwise sweeps; assume CE
+cell fates for matched CB cells (caption caveat); within-type fronts only for
+types with >=15 matched cells.
+
+- Back end (add-on caches; no pinned module edited):
+  - `full_tree_pareto/round_references.py` -> `<run>/analysis/round_references/`
+    for the pooled CE full tree and the cross-species partial forest: per-round
+    first/second/third-cousin and full-random draws (2,000 each), exact
+    first-cousin moments and canonical metrics per round. Round-1 moments equal
+    the pooled leaf null; the partial-forest round-1 null plus fixed internal
+    edges equals the cached aggregate null; fronts equal `fronts.csv`.
+  - `terminal_pareto/cross_species_partitions.py` -> cross-species terminal run
+    `analysis/partitions/`: 25 subtrees (>=12 matched edges) and 4 cell types
+    analysed with `cross_species_analysis.analyze`; retention by type along the
+    cached global sweeps. P0 reproduces the cached comparison exactly.
+- Sketches: Figure 7 as eight Figure-2-style round panels (+ exact Figure 2
+  layout per round, per-round metrics); partial forest by round (Figure 8/10
+  layout per round, metrics by round vs aggregate); terminal cross-species
+  subtree map/metrics and cell-type retention/within-type fronts/metrics.
+- Caveats found: partial-forest round 6 (2 edges) is degenerate for both RNA
+  configurations; CE rounds 6-7 have the natural lineage at the travel optimum;
+  alimentary's within-type first-cousin null has zero variance (full-random
+  scaling, no d_CP); endpoint normalization inflates d_LP/d_CP for subtrees
+  whose fronts are nearly a point (CB P2 d_LP 0.76 from a <2% raw travel gap).
+
 ### 1. Per-family presentation tracking (done 2026-10-05)
 
 Each build now records only the `publication/` sources and assets its family
