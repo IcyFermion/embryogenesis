@@ -24,6 +24,12 @@ max over classes of |coefficient|.
   analyses use). Extract the notebook's selection code into a script,
   regenerate the full ranking, confirm it reproduces the saved top 20, and save
   the full ranking beside it. If it does not reproduce, stop and report.
+- **Done 2026-10-07.** `expression_embedding/elegans_protein_feature_ranking.py`
+  reproduces the saved top 20 in order (importances match the notebook to 4
+  decimals) and wrote `protein_feature_ranking.csv` (all 210, with per-class
+  coefficients) beside it. Importance gaps at the k / k+1 boundary are small:
+  protein 0.018, 0.012, 0.009, 0.012 and RNA 0.006, 0.004, 0.002, 0.0005 for
+  k = 5, 10, 20, 30, so membership near each cutoff is fragile.
 
 ## A1. Feature-set survey
 

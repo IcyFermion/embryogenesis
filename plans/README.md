@@ -52,8 +52,12 @@ safe; never let two sessions write the same run folder):
 ```bash
 git worktree add ../embryogenesis-feature-calibration -b feature-calibration figure-ideas
 cd ../embryogenesis-feature-calibration
-for p in data expression_embedding/results terminal_pareto/output full_tree_pareto/output publication/output; do
+for p in expression_embedding/results terminal_pareto/output full_tree_pareto/output publication/output; do
   ln -s "$(realpath ../embryogenesis/$p)" "$p"
+done
+# data/ already exists (it has tracked files), so link its untracked entries one by one
+for f in ../embryogenesis/data/*; do
+  [ -e "data/$(basename "$f")" ] || ln -s "$(realpath "$f")" "data/$(basename "$f")"
 done
 ```
 
