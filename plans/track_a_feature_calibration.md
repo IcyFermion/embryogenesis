@@ -85,6 +85,40 @@ is added, add it to the guard in `publication/tests/support.py`.
 About 4 k x 3 set types x 200 draws x 7 configurations, parallelized: hours
 locally.
 
+**Decisions while implementing (2026-10-07).**
+- *C. elegans only for RNA* (author): C. briggsae tracking has larger z-axis
+  uncertainty, so CB RNA is dropped. Without the CB match the RNA cohort is
+  the **217** RNA-covered edges of the 275 (up from 187); no tracked RNA edge
+  lies outside the 275, so 217 is the maximum. Survey configurations: primary
+  protein (275, 3D) and CE protein / CE RNA on the 217 edges in 3D and XY.
+  3D travel is the published pooled matrix restricted with fixed 275-edge
+  denominators; XY is recomputed as in `cross_species_analysis` and equals the
+  cached 187-edge XY matrix on those edges. The 187-edge caches serve only
+  the top-20 reproduction check.
+- *Highly variable pool*: variance of log1p values over cohort cells (raw
+  variance tracks the mean, Spearman 0.96), top half: 105 proteins on `s3.csv`
+  over the 275-edge cells, 118 TFs on CE RNA over the 217-edge cells. A quarter
+  of the proteins are expressed in at most about 1% of cohort cells.
+- *Zero vectors*: cosine is undefined for an all-zero cell; RNA draws that
+  leave one (about 20% of random k = 5 sets) are redrawn and the number of
+  rejections recorded. Protein z-scores are never zero.
+- *Reproduction*: the published top-20 sets reproduce the primary P0 row and
+  all four CE configurations of the 187-edge cache to 4e-15, and the
+  cross-species `analyze` agrees with the Figure 5 landmark code on P0.
+- *Worktrees*: the context cache key embeds the absolute tracking path, so
+  `validate_existing_context_manifest` (and the publication terminal-primary
+  tests) fail outside the main checkout. The survey checks matrix and source
+  hashes instead. `data/embryo*` must be real copies, not links.
+
+**Status 2026-10-07.** Survey run
+`terminal_pareto/output/runs/feature_sensitivity_v1/survey_20261007/`
+(analysis id `883aa81b…`): 3,208 feature sets, 8,020 sweeps, 4.4 min on 24
+workers; validated (redraw, summary, 45 replays, 26 source hashes).
+`analysis/summary.csv` places each top-k value in both random distributions.
+11 random-all protein sweeps (k = 5, 10) are `degenerate_state`: mostly silent
+panels give no first-cousin variance in cell-state cost. They are counted, not
+summarized. Next: sketches, then A2.
+
 **Sketches** (in `publication/sketches/`, branch `figure-ideas` after merge):
 per metric and configuration, the random-all and random-hv distributions
 against k with the top-k values marked; the author decides what to present.
