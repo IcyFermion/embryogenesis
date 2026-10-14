@@ -123,6 +123,87 @@ summarized. Next: sketches, then A2.
 per metric and configuration, the random-all and random-hv distributions
 against k with the top-k values marked; the author decides what to present.
 
+**Bottom-k controls (2026-10-14).** Run `survey_20261014` (analysis id
+`a93b23df…`) adds two fixed sets per k: the classifier's bottom k, and the
+bottom k within the HV pool. Random draws are identical to `survey_20261007`,
+which no longer validates against the current code and can be deleted. RNA
+controls behave as negative controls; protein ones do not. The bottom-ranked
+proteins are nearly silent, while the bottom HV proteins still carry cell-type
+information. Max |coef| over 210 correlated proteins tracks single-protein
+cell-type information weakly. CE RNA gives only 71 distinct profiles for the
+217 cells, one per cell type, whereas protein gives one per cell.
+
+## A1b. Choosing the cell-state representation (decision rule, 2026-10-14)
+
+**Goal.** A simple, defensible choice of cell-state representation for the
+Pareto analyses. **The front is the outcome, never a selection input.**
+Choosing features by how close the natural lineage sits to the front would be
+circular. The survey (A1) serves only as a robustness check.
+
+**Roles of the modalities (author).**
+- *Protein* is resolved per cell and is the C. elegans gold standard for all
+  terminal, subtree and cell-type analyses.
+- *RNA* is the only data shared by C. elegans and C. briggsae. Its role is
+  limited to the basic terminal-only cross-species comparison (187-edge
+  cohort, Figures 8-9). It is resolved by cell type, so it is not used for
+  subtree or cell-type analyses. Its representation must be a single TF set
+  used for both species.
+
+**Candidates, per modality.** Classifier top-20 (published), the whole HV pool
+(no classifier, no k), and the whole panel. All use cosine distance; A2 adds
+Euclidean as a second axis.
+
+**Primary criterion: fate discrimination.** Sibling separation, Cohen's d of
+cosine distance between terminal sisters of different type and sisters of the
+same type. It is reported for Schema D types and for fine types
+(`wormweb.desc`), with bootstrap intervals over sister pairs. It is
+independent of tracking and of the front.
+
+**Validity check: lineage memory.** Among cells of the same fine type, the
+Spearman correlation between expression distance and lineage path length. The
+null distribution permutes profiles within each fine type. A positive excess
+means the cost carries lineage history, which flatters the natural lineage by
+construction. Such a representation is disqualified, or the effect is
+reported.
+
+**First results (2026-10-14, scratch, to be recorded as a run).**
+- *Cohorts.* Protein on the primary 275 edges (71 fine types; 58/45
+  same/different-type sisters, Schema D). RNA on the cross-species 187 edges
+  (51 fine types; 46/22 sisters). The RNA HV pool is ranked over CE and CB
+  jointly (118 TFs).
+- *Fate discrimination* (Schema D / fine types; 95% bootstrap intervals are
+  wide, about ±0.4):
+  - Protein: top-20 0.73 / 0.70, HV pool 0.43 / 0.58, whole panel 0.16 / 0.35.
+  - CE RNA: top-20 1.93 / 2.05, HV pool 1.19 / 2.06, whole panel 1.14 / 2.12.
+  - The top-20 lead on Schema D is partly in-sample, since the classifier was
+    trained on those labels. On fine types, protein top-20 and the HV pool
+    overlap, and the three RNA candidates are equal.
+- *Lineage memory* is significant for every candidate in both modalities and
+  both species. The excess Spearman correlation over the within-type
+  permutation null ranges from 0.19 to 0.35, with every p at the 1/1001
+  minimum.
+  - Protein: top-20 carries the least (0.195), the HV pool (0.345) and the
+    whole panel (0.315) more.
+  - It is a property of the data, not of one candidate, so it cannot simply
+    disqualify a representation.
+- *Fate-only control.* Each child is represented by its fine-type mean
+  profile; parents keep their measured profiles. This removes within-type,
+  lineage-correlated state while keeping fate differences.
+  - Protein, natural-lineage state z (measured → fate-only): top-20
+    −4.8 → −3.7, HV pool −7.4 → −4.1, whole panel −7.1 → −4.1.
+  - Protein d_SD (measured → fate-only): 1.12 → 1.39, 0.23 → 1.04,
+    0.66 → 1.07.
+  - Under the fate-only cost the three protein candidates converge, and the
+    lineage remains well below the cousin null.
+  - RNA fronts barely change in either species, since RNA is already
+    resolved by type.
+  - The earlier "bottom HV proteins do well" result is lineage memory: broad
+    panels carry more inherited signal.
+
+**Then.** Rerun the fronts for the chosen representations. If the choice
+differs from the published top-20, that is a scientific change with new run
+identities and figures. Report the front across all candidates that pass.
+
 ## A2. Distance metric (after A1 settles)
 
 The author intended cosine molecular distance everywhere. Terminal analyses use

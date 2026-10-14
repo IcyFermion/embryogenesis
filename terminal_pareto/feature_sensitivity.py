@@ -4,7 +4,9 @@ Is the front geometry (position u, distances d_LP and d_NP, maximum edge
 retention) a property of the selected markers or of the cost structure? For
 k in {5, 10, 20, 30} this compares the classifier's top-k features with random
 feature sets of the same size, drawn from the full panel and from a highly
-variable pool, on five terminal configurations:
+variable pool, on five terminal configurations. The classifier's bottom-k
+features, over the whole ranking and within the highly variable pool, are
+negative controls placed in the same random distributions:
 
 * the primary C. elegans protein cohort (275 pooled edges), and
 * the C. elegans RNA-matched cohort: the 217 of those edges whose cells all
@@ -28,8 +30,8 @@ cohort is also checked against the Figure 5 landmark implementation.
 
 Run from the repository root in the dev environment::
 
-    python terminal_pareto/feature_sensitivity.py --run-id survey_20261007
-    python terminal_pareto/feature_sensitivity.py --run-id survey_20261007 --verify-only
+    python terminal_pareto/feature_sensitivity.py --run-id survey_20261014
+    python terminal_pareto/feature_sensitivity.py --run-id survey_20261014 --verify-only
 
 An existing completed run is never overwritten.
 """
@@ -60,7 +62,7 @@ from terminal_pareto.analysis_context import _sha256_array
 from terminal_pareto.cross_species_analysis import analyze, pool_matrices, spatial_matrix
 
 VERSION = "terminal-feature-sensitivity-v1"
-DEFAULT_RUN = "survey_20261007"
+DEFAULT_RUN = "survey_20261014"
 RUN_ROOT = ROOT / "terminal_pareto/output/runs/feature_sensitivity_v1"
 PRIMARY_ANALYSIS = ROOT / "terminal_pareto/output/runs/pooled_tracking_v1/migration_candidate_20260920/analysis"
 CROSS_ANALYSIS = ROOT / "terminal_pareto/output/runs/cross_species_terminal_v1/pooled_comparison_20260930/analysis"
@@ -83,7 +85,10 @@ HV_FRACTION = 0.5
 SEED = 20261007
 INTERVALS = 300
 MODALITIES = ("protein", "rna")
-KINDS = ("top", "random_all", "random_hv")
+# Fixed sets from the classifier ranking: the top k, the bottom k, and the
+# bottom k among highly variable features (low rank without silent panels).
+REFERENCE_KINDS = ("top", "bottom", "bottom_hv")
+KINDS = (*REFERENCE_KINDS, "random_all", "random_hv")
 # (cohort, geometry, config) -> modality. "primary" is the 275-edge Figure 2-6
 # cohort, "rna_matched" its 217 RNA-covered edges, "cross187" the Figure 8-9
 # cohort, used only to reproduce the published top-20 metrics.
@@ -305,7 +310,7 @@ def feature_set_is_valid(inputs, modality, features):
 
 
 def draw_feature_sets(inputs, *, ks=KS, draws=DRAWS, seed=SEED, max_rejections=10_000):
-    """Top-k sets plus seeded random draws; draws leaving a zero vector are redrawn and counted."""
+    """Reference sets plus seeded random draws; draws leaving a zero vector are redrawn and counted."""
     rows = []
     for m_index, modality in enumerate(MODALITIES):
         ranking = inputs.rankings[modality]
@@ -315,7 +320,8 @@ def draw_feature_sets(inputs, *, ks=KS, draws=DRAWS, seed=SEED, max_rejections=1
         pools = {"random_all": ranking, "random_hv": [name for name in ranking if name in hv_pool]}
         for k in ks:
             top = ranking[:k]
-            candidates = [("top", 0, None, 0, top)]
+            candidates = [("top", 0, None, 0, top), ("bottom", 0, None, 0, ranking[-k:]),
+                          ("bottom_hv", 0, None, 0, pools["random_hv"][-k:])]
             for p_index, kind in enumerate(("random_all", "random_hv"), start=1):
                 pool = pools[kind]
                 if k >= len(pool):
@@ -333,8 +339,8 @@ def draw_feature_sets(inputs, *, ks=KS, draws=DRAWS, seed=SEED, max_rejections=1
                             raise ValueError(f"Could not draw a valid {modality} set of size {k}")
                     candidates.append((kind, draw, generator_seed, rejected, chosen))
             for kind, draw, generator_seed, rejected, features in candidates:
-                if kind == "top" and not feature_set_is_valid(inputs, modality, features):
-                    raise ValueError(f"Top-{k} {modality} set has a zero vector")
+                if kind in REFERENCE_KINDS and not feature_set_is_valid(inputs, modality, features):
+                    raise ValueError(f"{kind} {k} {modality} set has a zero vector")
                 features = sorted(features, key=position.get)
                 rows.append(dict(
                     set_id=f"{modality}__{kind}__k{k:02d}__{draw:03d}", modality=modality, kind=kind, k=k,
@@ -466,33 +472,38 @@ SUMMARY_METRICS = ("u_L", "d_LP", "d_NP", "max_edge_retention", "retention_at_ne
 
 
 def summarize(feature_sets, metrics):
-    """Per configuration, k and metric: the top-k value against both random distributions.
+    """Per configuration, k, reference set and metric: its value against both random distributions.
 
-    ``*_percentile`` is the share of random sets below the top-k value plus half
-    the ties; degenerate sets are counted, not summarized.
+    ``*_percentile`` is the share of random sets below the reference value plus
+    half the ties; degenerate sets are counted, not summarized (a degenerate
+    reference has value NaN).
     """
     frame = metrics.merge(feature_sets[["set_id", "kind", "k"]], on="set_id")
     rows = []
     for (cohort, geometry, config, k), group in frame.groupby(["cohort", "geometry", "config", "k"], sort=False):
         ok = group[group.status == "ok"]
-        top = ok[ok.kind == "top"]
-        for metric in SUMMARY_METRICS:
-            row = dict(cohort=cohort, geometry=geometry, config=config, k=k, metric=metric,
-                       top=float(top[metric].iloc[0]) if len(top) else np.nan)
-            for kind in ("random_all", "random_hv"):
-                values = ok.loc[ok.kind == kind, metric].to_numpy(float)
-                row[f"{kind}_n"] = len(values)
-                row[f"{kind}_degenerate"] = int(((group.kind == kind) & (group.status == "degenerate_state")).sum())
-                for name, q in (("q05", .05), ("q25", .25), ("median", .5), ("q75", .75), ("q95", .95)):
-                    row[f"{kind}_{name}"] = float(np.quantile(values, q)) if len(values) else np.nan
-                row[f"{kind}_percentile"] = (100 * (np.mean(values < row["top"]) + .5 * np.mean(values == row["top"]))
-                                             if len(values) else np.nan)
-            rows.append(row)
+        for reference in REFERENCE_KINDS:
+            if not (group.kind == reference).any():
+                continue
+            chosen = ok[ok.kind == reference]
+            for metric in SUMMARY_METRICS:
+                value = float(chosen[metric].iloc[0]) if len(chosen) else np.nan
+                row = dict(cohort=cohort, geometry=geometry, config=config, k=k, reference=reference, metric=metric,
+                           value=value)
+                for kind in ("random_all", "random_hv"):
+                    values = ok.loc[ok.kind == kind, metric].to_numpy(float)
+                    row[f"{kind}_n"] = len(values)
+                    row[f"{kind}_degenerate"] = int(((group.kind == kind) & (group.status == "degenerate_state")).sum())
+                    for name, q in (("q05", .05), ("q25", .25), ("median", .5), ("q75", .75), ("q95", .95)):
+                        row[f"{kind}_{name}"] = float(np.quantile(values, q)) if len(values) else np.nan
+                    row[f"{kind}_percentile"] = (100 * (np.mean(values < value) + .5 * np.mean(values == value))
+                                                 if len(values) and np.isfinite(value) else np.nan)
+                rows.append(row)
     return pd.DataFrame(rows)
 
 
 def settings(ks=KS, draws=DRAWS, seed=SEED):
-    return dict(ks=list(ks), draws=draws, seed=seed, hv_fraction=HV_FRACTION, hv_score="log1p_variance_mean_rank",
+    return dict(ks=list(ks), draws=draws, seed=seed, kinds=list(KINDS), hv_fraction=HV_FRACTION, hv_score="log1p_variance_mean_rank",
                 intervals=INTERVALS, configs=["/".join(key) for key in CONFIGS], on_front_tol=ON_FRONT_TOL,
                 zero_vector_policy="redraw_and_count", numpy_version=np.__version__)
 
@@ -531,7 +542,7 @@ def write_run(out, *, n_jobs, ks=KS, draws=DRAWS, seed=SEED):
 
 
 def validate_run(out, *, replay=25, check_sources=True):
-    """Check hashes, then replay every top-k row and a seeded sample of random rows."""
+    """Check hashes, then replay every reference row and a seeded sample of random rows."""
     analysis = out / "analysis"
     record = json.loads((analysis / "provenance.json").read_text())
     if record["version"] != VERSION:
@@ -551,7 +562,7 @@ def validate_run(out, *, replay=25, check_sources=True):
     metrics = pd.read_csv(analysis / "metrics.csv")
     pd.testing.assert_frame_equal(pd.read_csv(analysis / "summary.csv"), summarize(feature_sets, metrics))
     ok = metrics[metrics.status == "ok"]
-    sample = ok[ok.set_id.str.contains("__top__")]
+    sample = ok[ok.set_id.str.split("__").str[1].isin(REFERENCE_KINDS)]
     sample = pd.concat([sample, ok[~ok.index.isin(sample.index)].sample(replay, random_state=0)])
     features = feature_sets.set_index("set_id")["features"]
     numeric = [c for c in metrics.columns if c not in ("set_id", "cohort", "geometry", "config", "status")]

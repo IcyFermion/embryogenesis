@@ -39,7 +39,9 @@ class StateMatrixTests(unittest.TestCase):
                                     status=["ok", "ok", "ok", "degenerate_state", "ok"]))
         for metric in fs.SUMMARY_METRICS:
             metrics[metric] = [0.5, 0.2, 0.5, np.nan, 0.9]
-        row = fs.summarize(sets, metrics).iloc[0]
+        summary = fs.summarize(sets, metrics)
+        self.assertEqual(set(summary.reference), {"top"})  # only references present are summarized
+        row = summary.iloc[0]
         self.assertEqual((row.random_all_n, row.random_all_degenerate), (2, 1))
         self.assertEqual(row.random_all_percentile, 75.0)  # one below, one tied
         self.assertEqual(row.random_hv_percentile, 0.0)
@@ -82,13 +84,19 @@ class SurveyTests(unittest.TestCase):
         first = fs.draw_feature_sets(self.inputs, ks=(5,), draws=4)
         second = fs.draw_feature_sets(self.inputs, ks=(5,), draws=4)
         pd.testing.assert_frame_equal(first, second)
-        self.assertEqual(len(first), 2 * (1 + 2 * 4))
+        self.assertEqual(len(first), 2 * (3 + 2 * 4))
         for row in first.itertuples():
             features = row.features.split(";")
             self.assertEqual(len(set(features)), 5)
             self.assertTrue(fs.feature_set_is_valid(self.inputs, row.modality, features))
+            ranking = self.inputs.rankings[row.modality]
+            pool = self.inputs.hv_scores[row.modality].set_index("feature").in_hv_pool
             if row.kind == "top":
-                self.assertEqual(features, self.inputs.rankings[row.modality][:5])
+                self.assertEqual(features, ranking[:5])
+            if row.kind == "bottom":
+                self.assertEqual(features, ranking[-5:])
+            if row.kind == "bottom_hv":
+                self.assertEqual(features, [name for name in ranking if pool[name]][-5:])
             if row.kind == "random_hv":
                 self.assertEqual(row.n_in_hv_pool, 5)
         other = fs.draw_feature_sets(self.inputs, ks=(5,), draws=4, seed=fs.SEED + 1)
@@ -98,10 +106,10 @@ class SurveyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "run"
             record = fs.write_run(out, n_jobs=2, ks=(10,), draws=2)
-            self.assertEqual(record["n_evaluations"], 3 * 5 + 2 * 5)
+            self.assertEqual(record["n_evaluations"], 3 * 7 + 2 * 7)  # 3 references + 2 x 2 draws per modality
             self.assertEqual(record["n_failed"], 0)
             report = fs.validate_run(out, replay=3)
-            self.assertEqual(report["evaluations"], 25)
+            self.assertEqual(report["evaluations"], 35)
             with self.assertRaises(FileExistsError):
                 fs.write_run(out, n_jobs=1, ks=(10,), draws=2)
 
