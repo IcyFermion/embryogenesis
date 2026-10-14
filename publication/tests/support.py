@@ -20,10 +20,12 @@ def no_experiments():
     from terminal_pareto import cross_species_analysis as tcs
     from terminal_pareto import global_analysis, fig6bc_ce_within_type as within, fig5_table1_ce_canonical_metrics as canonical
     from terminal_pareto import fig6a_figs2_ce_cell_types as cell_types
-    from terminal_pareto import feature_sensitivity
+    from terminal_pareto import feature_sensitivity, representation_criteria
     targets = [(tcs, "analyze"), (tcs, "write_analysis"), (tcs, "endpoint_assignment"),
                (feature_sensitivity, "analyze"), (feature_sensitivity, "draw_feature_sets"),
                (feature_sensitivity, "run_survey"),
+               (representation_criteria, "compute"), (representation_criteria, "criteria"),
+               (representation_criteria, "front"), (representation_criteria, "draw_random_sets"),
                (fcs, "build"), (fcs, "solve_sweep"), (fcs, "random_rebuilds"),
                (cousin_references, "sample_permutations"), (pooled_analysis, "_solve"),
                (pooled_analysis, "random_nulls"), (pooled_analysis, "gaussian"),

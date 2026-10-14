@@ -200,9 +200,21 @@ reported.
   - The earlier "bottom HV proteins do well" result is lineage memory: broad
     panels carry more inherited signal.
 
-**Then.** Rerun the fronts for the chosen representations. If the choice
-differs from the published top-20, that is a scientific change with new run
-identities and figures. Report the front across all candidates that pass.
+**Recorded (2026-10-14).** `terminal_pareto/representation_criteria.py`, run
+`representation_criteria_v1/criteria_20261014` (analysis id `17f3a18e…`),
+validated by a full replay. It reproduces the scratch results above exactly;
+only the bootstrap and null intervals moved with the seeds.
+- *Decision:* keep the published top-20 for both modalities. Report the
+  fate-only front as the control for lineage memory.
+- *Methods and results:* `terminal_pareto/METHODS_cell_state_representation.md`,
+  the basis for the methodology subsection.
+- *Display:* d_SD needs a notation concept before any figure uses it.
+- *Outside the pipelines:* a standalone review page lives in
+  `artifacts/representation_audit/` (untracked).
+
+**Then.** The choice is unchanged (the published top-20), so the published
+fronts and figures stand. Still open: whether and how to show the fate-only
+control and the candidate comparison (author), and A2 (distance metric).
 
 ## A2. Distance metric (after A1 settles)
 
