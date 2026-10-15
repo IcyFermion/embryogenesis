@@ -46,6 +46,16 @@ whether per-round features go any further.
 - Distance metric (Track A2, decided 2026-10-14): cosine molecular distance
   everywhere. The full tree and the partial forest were rerun with cosine
   under new run identities; Figures 7, 10, 11 and S4 need re-release.
+- Track E, E0 (decided 2026-10-15): the label is the Schema D mixture of a
+  cell's terminal descendants in the complete lineage (programmed death kept
+  as a class); rounds 5-8 are pooled; the criterion is equal-relatedness
+  separation (Spearman of cosine against Bray-Curtis mixture distance within
+  path-length groups, each path length weighted equally), with sisters-only
+  beside it; lineage memory is measured on near-identical same-majority pairs
+  (Bray-Curtis at most 0.2) against majority-class shuffles. Mixed generations
+  within a round are a known caveat. Run
+  `layer_features_v1/e0_groupweight_20261015`; write-up in
+  `full_tree_pareto/LAYER_FEATURES.md`.
 
 ## Running tracks in parallel
 
