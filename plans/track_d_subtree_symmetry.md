@@ -162,3 +162,38 @@ canonical table to 3e-12.
 
 Caveat: state z has no tracking floor (one protein dataset), so its reference
 is the random pairs only.
+
+## D2 results (2026-10-15)
+
+Run `subtree_symmetry_v1/robustness_20261015`
+(`terminal_pareto/subtree_symmetry_robustness.py`), replay-verified.
+
+**Variants.** Every subtree with ≥ 12 edges is recomputed:
+- in XY;
+- with the fate-only cost;
+- in the 187-edge cohort: CE protein, CE RNA and CB RNA, each in 3D and XY;
+- on a counterpart-matched cohort.
+
+Each variant reproduces its cache at P0 to ≤ 1e-16. That covers the Track A
+fate-only front, the cross-species metrics, and the XY matrix against the
+187-edge cache.
+
+**Classification** (rules in the module docstring):
+
+| Pair | Tier | Class | Differs (3D) | Notes |
+|---|---|---|---|---|
+| ABplpa / ABprpa | priority | numerical | u | Travel span 0.04 null SD. The u gap shrinks in XY (0.61) and fate-only (0.38) and vanishes cross-species. State z matches in CE RNA (−0.70 / −0.73); CB RNA differs at an ordinary level (−0.62 / +0.07, 26th percentile). Travel z matches in C. briggsae (−2.17 / −2.23). |
+| MSaa / MSpa | priority | data | state z | MSpa's null rests on one group (support 0.25), cohort ratio 0.75, late-born pharyngeal cells missing. Fate-only: MSpa's null is degenerate, and MSaa's state z goes from −1.70 to +1.00, so its measured advantage is lineage memory within pharyngeal muscle. Not in the 187 cohort. |
+| ABplp / ABprp | strict | data | d_SD, d_LP | Gone in the matched cohort; late-born gap 9 cells. |
+| ABplpp / ABprpp, ABplppp / ABprppp, MSa / MSp, MSap / MSpp | strict | symmetric | — | — |
+| ABalp / ABara, ABalpa / ABarap | exploratory | symmetric | — | Under fate-only only: state z −2.04 / +1.58 and −1.69 / +1.38 (94th–97th percentile). A lead, not classified. |
+
+**No pair classifies as biological.** The fate asymmetries are real but do not
+move the front-level readouts:
+- ABplpa: excretory cell, duct and gland, K, rectal cells, PVT.
+- ABprpa: AVL, G1, RIH, RIR, RIS, AVG, VIRL/VIRR.
+- MSaa/MSpa: VPI against body-wall muscle.
+- Known asymmetric pairs: AWCL/AWCR, and ASEL in ABalp.
+
+The per-pair lists in `classification.csv` are the input for the literature
+pass in the Track C research session.

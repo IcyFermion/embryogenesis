@@ -27,6 +27,10 @@ Each pair is then classified from recorded evidence:
   differ in fate (cells without a compatible counterpart, or known
   left-right asymmetric fates).
 
+``emerges_in`` lists differences that are absent from the primary comparison
+but reach the reference threshold in a variant (e.g. only under the fate-only
+cost); they are leads, not classified.
+
 Run: ``python -m terminal_pareto.subtree_symmetry_robustness [--run-id ID]``;
 ``--verify-only`` replays every table.
 """
@@ -304,6 +308,10 @@ def classify(ctx, robustness, matched):
                                                                sub.at[v, "reference_percentile"] >= DIFFERS_PERCENTILE))
                            for v in sub.index if v != "primary_3d"}
         matched_gone = any(not s.get("matched_3d", True) for s in survives.values())
+        # Differences absent from the primary comparison that appear in a variant.
+        emerges = sorted({f"{row.metric}:{row.variant}" for row in rob.itertuples()
+                          if row.metric not in differs and row.variant not in ("primary_3d", "matched_3d")
+                          and row.reference_percentile >= DIFFERS_PERCENTILE})
         reasons = []
         if differs:
             if all(m in ENDPOINT_METRICS for m in differs) and flags["tiny_span"]:
@@ -326,6 +334,7 @@ def classify(ctx, robustness, matched):
             reasons="; ".join(reasons),
             survives=";".join(f"{m}:{','.join(v for v, ok in s.items() if ok) or 'none'}"
                               for m, s in survives.items()),
+            emerges_in=";".join(emerges),
             min_null_support_share=support, cohort_ratio=p.cohort_ratio, late_born_gap=int(late_gap),
             n_fate_unmatched=len(fate_cells),
             n_fate_unmatched_in_cohort=int(fate_cells.cell.isin(cohort).sum()),
