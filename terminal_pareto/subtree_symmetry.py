@@ -569,23 +569,20 @@ def null_support(cells, parents, groups):
     return sum(len(g) for g in groups if len({parents[i] for i in g}) > 1)
 
 
-def subtree_front(ctx, node, travel_key):
-    """Front metrics for one subtree, through ``cross_species_analysis.analyze``."""
+def front_metrics(travel, state, parents, cells, tree_index, identity):
+    """Front metrics in null-SD terms, through ``cross_species_analysis.analyze``.
+
+    Returns (row, curve). ``cells`` are the children, in matrix order.
+    """
     from terminal_pareto import pareto_engine as pe
     from terminal_pareto.cross_species_analysis import analyze
 
-    idx = subtree_edges(ctx, node)
-    cells = [ctx.children[i] for i in idx]
-    groups = pe.build_ancestor_groups(cells, ctx.tree_index, 2)
-    travel = ctx.travel[travel_key][np.ix_(idx, idx)]
-    state = ctx.state[np.ix_(idx, idx)]
-    result = analyze(travel, state, ctx.parents[idx], groups, intervals=INTERVALS,
-                     identity=f"{VERSION}:{node}:{travel_key}")
+    groups = pe.build_ancestor_groups(cells, tree_index, 2)
+    result = analyze(travel, state, parents, groups, intervals=INTERVALS, identity=identity)
     m, curve = result["metrics"], result["curve"]
     sx, ss_ = m["travel_sigma"], m["state_sigma"]
     t, s = curve["travel"].to_numpy(), curve["cell_state"].to_numpy()
-    row = dict(subtree=node, travel=travel_key, n=len(idx), depth=depth(node),
-               null_support=null_support(cells, ctx.parents[idx], groups),
+    row = dict(n=len(cells), null_support=null_support(cells, parents, groups),
                **{k: m[k] for k in ("u_L", "d_LP", "d_NP", "max_edge_retention", "retention_at_nearest",
                                     "natural_travel", "natural_cell_state", "null_mean_travel",
                                     "null_mean_state", "travel_sigma", "state_sigma")})
@@ -596,8 +593,17 @@ def subtree_front(ctx, node, travel_key):
         travel_optimum=float(t[-1]), state_optimum=float(s[0]),
         travel_span_sd=float(t[0] - t[-1]) / sx, state_span_sd=float(s[-1] - s[0]) / ss_)
     row["tiny_span"] = min(row["travel_span_sd"], row["state_span_sd"]) < TINY_SPAN_SD
-    curve = curve.assign(subtree=node, travel_key=travel_key)
     return row, curve
+
+
+def subtree_front(ctx, node, travel_key):
+    """Front metrics for one subtree of the canonical pooled context."""
+    idx = subtree_edges(ctx, node)
+    cells = [ctx.children[i] for i in idx]
+    row, curve = front_metrics(ctx.travel[travel_key][np.ix_(idx, idx)], ctx.state[np.ix_(idx, idx)],
+                               ctx.parents[idx], cells, ctx.tree_index, f"{VERSION}:{node}:{travel_key}")
+    row = dict(subtree=node, travel=travel_key, n=row.pop("n"), depth=depth(node), **row)
+    return row, curve.assign(subtree=node, travel_key=travel_key)
 
 
 def subtree_metrics(ctx):
