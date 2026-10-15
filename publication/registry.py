@@ -179,7 +179,7 @@ FAMILIES = {family.key: family for family in (
     Family("full-tree-pooled",
            "Pooled full tree, 978 nodes/974 edges, layerwise and four other reconstructions (cosine molecular distance)",
            "publication.adapters.full_tree:pooled", _build_full_tree_pooled,
-           status="active: Figure 7 and provisional S4 released 2026-10-04",
+           status="active: Figure 7 and provisional S4 released 2026-10-15 (cosine cell-state distance)",
            wrappers=(("fig7_ce_full_tree_layerwise", "7"), ("figs_ce_full_tree_heuristics", "S4")),
            production="publication/output/production",
            owned_assets=tuple(f"{stem}{suffix}" for stem, suffixes in (
@@ -205,7 +205,7 @@ FAMILIES = {family.key: family for family in (
            "Terminal-anchored partial forest, 485 cells/454 edges (cosine molecular distance)",
            "publication.adapters.full_tree:cross_species", _build_specs,
            production="publication/output/production",
-           status="active: Figures 10-11 published 2026-10-01",
+           status="active: Figures 10-11 released 2026-10-15 (cosine cell-state distance)",
            figures=(FigureSpec("10", "fig10_full_tree_cross_species_comparison", "fig:full_tree_cross_species_10",
                                partial(cs_figures.comparison_figure,
                                        title="Partial-forest layerwise comparison | {edges} shared edges",
