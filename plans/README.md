@@ -21,12 +21,18 @@ meant to start in its own session from its brief.
 
 | Track | Items | Brief | Depends on | Branch |
 |---|---|---|---|---|
-| A. Feature calibration | 6, then the distance-metric check | [track_a_feature_calibration.md](track_a_feature_calibration.md) | nothing | `feature-calibration` |
+| A. Feature calibration | 6, then the distance-metric check | [track_a_feature_calibration.md](track_a_feature_calibration.md) | nothing | done, merged 2026-10-15 (PR #4) |
 | B. Figure redesign | 1, 2, 3, 4 | [track_b_figure_redesign.md](track_b_figure_redesign.md) | nothing; B3 waits for the name | `figure-ideas` |
 | C. Outlier subtrees | 5 | [track_c_outlier_subtrees.md](track_c_outlier_subtrees.md) | B1 edge-change tooling | `figure-ideas` (dossier), then a research session |
+| D. Subtree symmetry | Left-right counterparts (ABplpa/ABprpa, MSaa/MSpa) | [track_d_subtree_symmetry.md](track_d_subtree_symmetry.md) | nothing; shares tooling with C | `subtree-symmetry` |
+| E. Layer-specific features | Per-round feature sets in the full-tree layerwise assignment | [track_e_layer_features.md](track_e_layer_features.md) | Track A conventions | `layer-features` |
 
 Order: start A first, because it can change how much weight the geometric
 metrics carry in every figure. Run B in parallel. Start C after B1.
+
+Added 2026-10-15 (author): D and E. Start D first; it reuses the terminal
+subtree caches and may feed C. E is larger. Its E1 decision gate decides
+whether per-round features go any further.
 
 ## Decisions so far (2026-10-07)
 
@@ -50,8 +56,8 @@ them from the main checkout (new analyses write new run folders, so sharing is
 safe; never let two sessions write the same run folder):
 
 ```bash
-git worktree add ../embryogenesis-feature-calibration -b feature-calibration figure-ideas
-cd ../embryogenesis-feature-calibration
+git worktree add ../embryogenesis-subtree-symmetry -b subtree-symmetry main
+cd ../embryogenesis-subtree-symmetry
 for p in expression_embedding/results terminal_pareto/output full_tree_pareto/output publication/output; do
   ln -s "$(realpath ../embryogenesis/$p)" "$p"
 done
@@ -59,7 +65,17 @@ done
 for f in ../embryogenesis/data/*; do
   [ -e "data/$(basename "$f")" ] || ln -s "$(realpath "$f")" "data/$(basename "$f")"
 done
+# The tracking files must be real copies: the cache checks reject paths that resolve outside the worktree
+for e in embryo1 embryo2 embryo3; do rm "data/$e" && cp -r "../embryogenesis/data/$e" "data/$e"; done
 ```
+
+Because the output folders are links, every run a worktree writes lands in the
+main checkout. Untracked work you want to keep (e.g. `artifacts/`) must be
+moved out before `git worktree remove --force`. When the branch is merged,
+remove the worktree from the main checkout, then `git worktree prune` and
+`git branch -d BRANCH`. In a worktree the terminal context cache key differs
+(absolute paths), so `publication.tests.test_terminal_primary` passes only in
+the main checkout.
 
 Never edit hash-pinned analysis modules (listed in each brief); add new modules
 with their own caches, following `full_tree_pareto/cousin_references.py`.
