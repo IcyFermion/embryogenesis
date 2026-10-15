@@ -483,9 +483,236 @@ def _fate_leftover(cells_x, cells_y, cls):
     return out
 
 
+# --- D1: compare paired subtrees ------------------------------------------
+
+DEFAULT_COMPARE_RUN = "compare_20261015"
+TRAVELS = ("pooled", "embryo1", "embryo2", "embryo3")
+INTERVALS = 300
+REPRODUCTION_TOL = 1e-9
+TINY_SPAN_SD = 1.0        # an endpoint span under one null SD: u and d_CP are unstable
+REF_DEPTH = 1             # reference pairs: each member within this many generations
+REF_SIZE = (0.67, 1.5)    # ... and edge counts within these factors of the pair's
+COMPARE_METRICS = ("d_SD", "natural_state_z", "natural_travel_z", "u_L", "d_LP", "d_NP",
+                   "max_edge_retention", "travel_span_sd", "state_span_sd")
+CANONICAL_COLUMNS = (("u_L", "u_lineage_lp"), ("d_LP", "d_lp"), ("d_NP", "d_np"),
+                     ("max_edge_retention", "max_er"))
+
+
+def depth(node):
+    d = 0
+    while node != "P0":
+        node, d = parent_of(node), d + 1
+    return d
+
+
+@dataclass
+class CompareContext:
+    lineage: Lineage
+    children: list
+    parents: np.ndarray
+    state: np.ndarray
+    travel: dict               # TRAVELS -> matrix
+    tree_index: dict
+    canonical_metrics: pd.DataFrame
+    pairing: dict              # pairing tables
+    pairing_run: str
+
+
+def load_compare_context(pairing_run=DEFAULT_RUN):
+    from terminal_pareto import lineage_metrics as lm
+    from terminal_pareto.analysis_context import _sha256_array
+
+    manifest = json.loads((CANONICAL / "analysis_manifest.json").read_text())
+    for rel, digest in manifest["source_hashes"].items():
+        if file_hash(ROOT / rel) != digest:
+            raise ValueError(f"{rel} differs from the canonical context")
+    with np.load(CANONICAL / "analysis_context.npz", allow_pickle=False) as arrays:
+        travel = {"pooled": np.asarray(arrays["travel_matrix"])}
+        for e in TRAVELS[1:]:
+            travel[e] = np.asarray(arrays[f"travel_component_{e}"])
+        state = np.asarray(arrays["expression_matrix"])
+        children = arrays["children"].tolist()
+        parents = np.asarray(arrays["natural_parents"].tolist())
+    for key, value in (("travel", travel["pooled"]), ("expression", state),
+                       *((f"travel_component_{e}", travel[e]) for e in TRAVELS[1:])):
+        if _sha256_array(value) != manifest["matrix_hashes"][key]:
+            raise ValueError(f"Canonical {key} matrix does not match its manifest")
+    analysis = run_path(pairing_run) / "analysis"
+    stored = json.loads((analysis / "provenance.json").read_text())
+    pairing = {}
+    for name in TABLES:
+        text = (analysis / f"{name}.csv").read_text()
+        if hashlib.sha256(text.encode()).hexdigest() != stored["table_hashes"][name]:
+            raise ValueError(f"Pairing table {name} does not match its provenance")
+        pairing[name] = pd.read_csv(io.StringIO(text))
+    return CompareContext(
+        lineage=build_lineage(pd.read_csv(ROOT / CELL_KEY)), children=children, parents=parents,
+        state=state, travel=travel, tree_index=lm.build_lineage_tree_index(dl.load_json(ROOT / LINEAGE)),
+        canonical_metrics=pd.read_csv(CANONICAL / "ce_subtree_canonical_metrics.csv").set_index("subtree"),
+        pairing=pairing, pairing_run=pairing_run)
+
+
+def subtree_edges(ctx, node):
+    """Cohort edge indices under ``node``, in canonical edge order."""
+    if node == "P0":
+        return np.arange(len(ctx.children))
+    under = set(ctx.lineage.descendants[node])
+    return np.array([i for i, c in enumerate(ctx.children) if c in under])
+
+
+def null_support(cells, parents, groups):
+    """Cells whose first-cousin group spans at least two natural parents.
+
+    A group of sisters alone has one parent, so shuffling it never changes a
+    cost; only the other groups give the null its variance.
+    """
+    return sum(len(g) for g in groups if len({parents[i] for i in g}) > 1)
+
+
+def subtree_front(ctx, node, travel_key):
+    """Front metrics for one subtree, through ``cross_species_analysis.analyze``."""
+    from terminal_pareto import pareto_engine as pe
+    from terminal_pareto.cross_species_analysis import analyze
+
+    idx = subtree_edges(ctx, node)
+    cells = [ctx.children[i] for i in idx]
+    groups = pe.build_ancestor_groups(cells, ctx.tree_index, 2)
+    travel = ctx.travel[travel_key][np.ix_(idx, idx)]
+    state = ctx.state[np.ix_(idx, idx)]
+    result = analyze(travel, state, ctx.parents[idx], groups, intervals=INTERVALS,
+                     identity=f"{VERSION}:{node}:{travel_key}")
+    m, curve = result["metrics"], result["curve"]
+    sx, ss_ = m["travel_sigma"], m["state_sigma"]
+    t, s = curve["travel"].to_numpy(), curve["cell_state"].to_numpy()
+    row = dict(subtree=node, travel=travel_key, n=len(idx), depth=depth(node),
+               null_support=null_support(cells, ctx.parents[idx], groups),
+               **{k: m[k] for k in ("u_L", "d_LP", "d_NP", "max_edge_retention", "retention_at_nearest",
+                                    "natural_travel", "natural_cell_state", "null_mean_travel",
+                                    "null_mean_state", "travel_sigma", "state_sigma")})
+    row.update(
+        d_SD=float(np.min(np.hypot((t - m["natural_travel"]) / sx, (s - m["natural_cell_state"]) / ss_))),
+        natural_travel_z=(m["natural_travel"] - m["null_mean_travel"]) / sx,
+        natural_state_z=(m["natural_cell_state"] - m["null_mean_state"]) / ss_,
+        travel_optimum=float(t[-1]), state_optimum=float(s[0]),
+        travel_span_sd=float(t[0] - t[-1]) / sx, state_span_sd=float(s[-1] - s[0]) / ss_)
+    row["tiny_span"] = min(row["travel_span_sd"], row["state_span_sd"]) < TINY_SPAN_SD
+    curve = curve.assign(subtree=node, travel_key=travel_key)
+    return row, curve
+
+
+def subtree_metrics(ctx):
+    eligible = [n for n in ctx.canonical_metrics.index]
+    rows, curves = [], []
+    for node in eligible:
+        for key in TRAVELS:
+            row, curve = subtree_front(ctx, node, key)
+            rows.append(row)
+            curves.append(curve)
+    return pd.DataFrame(rows), pd.concat(curves, ignore_index=True)
+
+
+def check_reproduction(ctx, metrics):
+    """Pooled fronts must reproduce the canonical subtree table."""
+    pooled = metrics[metrics.travel == "pooled"].set_index("subtree")
+    worst = 0.0
+    for node, row in ctx.canonical_metrics.iterrows():
+        if pooled.at[node, "n"] != row["n"]:
+            raise AssertionError(f"{node}: {pooled.at[node, 'n']} edges, canonical {row['n']}")
+        for ours, theirs in CANONICAL_COLUMNS:
+            delta = abs(pooled.at[node, ours] - row[theirs])
+            worst = max(worst, delta)
+            if not delta <= REPRODUCTION_TOL:
+                raise AssertionError(f"{node} {ours}: {pooled.at[node, ours]} vs canonical {row[theirs]}")
+    return worst
+
+
+def pair_tiers(ctx):
+    """Candidate pairs with the author's tiers (decisions of 2026-10-15)."""
+    pairs = ctx.pairing["candidate_pairs"].copy()
+    partners = ctx.pairing["subtree_partners"].set_index("subtree")
+    key = lambda x, y: tuple(sorted((x, y)))
+    priority = {key(*p) for p in PRIORITY_PAIRS}
+    exploratory = {key(*p) for p in EXPLORATORY_PAIRS}
+    tiers = []
+    for r in pairs.itertuples():
+        mutual = (partners.partner.get(r.subtree_x) == r.subtree_y
+                  and partners.partner.get(r.subtree_y) == r.subtree_x)
+        strict = (mutual and r.sided_match >= MIN_SIDED_MATCH
+                  and min(r.cohort_x, r.cohort_y) >= MIN_EDGES)
+        pair = key(r.subtree_x, r.subtree_y)
+        tiers.append("priority" if pair in priority and strict else
+                     "strict" if strict else "exploratory" if pair in exploratory else "excluded")
+    pairs["tier"] = tiers
+    return pairs
+
+
+def reference_pairs(ctx, metrics, pairs):
+    """Unrelated, non-mirror pairs of eligible subtrees matched to each kept pair."""
+    pooled = metrics[metrics.travel == "pooled"].set_index("subtree")
+    nodes = list(pooled.index)
+    mirror = {tuple(sorted(p)) for p in zip(pairs.subtree_x, pairs.subtree_y)}
+    pool = [(a, b) for i, a in enumerate(nodes) for b in nodes[i + 1:]
+            if not ctx.lineage.related(a, b) and tuple(sorted((a, b))) not in mirror]
+    rows = []
+    for r in pairs[pairs.tier != "excluded"].itertuples():
+        lo, hi = sorted((pooled.at[r.subtree_x, "n"], pooled.at[r.subtree_y, "n"]))
+        d = (depth(r.subtree_x) + depth(r.subtree_y)) / 2
+        for a, b in pool:
+            na, nb = sorted((pooled.at[a, "n"], pooled.at[b, "n"]))
+            if (abs(depth(a) - d) <= REF_DEPTH and abs(depth(b) - d) <= REF_DEPTH
+                    and na >= REF_SIZE[0] * lo and nb <= REF_SIZE[1] * hi):
+                rows.append(dict(subtree_x=r.subtree_x, subtree_y=r.subtree_y, ref_a=a, ref_b=b))
+    return pd.DataFrame(rows)
+
+
+def pair_comparison(metrics, pairs, references):
+    """Within-pair differences against matched random pairs and the embryo floor.
+
+    ``reference_percentile``: share of matched random pairs with a smaller
+    absolute difference, plus half the ties. ``embryo_floor``: the largest
+    difference between two tracking embryos for either partner.
+    """
+    pooled = metrics[metrics.travel == "pooled"].set_index("subtree")
+    per_embryo = metrics[metrics.travel != "pooled"]
+    rows = []
+    for r in pairs[pairs.tier != "excluded"].itertuples():
+        ref = references[(references.subtree_x == r.subtree_x) & (references.subtree_y == r.subtree_y)]
+        for metric in COMPARE_METRICS:
+            x, y = pooled.at[r.subtree_x, metric], pooled.at[r.subtree_y, metric]
+            diff = abs(x - y)
+            ref_diff = np.abs(pooled.loc[ref.ref_a, metric].to_numpy() - pooled.loc[ref.ref_b, metric].to_numpy())
+            floor = 0.0
+            for node in (r.subtree_x, r.subtree_y):
+                values = per_embryo.loc[per_embryo.subtree == node, metric].to_numpy()
+                floor = max(floor, float(values.max() - values.min()))
+            rows.append(dict(
+                subtree_x=r.subtree_x, subtree_y=r.subtree_y, tier=r.tier, metric=metric,
+                value_x=x, value_y=y, abs_difference=diff, n_reference=len(ref_diff),
+                reference_median=float(np.median(ref_diff)) if len(ref_diff) else np.nan,
+                reference_percentile=(float((ref_diff < diff).mean() + 0.5 * (ref_diff == diff).mean())
+                                      if len(ref_diff) else np.nan),
+                embryo_floor=floor,
+                tiny_span_x=bool(pooled.at[r.subtree_x, "tiny_span"]),
+                tiny_span_y=bool(pooled.at[r.subtree_y, "tiny_span"]),
+                null_support_x=int(pooled.at[r.subtree_x, "null_support"]),
+                null_support_y=int(pooled.at[r.subtree_y, "null_support"])))
+    return pd.DataFrame(rows)
+
+
+def compute_compare(ctx):
+    metrics, curves = subtree_metrics(ctx)
+    worst = check_reproduction(ctx, metrics)
+    pairs = pair_tiers(ctx)
+    references = reference_pairs(ctx, metrics, pairs)
+    tables = dict(pair_tiers=pairs, subtree_metrics=metrics, reference_pairs=references,
+                  pair_comparison=pair_comparison(metrics, pairs, references), front_curves=curves)
+    return tables, dict(reproduction_max_abs_delta=worst)
+
+
 # --- run ------------------------------------------------------------------
 
 TABLES = ("cells", "subtree_partners", "candidate_pairs", "pair_mismatches")
+COMPARE_TABLES = ("pair_tiers", "subtree_metrics", "reference_pairs", "pair_comparison", "front_curves")
 
 
 def compute(ctx):
@@ -495,6 +722,10 @@ def compute(ctx):
     pairs = candidate_pairs(ctx, partners)
     return dict(cells=cells, subtree_partners=partners, candidate_pairs=pairs,
                 pair_mismatches=mismatch_table(ctx, pairs))
+
+
+def _table_hashes(tables, names):
+    return {t: hashlib.sha256(tables[t].to_csv(index=False).encode()).hexdigest() for t in names}
 
 
 def provenance(tables):
@@ -507,21 +738,43 @@ def provenance(tables):
         source_hashes={s: file_hash(ROOT / s) for s in sources},
         settings=dict(serial_classes=list(SERIAL), position_phi=list(PHI),
                       known_asymmetry=KNOWN_ASYMMETRY, brief_pairs=[list(p) for p in BRIEF_PAIRS]),
-        table_hashes={t: hashlib.sha256(tables[t].to_csv(index=False).encode()).hexdigest()
-                      for t in TABLES},
+        table_hashes=_table_hashes(tables, TABLES),
     )
 
 
-def write_run(out):
+def compare_provenance(tables, ctx, gates):
+    files = CANONICAL_FILES + ("analysis_context.npz", "ce_subtree_canonical_metrics.csv")
+    return dict(
+        version=VERSION, stage="compare", pairing_run=ctx.pairing_run,
+        canonical_analysis=str(CANONICAL.relative_to(ROOT)),
+        canonical_hashes={f: file_hash(CANONICAL / f) for f in files},
+        source_hashes={s: file_hash(ROOT / s) for s in CODE_SOURCES + (LINEAGE, CELL_KEY)},
+        settings=dict(intervals=INTERVALS, tiny_span_sd=TINY_SPAN_SD, reference_depth=REF_DEPTH,
+                      reference_size=list(REF_SIZE), min_sided_match=MIN_SIDED_MATCH, min_edges=MIN_EDGES,
+                      priority_pairs=[list(p) for p in PRIORITY_PAIRS],
+                      exploratory_pairs=[list(p) for p in EXPLORATORY_PAIRS],
+                      reproduction_tol=REPRODUCTION_TOL),
+        gates=gates,
+        table_hashes=_table_hashes(tables, COMPARE_TABLES),
+    )
+
+
+def write_run(out, stage="pairing", pairing_run=DEFAULT_RUN):
     out = Path(out)
     if out.exists():
         raise FileExistsError(f"{out} exists; runs are write-once")
-    tables = compute(load_context())
+    if stage == "pairing":
+        tables, names = compute(load_context()), TABLES
+        record = provenance(tables)
+    else:
+        ctx = load_compare_context(pairing_run)
+        (tables, gates), names = compute_compare(ctx), COMPARE_TABLES
+        record = compare_provenance(tables, ctx, gates)
     analysis = out / "analysis"
     analysis.mkdir(parents=True)
-    for name in TABLES:
+    for name in names:
         tables[name].to_csv(analysis / f"{name}.csv", index=False)
-    (analysis / "provenance.json").write_text(json.dumps(provenance(tables), indent=2, sort_keys=True) + "\n")
+    (analysis / "provenance.json").write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
     return tables
 
 
@@ -531,13 +784,24 @@ def verify_run(out):
     stored = json.loads((analysis / "provenance.json").read_text())
     if stored["version"] != VERSION:
         raise AssertionError(f"Run version {stored['version']} != {VERSION}")
-    tables = compute(load_context())
-    fresh = provenance(tables)
+    if stored.get("stage", "pairing") == "pairing":
+        tables, names = compute(load_context()), TABLES
+        fresh = provenance(tables)
+    else:
+        ctx = load_compare_context(stored["pairing_run"])
+        (tables, gates), names = compute_compare(ctx), COMPARE_TABLES
+        fresh = compare_provenance(tables, ctx, gates)
+    # Inputs must be identical. Code may grow (later stages share this module),
+    # so code hashes are only reported; the exact table replay below is the check.
     for group in ("canonical_hashes", "source_hashes"):
-        changed = [k for k in stored[group] if stored[group][k] != fresh[group].get(k)]
+        changed = [k for k in stored[group] if stored[group][k] != fresh[group].get(k)
+                   and k not in CODE_SOURCES]
         if changed:
             raise AssertionError(f"{group} changed: {changed}")
-    for name in TABLES:
+    code_changed = [k for k in CODE_SOURCES if stored["source_hashes"].get(k) != fresh["source_hashes"][k]]
+    if code_changed:
+        print(f"note: code changed since the run ({', '.join(code_changed)}); tables replayed")
+    for name in names:
         saved = pd.read_csv(analysis / f"{name}.csv", keep_default_na=False, na_values=[""])
         pd.testing.assert_frame_equal(saved, _roundtrip(tables[name]),
                                       check_exact=False, rtol=0, atol=1e-12)
@@ -550,15 +814,18 @@ def _roundtrip(frame):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--run-id", default=DEFAULT_RUN)
+    parser.add_argument("--stage", choices=("pairing", "compare"), default="pairing")
+    parser.add_argument("--run-id")
+    parser.add_argument("--pairing-run", default=DEFAULT_RUN)
     parser.add_argument("--verify-only", action="store_true")
     args = parser.parse_args(argv)
-    out = run_path(args.run_id)
+    run_id = args.run_id or (DEFAULT_RUN if args.stage == "pairing" else DEFAULT_COMPARE_RUN)
+    out = run_path(run_id)
     if args.verify_only:
         verify_run(out)
         print(f"verified {out}")
     else:
-        write_run(out)
+        write_run(out, args.stage, args.pairing_run)
         print(f"wrote {out}")
 
 

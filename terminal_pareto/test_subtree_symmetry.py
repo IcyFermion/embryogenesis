@@ -88,12 +88,34 @@ class LineageTests(unittest.TestCase):
         self.assertIsNone(ss.parent_of("P0"))
 
 
+class CompareTests(unittest.TestCase):
+    def test_null_support_ignores_sister_only_groups(self):
+        parents = ["p", "p", "q", "r", "r"]
+        # Group 1: sisters only (one parent). Group 2: cousins (two parents).
+        self.assertEqual(ss.null_support(None, parents, [[0, 1], [2, 3, 4]]), 3)
+
+    def test_depth(self):
+        self.assertEqual(ss.depth("P0"), 0)
+        self.assertEqual(ss.depth("ABplpa"), 5)  # AB, ABp, ABpl, ABplp, ABplpa
+        self.assertEqual(ss.depth("MSaa"), 5)
+
+
 class StoredRunTests(unittest.TestCase):
-    def test_stored_run_replays(self):
-        out = ss.run_path(ss.DEFAULT_RUN)
+    def check(self, run_id):
+        out = ss.run_path(run_id)
         if not (out / "analysis/provenance.json").exists():
-            self.skipTest("no stored pairing run")
-        ss.verify_run(out)
+            self.skipTest(f"no stored run {run_id}")
+        return ss.verify_run(out)
+
+    def test_pairing_run_replays(self):
+        self.check(ss.DEFAULT_RUN)
+
+    def test_compare_run_replays(self):
+        tables = self.check(ss.DEFAULT_COMPARE_RUN)
+        tiers = tables["pair_tiers"].set_index(["subtree_x", "subtree_y"]).tier
+        self.assertEqual(tiers[("ABplpa", "ABprpa")], "priority")
+        self.assertEqual(tiers[("MSaa", "MSpa")], "priority")
+        self.assertEqual(tiers[("ABpl", "ABpr")], "excluded")   # sided match 0.83 < 0.85
 
 
 if __name__ == "__main__":
