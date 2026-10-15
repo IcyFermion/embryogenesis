@@ -95,3 +95,23 @@ the Track C research session.
 **Decisions for the author:** the pairing threshold; whether to report d_SD
 or endpoint metrics as primary for pairs with tiny spans; and whether the
 results become a figure or a supplementary table.
+
+## Decisions (2026-10-15)
+
+- **D0 result.** Run `subtree_symmetry_v1/pairing_20261014`
+  (`terminal_pareto/subtree_symmetry.py`). Twelve candidate pairs: the nine
+  brief pairs, plus ABa/ABp, ABalp/ABara and ABalpa/ABarap. The last two are
+  the anterior counterparts; they pair by fate, not by lineage position.
+- **Threshold (strict).** A pair is kept only if:
+  - each subtree is the other's best fate match;
+  - the left-right (sided) match is at least 0.85;
+  - both partners have at least 12 cohort edges.
+  This keeps ABplp/ABprp, ABplpa/ABprpa, ABplpp/ABprpp, ABplppp/ABprppp,
+  MSa/MSp, MSaa/MSpa and MSap/MSpp.
+- **Priority.** ABplpa/ABprpa and MSaa/MSpa come first. Experts in C. elegans
+  embryo development suggested them.
+- **Secondary.** The anterior pairs (ABalp/ABara, ABalpa/ABarap) are
+  exploratory. Run them after the strict pairs, but they are not the main
+  question.
+- **Primary readout.** d_SD. Endpoint metrics (u, d_LP, d_CP) are reported
+  alongside it.
