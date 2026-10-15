@@ -115,3 +115,50 @@ results become a figure or a supplementary table.
   question.
 - **Primary readout.** d_SD. Endpoint metrics (u, d_LP, d_CP) are reported
   alongside it.
+
+## D1 results (2026-10-15)
+
+Runs `subtree_symmetry_v1/compare_20261015` (fronts) and `cells_20261015`
+(cell level), both replay-verified. Every pooled subtree front reproduces the
+canonical table to 3e-12.
+
+- **d_SD saturates.** The natural lineage lies on its own subtree front
+  (d_SD = 0) in 26 of 42 subtrees, including all four priority subtrees. The
+  continuous readout in the same null-SD frame is the lineage's position
+  against first-cousin shuffles: travel z and state z.
+- **Null support.** Many cohort cells have only their sister in the cohort, so
+  their first-cousin group cannot change a cost. MSpa's null rests on one
+  three-cell group (3 of 12 cells); MSaa's on 7 of 16.
+- **ABplpa / ABprpa.** Similar.
+  - Both have d_SD = 0. State z is −2.70 against −2.83, closer than 90% of
+    size- and depth-matched random pairs. Travel z is −2.54 against −3.13,
+    a typical difference.
+  - u differs (1 against 0), but only because ABplpa's travel span is
+    0.04 null SD. This is the expected numerical artifact.
+  - Counterpart cells are the closest cell of their fine type in 87% of
+    pairs.
+- **MSaa / MSpa.** Different on the state axis: state z −1.70 against +0.92,
+  at the 96th percentile of random pairs. The data cause this:
+  - MSpa's four late-born pharyngeal cells are missing (born t 262–278);
+  - MSpa's null rests on one group;
+  - at the mirror position of MSaa's valve cells (VPI2V, VPI3V), MSpa makes
+    two body-wall muscle cells, a real fate asymmetry. These are sister-only
+    groups, so they do not move z.
+  - Counterparts are no closer in expression than other pharyngeal muscle
+    cells (closest of type in 11% of pairs).
+- **Other kept pairs.** Within-pair state z differences sit at the 12th–47th
+  percentile of random pairs. d_SD differences (ABplp 1.16, ABplpp 1.67) are
+  within the between-embryo floor (1.13, 2.28).
+- **Embryo frame.** In each embryo, one reflection plane maps the 55 sided
+  cohort pairs onto each other. The residual is 2.0–2.5 µm, against
+  11–13 µm left-right separation.
+  - Counterpart edge lengths agree to within the between-embryo floor, except
+    MSaa/MSpa (0.96 µm against 0.57).
+  - Mirrored displacement angles are 20–54°, against about 76–94° for
+    non-counterparts.
+- **Expression symmetry by founder.** Posterior AB counterparts are nearly
+  identical (closest of their fine type in 64–100% of pairs). MS counterparts
+  are not (11–22%).
+
+Caveat: state z has no tracking floor (one protein dataset), so its reference
+is the random pairs only.
