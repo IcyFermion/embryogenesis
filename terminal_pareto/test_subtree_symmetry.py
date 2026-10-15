@@ -2,6 +2,8 @@
 
 import unittest
 
+import numpy as np
+
 from terminal_pareto import subtree_symmetry as ss
 
 # Two mirrored subtrees Xl and Xr, plus one unrelated subtree Y.
@@ -100,6 +102,18 @@ class CompareTests(unittest.TestCase):
         self.assertEqual(ss.depth("MSaa"), 5)
 
 
+class CellTests(unittest.TestCase):
+    def test_path_length(self):
+        self.assertEqual(ss.path_length("ABplpaa", "ABplpap"), 2)       # sisters
+        self.assertEqual(ss.path_length("ABplpaa", "ABprpaa"), 8)       # 4 + 4 through ABp
+        self.assertEqual(ss.path_length("MSaa", "Ea"), 5)               # 3 + 2 through EMS
+
+    def test_reflect(self):
+        normal, point = np.array([1.0, 0, 0]), np.array([2.0, 0, 0])
+        np.testing.assert_allclose(ss.reflect([[0.0, 1, 1]], normal, point), [[4.0, 1, 1]])
+        self.assertAlmostEqual(ss._angle(np.array([1.0, 0, 0]), np.array([0, 2.0, 0])), 90.0)
+
+
 class StoredRunTests(unittest.TestCase):
     def check(self, run_id):
         out = ss.run_path(run_id)
@@ -116,6 +130,10 @@ class StoredRunTests(unittest.TestCase):
         self.assertEqual(tiers[("ABplpa", "ABprpa")], "priority")
         self.assertEqual(tiers[("MSaa", "MSpa")], "priority")
         self.assertEqual(tiers[("ABpl", "ABpr")], "excluded")   # sided match 0.83 < 0.85
+
+    def test_cells_run_replays(self):
+        tables = self.check(ss.DEFAULT_CELLS_RUN)
+        self.assertTrue((tables["mirror_planes"].median_axis_cosine > 0.95).all())
 
 
 if __name__ == "__main__":

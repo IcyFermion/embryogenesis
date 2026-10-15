@@ -709,10 +709,208 @@ def compute_compare(ctx):
     return tables, dict(reproduction_max_abs_delta=worst)
 
 
+# --- D1: cell-level checks -------------------------------------------------
+
+DEFAULT_CELLS_RUN = "cells_20261015"
+SELECTED = "expression_embedding/results/elegans_protein_linear_baseline/top20_protein_names.csv"
+
+
+@dataclass
+class CellContext:
+    lineage: Lineage
+    cells: pd.DataFrame        # pairing cells table, indexed by cell
+    cls: dict
+    tiers: pd.DataFrame
+    profiles: pd.DataFrame     # top-20 protein profiles, cells in rows
+    positions: dict            # embryo -> cell -> xyz at its last time <= cutoff
+    canonical: dict
+    runs: dict
+
+
+def load_cell_context(pairing_run=DEFAULT_RUN, compare_run=DEFAULT_COMPARE_RUN):
+    from scipy.spatial.distance import cosine
+
+    pairing = run_path(pairing_run) / "analysis"
+    compare = run_path(compare_run) / "analysis"
+    for folder, names in ((pairing, TABLES), (compare, ("pair_tiers",))):
+        stored = json.loads((folder / "provenance.json").read_text())["table_hashes"]
+        for name in names:
+            if file_hash(folder / f"{name}.csv") != stored[name]:
+                raise ValueError(f"{folder / name}.csv does not match its provenance")
+    cells = pd.read_csv(pairing / "cells.csv").set_index("cell")
+    cls = {c: dict(cell=c, name=r["name"], fate_class=r["fate_class"],
+                   side=r["side"] if isinstance(r["side"], str) else None, kind=r["kind"])
+           for c, r in cells.iterrows()}
+    canonical = json.loads((CANONICAL / "analysis_manifest.json").read_text())
+    profiles = dl.load_protein_expression()[dl.load_prot_sel()].astype(float)
+    # Gate: profiles reproduce the canonical natural-edge cell-state costs.
+    with np.load(CANONICAL / "analysis_context.npz", allow_pickle=False) as arrays:
+        state = np.asarray(arrays["expression_matrix"]).diagonal()
+        edges = zip(arrays["children"].tolist(), arrays["natural_parents"].tolist())
+        delta = max(abs(cosine(profiles.loc[p], profiles.loc[c]) - s) for (c, p), s in zip(edges, state))
+    if delta > REPRODUCTION_TOL:
+        raise AssertionError(f"Profiles do not reproduce the canonical state costs ({delta})")
+    positions = {}
+    for spec in canonical["spec"]["tracking"]:
+        xyz, _ = dl.load_elegans_tracking(spec["cutoff"], path=ROOT / f"data/{spec['label']}/tracks.txt")
+        positions[spec["label"]] = {k: np.asarray(v, dtype=float) for k, v in xyz.items()}
+    return CellContext(build_lineage(pd.read_csv(ROOT / CELL_KEY)), cells, cls,
+                       pd.read_csv(compare / "pair_tiers.csv"), profiles, positions, canonical,
+                       dict(pairing=pairing_run, compare=compare_run, state_gate=delta))
+
+
+def path_length(a, b):
+    """Divisions separating two cells through their last common ancestor."""
+    chain = lambda c: [c] + ([] if c == "P0" else chain(parent_of(c)))
+    ca, cb = chain(a), chain(b)
+    common = next(x for x in ca if x in cb)
+    return ca.index(common) + cb.index(common)
+
+
+def counterpart_pairs(ctx, x, y, phi):
+    """Position-compatible pairs, then sided name counterparts across X and Y."""
+    pos, _ = mirror_pairs(x, y, ctx.lineage, ctx.cls, phi)
+    out = [(a, b, "position") for a, b in pos]
+    seen = {c for pair in pos for c in pair}
+    in_y = set(ctx.lineage.descendants[y])
+    for a in ctx.lineage.descendants[x]:
+        partners = str(ctx.cells.at[a, "counterparts"]).split(";")
+        if a in seen or ctx.cells.at[a, "n_counterparts"] != 1 or partners[0] not in in_y or partners[0] in seen:
+            continue
+        out.append((a, partners[0], "name"))
+    return out
+
+
+def counterpart_expression(ctx):
+    """Cosine distance of counterparts against other cells of the same fine type.
+
+    ``*_percentile``: share of same-type cells closer to cell a than its
+    counterpart. ``far`` keeps only same-type cells at least as distant in the
+    lineage as the counterpart, which removes lineage memory from the reference.
+    """
+    from scipy.spatial.distance import cdist
+
+    desc = ctx.cells["description"].fillna("")
+    have = [c for c in ctx.profiles.index if c in ctx.cells.index]
+    rows = []
+    for r in ctx.tiers[ctx.tiers.tier != "excluded"].itertuples():
+        for a, b, basis in counterpart_pairs(ctx, r.subtree_x, r.subtree_y, r.position_phi):
+            if a not in ctx.profiles.index or b not in ctx.profiles.index or ctx.cls[a]["kind"] in ("death", "unannotated"):
+                continue
+            same = [c for c in have if desc[a] and desc[c] == desc[a] and c not in (a, b)]
+            far = [c for c in same if path_length(a, c) >= path_length(a, b)]
+            d_all = cdist(ctx.profiles.loc[[a]], ctx.profiles.loc[[b] + same], "cosine")[0]
+            d, ref = d_all[0], d_all[1:]
+            ref_far = ref[[same.index(c) for c in far]]
+            rows.append(dict(subtree_x=r.subtree_x, subtree_y=r.subtree_y, tier=r.tier, basis=basis,
+                             cell_a=a, name_a=ctx.cls[a]["name"], cell_b=b, name_b=ctx.cls[b]["name"],
+                             path_length=path_length(a, b), distance=d,
+                             n_same_type=len(same), same_type_percentile=float((ref < d).mean()) if len(ref) else np.nan,
+                             same_type_median=float(np.median(ref)) if len(ref) else np.nan,
+                             n_far=len(far), far_percentile=float((ref_far < d).mean()) if len(ref_far) else np.nan))
+    return pd.DataFrame(rows)
+
+
+def mirror_planes(ctx):
+    """Per embryo, the plane that best reflects left cells onto right cells.
+
+    Normal: mean right-minus-left vector over unique sided counterpart pairs in
+    the cohort; the plane passes through the mean midpoint.
+    """
+    cohort = ctx.cells.index[ctx.cells.in_cohort]
+    pairs = []
+    for c in cohort:
+        partner = str(ctx.cells.at[c, "counterparts"])
+        if ctx.cls[c]["side"] == "L" and ctx.cells.at[c, "n_counterparts"] == 1 and partner in cohort:
+            pairs.append((c, partner))
+    rows, planes = [], {}
+    for e, xyz in ctx.positions.items():
+        left = np.array([xyz[a] for a, _ in pairs])
+        right = np.array([xyz[b] for _, b in pairs])
+        v = right - left
+        normal = v.mean(axis=0) / np.linalg.norm(v.mean(axis=0))
+        point = ((left + right) / 2).mean(axis=0)
+        planes[e] = (normal, point)
+        residual = np.linalg.norm(reflect(left, normal, point) - right, axis=1)
+        rows.append(dict(embryo=e, n_pairs=len(pairs), normal_x=normal[0], normal_y=normal[1], normal_z=normal[2],
+                         median_separation=float(np.median(np.linalg.norm(v, axis=1))),
+                         median_axis_cosine=float(np.median(v @ normal / np.linalg.norm(v, axis=1))),
+                         median_residual=float(np.median(residual)), max_residual=float(residual.max())))
+    return pd.DataFrame(rows), planes
+
+
+def reflect(points, normal, point):
+    points = np.asarray(points, dtype=float)
+    return points - 2 * ((points - point) @ normal)[..., None] * normal
+
+
+def _angle(u, v):
+    return float(np.degrees(np.arccos(np.clip(u @ v / (np.linalg.norm(u) * np.linalg.norm(v)), -1, 1))))
+
+
+def counterpart_travel(ctx, planes):
+    """Natural-edge travel of counterparts in each embryo's mirrored frame.
+
+    ``mirror_angle``: angle between a's reflected displacement (parent to
+    child) and b's. ``reference_angle``: median of the same angle over every
+    non-counterpart pairing of a with cohort cells of the partner subtree.
+    """
+    cohort = set(ctx.cells.index[ctx.cells.in_cohort])
+    rows = []
+    for r in ctx.tiers[ctx.tiers.tier != "excluded"].itertuples():
+        pairs = [(a, b, basis) for a, b, basis in counterpart_pairs(ctx, r.subtree_x, r.subtree_y, r.position_phi)
+                 if a in cohort and b in cohort]
+        others = [c for c in ctx.lineage.descendants[r.subtree_y] if c in cohort]
+        for e, xyz in ctx.positions.items():
+            normal, point = planes[e]
+            step = lambda c: xyz[c] - xyz[parent_of(c)]
+            mirrored = lambda c: reflect(step(c)[None, :] + point, normal, point)[0] - point
+            for a, b, basis in pairs:
+                ref = [_angle(mirrored(a), step(c)) for c in others if c != b]
+                rows.append(dict(subtree_x=r.subtree_x, subtree_y=r.subtree_y, tier=r.tier, embryo=e, basis=basis,
+                                 cell_a=a, name_a=ctx.cls[a]["name"], cell_b=b, name_b=ctx.cls[b]["name"],
+                                 length_a=float(np.linalg.norm(step(a))), length_b=float(np.linalg.norm(step(b))),
+                                 mirror_angle=_angle(mirrored(a), step(b)),
+                                 reference_angle=float(np.median(ref)) if ref else np.nan,
+                                 position_residual=float(np.linalg.norm(reflect(xyz[a], normal, point) - xyz[b]))))
+    out = pd.DataFrame(rows)
+    # Measurement floor: the same edge's length across embryos.
+    span = lambda col, cell: out.groupby(cell)[col].transform(lambda v: v.max() - v.min())
+    out["length_floor_a"] = span("length_a", "cell_a")
+    out["length_floor_b"] = span("length_b", "cell_b")
+    return out
+
+
+def cell_summary(expression, travel):
+    rows = []
+    for (x, y, tier), g in expression.groupby(["subtree_x", "subtree_y", "tier"], sort=False):
+        t = travel[(travel.subtree_x == x) & (travel.subtree_y == y)]
+        rows.append(dict(
+            subtree_x=x, subtree_y=y, tier=tier, n_expression_pairs=len(g),
+            median_distance=g.distance.median(), median_same_type_percentile=g.same_type_percentile.median(),
+            share_closest_of_type=float((g.same_type_percentile[g.n_same_type > 0] == 0).mean()),
+            median_far_percentile=g.far_percentile.median(),
+            n_travel_pairs=t.cell_a.nunique(),
+            median_abs_length_difference=float((t.length_a - t.length_b).abs().median()) if len(t) else np.nan,
+            median_length_floor=float(pd.concat([t.length_floor_a, t.length_floor_b]).median()) if len(t) else np.nan,
+            median_mirror_angle=t.mirror_angle.median(), median_reference_angle=t.reference_angle.median(),
+            median_position_residual=t.position_residual.median()))
+    return pd.DataFrame(rows)
+
+
+def compute_cells(ctx):
+    expression = counterpart_expression(ctx)
+    planes, fitted = mirror_planes(ctx)
+    travel = counterpart_travel(ctx, fitted)
+    return dict(counterpart_expression=expression, mirror_planes=planes, counterpart_travel=travel,
+                cell_summary=cell_summary(expression, travel))
+
+
 # --- run ------------------------------------------------------------------
 
 TABLES = ("cells", "subtree_partners", "candidate_pairs", "pair_mismatches")
 COMPARE_TABLES = ("pair_tiers", "subtree_metrics", "reference_pairs", "pair_comparison", "front_curves")
+CELL_TABLES = ("counterpart_expression", "mirror_planes", "counterpart_travel", "cell_summary")
 
 
 def compute(ctx):
@@ -759,17 +957,39 @@ def compare_provenance(tables, ctx, gates):
     )
 
 
-def write_run(out, stage="pairing", pairing_run=DEFAULT_RUN):
+def cells_provenance(tables, ctx):
+    sources = CODE_SOURCES + (CELL_KEY, LINEAGE, PROTEIN, SELECTED)
+    sources += tuple(f"data/{e}/tracks.txt" for e in ctx.positions)
+    return dict(
+        version=VERSION, stage="cells", pairing_run=ctx.runs["pairing"], compare_run=ctx.runs["compare"],
+        canonical_hashes={f: file_hash(CANONICAL / f) for f in CANONICAL_FILES + ("analysis_context.npz",)},
+        source_hashes={s: file_hash(ROOT / s) for s in sources},
+        settings=dict(expression="top-20 protein, cosine", tiers="all but excluded",
+                      cutoffs={t["label"]: t["cutoff"] for t in ctx.canonical["spec"]["tracking"]}),
+        gates=dict(state_cost_max_abs_delta=ctx.runs["state_gate"]),
+        table_hashes=_table_hashes(tables, CELL_TABLES),
+    )
+
+
+def _stage(stage, pairing_run=DEFAULT_RUN, compare_run=DEFAULT_COMPARE_RUN):
+    """Compute one stage; returns (tables, table names, provenance record)."""
+    if stage == "pairing":
+        tables = compute(load_context())
+        return tables, TABLES, provenance(tables)
+    if stage == "compare":
+        ctx = load_compare_context(pairing_run)
+        tables, gates = compute_compare(ctx)
+        return tables, COMPARE_TABLES, compare_provenance(tables, ctx, gates)
+    ctx = load_cell_context(pairing_run, compare_run)
+    tables = compute_cells(ctx)
+    return tables, CELL_TABLES, cells_provenance(tables, ctx)
+
+
+def write_run(out, stage="pairing", pairing_run=DEFAULT_RUN, compare_run=DEFAULT_COMPARE_RUN):
     out = Path(out)
     if out.exists():
         raise FileExistsError(f"{out} exists; runs are write-once")
-    if stage == "pairing":
-        tables, names = compute(load_context()), TABLES
-        record = provenance(tables)
-    else:
-        ctx = load_compare_context(pairing_run)
-        (tables, gates), names = compute_compare(ctx), COMPARE_TABLES
-        record = compare_provenance(tables, ctx, gates)
+    tables, names, record = _stage(stage, pairing_run, compare_run)
     analysis = out / "analysis"
     analysis.mkdir(parents=True)
     for name in names:
@@ -784,13 +1004,8 @@ def verify_run(out):
     stored = json.loads((analysis / "provenance.json").read_text())
     if stored["version"] != VERSION:
         raise AssertionError(f"Run version {stored['version']} != {VERSION}")
-    if stored.get("stage", "pairing") == "pairing":
-        tables, names = compute(load_context()), TABLES
-        fresh = provenance(tables)
-    else:
-        ctx = load_compare_context(stored["pairing_run"])
-        (tables, gates), names = compute_compare(ctx), COMPARE_TABLES
-        fresh = compare_provenance(tables, ctx, gates)
+    tables, names, fresh = _stage(stored.get("stage", "pairing"), stored.get("pairing_run", DEFAULT_RUN),
+                                  stored.get("compare_run", DEFAULT_COMPARE_RUN))
     # Inputs must be identical. Code may grow (later stages share this module),
     # so code hashes are only reported; the exact table replay below is the check.
     for group in ("canonical_hashes", "source_hashes"):
@@ -814,18 +1029,20 @@ def _roundtrip(frame):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--stage", choices=("pairing", "compare"), default="pairing")
+    parser.add_argument("--stage", choices=("pairing", "compare", "cells"), default="pairing")
     parser.add_argument("--run-id")
     parser.add_argument("--pairing-run", default=DEFAULT_RUN)
+    parser.add_argument("--compare-run", default=DEFAULT_COMPARE_RUN)
     parser.add_argument("--verify-only", action="store_true")
     args = parser.parse_args(argv)
-    run_id = args.run_id or (DEFAULT_RUN if args.stage == "pairing" else DEFAULT_COMPARE_RUN)
+    run_id = args.run_id or {"pairing": DEFAULT_RUN, "compare": DEFAULT_COMPARE_RUN,
+                             "cells": DEFAULT_CELLS_RUN}[args.stage]
     out = run_path(run_id)
     if args.verify_only:
         verify_run(out)
         print(f"verified {out}")
     else:
-        write_run(out, args.stage, args.pairing_run)
+        write_run(out, args.stage, args.pairing_run, args.compare_run)
         print(f"wrote {out}")
 
 
