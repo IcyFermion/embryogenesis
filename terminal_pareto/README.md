@@ -273,12 +273,13 @@ that the front is the outcome, never a selection input.
   among 200 + 200 random sets for k in {5, 10, 20, 30}. It covers protein on
   275 edges and CE protein / CE RNA on the 217 RNA-covered edges, in 3D and
   XY.
-- `representation_criteria.py` (A1b, run `output/runs/representation_criteria_v1/criteria_20261014/`)
+- `representation_criteria.py` (A1b/A2, run `output/runs/representation_criteria_v1/criteria_metric_20261014/`)
   scores top-20, HV-pool and whole-panel candidates without the front:
   - sibling separation (fate discrimination);
   - lineage memory (same-type similarity by lineage distance, against a
     within-type shuffle);
   - measured vs fate-only fronts (children as fine-type means).
+  - every criterion and front for cosine and Euclidean (A2, paired seeds).
 
   Protein uses the 275 primary edges. CE and CB RNA use the 187
   cross-species edges.

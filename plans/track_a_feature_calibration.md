@@ -111,7 +111,7 @@ locally.
   hashes instead. `data/embryo*` must be real copies, not links.
 
 **Status 2026-10-07.** Survey run
-`terminal_pareto/output/runs/feature_sensitivity_v1/survey_20261007/`
+`terminal_pareto/output/runs/feature_sensitivity_v1/survey_20261007/` (deleted 2026-10-14, superseded)
 (analysis id `883aa81b…`): 3,208 feature sets, 8,020 sweeps, 4.4 min on 24
 workers; validated (redraw, summary, 45 replays, 26 source hashes).
 `analysis/summary.csv` places each top-k value in both random distributions.
@@ -201,7 +201,7 @@ reported.
     panels carry more inherited signal.
 
 **Recorded (2026-10-14).** `terminal_pareto/representation_criteria.py`, run
-`representation_criteria_v1/criteria_20261014` (analysis id `17f3a18e…`),
+`representation_criteria_v1/criteria_metric_20261014` (analysis id `55be99f6…`; it supersedes `criteria_20261014`, now deleted),
 validated by a full replay. It reproduces the scratch results above exactly;
 only the bootstrap and null intervals moved with the seeds.
 - *Decision:* keep the published top-20 for both modalities. Report the
@@ -217,6 +217,26 @@ fronts and figures stand. Still open: whether and how to show the fate-only
 control and the candidate comparison (author), and A2 (distance metric).
 
 ## A2. Distance metric (after A1 settles)
+
+**Terminal comparison (2026-10-14).** It is the metric axis of
+`representation_criteria.py` (run `criteria_metric_20261014`); results are in
+the methods doc. On z-scored protein, cosine and Euclidean fronts agree. On
+stored RNA values, Euclidean nearly removes the lineage's cell-state advantage
+(C. elegans 3D state z −0.25 against −3.14 for cosine). **Decision (author):**
+cosine everywhere. The full tree and the partial forest are switched under new
+run identities. A read-only migration map (2026-10-14):
+- Switch points: `pooled_analysis.py:148` and
+  `full_tree_pareto/cross_species_analysis.py:208`.
+- The pooled Gaussian reference scores simulated states with Euclidean edge
+  norms and needs a cosine scoring path.
+- The partial-forest validator re-derives the state as Euclidean.
+- Both modules are hash-pinned by every full-tree cache, so existing runs stop
+  validating from this branch. Production keeps verifying, because it checks
+  only file hashes.
+- No full-tree cohort has a zero expression vector.
+- The single-embryo-1 sensitivities (clock, leaf-conditioned, branch
+  variability) are Euclidean by construction and outside the publication
+  families.
 
 The author intended cosine molecular distance everywhere. Terminal analyses use
 cosine; the pooled full tree, the partial forest and the per-round references

@@ -96,6 +96,8 @@ class CriteriaTests(unittest.TestCase):
         np.testing.assert_allclose(S[:, 0], S[:, 1])  # same group, same column
         measured = rc.state_matrix(frame, ["f", "g"], TERMS)
         self.assertFalse(np.allclose(measured[:, 0], measured[:, 1]))
+        euclidean = rc.state_matrix(frame, ["f", "g"], TERMS, groups, "euclidean")
+        self.assertAlmostEqual(euclidean[0, 0], np.linalg.norm(frame.loc["aa"].to_numpy() - m))
 
 
 class RunTests(unittest.TestCase):
@@ -131,10 +133,11 @@ class RunTests(unittest.TestCase):
                     rc.write_run(out, n_jobs=1, **small)
             finally:
                 rc.load_context = original
-            self.assertEqual(report["criteria"], 9)
-            self.assertEqual(report["fronts"], 30)
+            self.assertEqual(report["criteria"], 9 * len(rc.METRICS))
+            self.assertEqual(report["fronts"], 30 * len(rc.METRICS))
             fronts = pd.read_csv(out / "analysis/fronts.csv")
-            top = fronts[(fronts.candidate == "top-20") & (fronts.cost == "measured")].set_index(["dataset", "geometry"])
+            top = fronts[(fronts.candidate == "top-20") & (fronts.cost == "measured") & (fronts.metric == "cosine")]
+            top = top.set_index(["dataset", "geometry"])
             self.assertAlmostEqual(top.at[("CE protein", "raw3d"), "d_LP"], 0.015, places=3)
 
 

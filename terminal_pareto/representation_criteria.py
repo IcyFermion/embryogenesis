@@ -30,6 +30,11 @@ Criteria, none of which uses travel or the front:
   lineage alignment broken). Also by path-length bin and by cell type.
 * A reference distribution from random 20-feature sets of each HV pool.
 
+Every criterion and front is computed for two distance metrics (Track A2):
+cosine, used by the terminal analyses, and Euclidean, used by the pooled full
+tree and the partial forest. Both metrics share bootstrap and shuffle seeds,
+so the comparison is paired.
+
 Control on the front: **fate-only** cell-state cost, in which every child is
 represented by the mean profile of its fine type (Schema D class when it has
 no description) while parents keep their measured profiles. The fronts for
@@ -43,8 +48,8 @@ C. briggsae) and the sibling separation of the protein top-20 must reproduce
 
 Run from the repository root in the dev environment::
 
-    python terminal_pareto/representation_criteria.py --run-id criteria_20261014
-    python terminal_pareto/representation_criteria.py --run-id criteria_20261014 --verify-only
+    python terminal_pareto/representation_criteria.py --run-id criteria_metric_20261014
+    python terminal_pareto/representation_criteria.py --run-id criteria_metric_20261014 --verify-only
 
 An existing completed run is never overwritten.
 """
@@ -74,7 +79,7 @@ from terminal_pareto import data_loader as dl
 from terminal_pareto import feature_sensitivity as fs
 
 VERSION = "terminal-representation-criteria-v1"
-DEFAULT_RUN = "criteria_20261014"
+DEFAULT_RUN = "criteria_metric_20261014"
 RUN_ROOT = ROOT / "terminal_pareto/output/runs/representation_criteria_v1"
 RANKING_SCRIPT = "expression_embedding/elegans_protein_feature_ranking.py"
 CELL_KEY = "data/2023-06-29_entropy_cell_key_V2.csv"
@@ -91,6 +96,7 @@ MIN_TYPE_CELLS = 6      # memory by type: types with at least this many cohort c
 BIN_MIN_PAIRS = 30      # path-length bins merge until they hold this many pairs
 INTERVALS = fs.INTERVALS
 CANDIDATES = ("top-20", "HV pool", "whole panel")
+METRICS = ("cosine", "euclidean")
 # dataset -> (modality, expression frame key, cohort for criteria)
 DATASETS = {"CE protein": ("protein", "ce_protein", "primary"),
             "CE RNA": ("rna", "ce_rna", "cross187"),
@@ -242,9 +248,9 @@ def bin_means(distances, design):
     return [float(np.mean(d[(x >= lo) & (x <= hi)])) for lo, hi in design.bins]
 
 
-def criteria(X, design, *, seed, n_boot=N_BOOT, n_perm=N_PERM):
+def criteria(X, design, *, seed, n_boot=N_BOOT, n_perm=N_PERM, metric="cosine"):
     """Sibling separation with bootstrap intervals; lineage memory with its within-type null."""
-    D = squareform(pdist(X, "cosine"))
+    D = squareform(pdist(X, metric))
     rng = np.random.default_rng(seed)
     row = dict(n_cells=len(X), n_distinct_profiles=int(len(np.unique(X.round(10), axis=0))))
     for name in ("coarse", "fine"):
@@ -276,17 +282,17 @@ def criteria(X, design, *, seed, n_boot=N_BOOT, n_perm=N_PERM):
     return row, curve
 
 
-def point_criteria(X, design):
+def point_criteria(X, design, metric="cosine"):
     """Criteria without intervals or nulls, for the random reference sets."""
-    D = squareform(pdist(X, "cosine"))
+    D = squareform(pdist(X, metric))
     return dict(sib_coarse=cohen_d(D, *design.sisters["coarse"]), sib_fine=cohen_d(D, *design.sisters["fine"]),
                 memory_rho=spearman_with_lineage(pair_distances(D, design), design),
                 n_distinct_profiles=int(len(np.unique(X.round(10), axis=0))))
 
 
-def memory_by_type(X, design, fine, lineage, *, seed, n_perm=N_PERM_TYPE, min_cells=MIN_TYPE_CELLS):
+def memory_by_type(X, design, fine, lineage, *, seed, n_perm=N_PERM_TYPE, min_cells=MIN_TYPE_CELLS, metric="cosine"):
     """Within one fine type: Spearman of expression distance and path length, shuffled within the type."""
-    D = squareform(pdist(X, "cosine"))
+    D = squareform(pdist(X, metric))
     rng = np.random.default_rng(seed)
     rows = []
     for group in design.groups:
@@ -321,15 +327,19 @@ def founder(cell):
 
 # ---- fronts ----------------------------------------------------------------------
 
-def state_matrix(frame, features, terms, fate_groups=None):
-    """Cosine cell-state cost; with ``fate_groups`` each child is its group's mean profile."""
-    if fate_groups is None:
+def state_matrix(frame, features, terms, fate_groups=None, metric="cosine"):
+    """Cell-state cost, parents in rows; with ``fate_groups`` each child is its group's mean profile.
+
+    Measured cosine costs go through ``feature_sensitivity.state_matrix`` (the published code path).
+    """
+    if fate_groups is None and metric == "cosine":
         return fs.state_matrix(frame, features, terms)
     children, parents = zip(*terms)
     P = frame.loc[list(parents), list(features)].to_numpy(float)
     C = frame.loc[list(children), list(features)]
-    C = C.groupby(np.array([fate_groups[c] for c in children])).transform("mean")
-    return cdist(P, C.to_numpy(float), "cosine")
+    if fate_groups is not None:
+        C = C.groupby(np.array([fate_groups[c] for c in children])).transform("mean")
+    return cdist(P, C.to_numpy(float), metric)
 
 
 CURVE_COLUMNS = ("alpha_travel", "travel", "cell_state", "D1", "D2", "u", "edge_retention")
@@ -474,36 +484,42 @@ def draw_random_sets(ctx, *, n=N_RANDOM, k=RANDOM_K, seed=SEED, max_rejections=1
     return pd.DataFrame(rows)
 
 
-def _criteria_job(ctx, dataset, candidate, seed, n_boot, n_perm):
+def _criteria_job(ctx, dataset, candidate, metric, seed, n_boot, n_perm):
     modality = DATASETS[dataset][0]
     row, curve = criteria(matrix(ctx, dataset, ctx.candidates[modality][candidate]), ctx.designs[dataset],
-                          seed=seed, n_boot=n_boot, n_perm=n_perm)
-    return dict(dataset=dataset, candidate=candidate, **row), [dict(dataset=dataset, candidate=candidate, **c) for c in curve]
+                          seed=seed, n_boot=n_boot, n_perm=n_perm, metric=metric)
+    ident = dict(dataset=dataset, candidate=candidate, metric=metric)
+    return dict(**ident, **row), [dict(**ident, **c) for c in curve]
 
 
 def _random_job(ctx, chunk):
     rows = []
     for modality, draw, features in chunk:
         for dataset in (d for d, (m, _, _) in DATASETS.items() if m == modality):
-            rows.append(dict(modality=modality, draw=draw, dataset=dataset,
-                             **point_criteria(matrix(ctx, dataset, features.split(";")), ctx.designs[dataset])))
+            X = matrix(ctx, dataset, features.split(";"))
+            for metric in METRICS:
+                rows.append(dict(modality=modality, draw=draw, dataset=dataset, metric=metric,
+                                 **point_criteria(X, ctx.designs[dataset], metric)))
     return rows
 
 
-def _front_job(ctx, dataset, geometry, candidate, cost):
+def _front_job(ctx, dataset, geometry, candidate, cost, metric):
     modality, frame, _ = DATASETS[dataset]
     cohort = FRONTS[dataset][0]
     state = state_matrix(ctx.frames[frame], ctx.candidates[modality][candidate], ctx.inputs.cohorts[cohort].terms,
-                         ctx.fate_groups if cost == "fate-only" else None)
+                         ctx.fate_groups if cost == "fate-only" else None, metric)
     row, curve = front(ctx.inputs, cohort, geometry, state)
-    return dict(dataset=dataset, cohort=cohort, geometry=geometry, candidate=candidate, cost=cost, **row), curve
+    return dict(dataset=dataset, cohort=cohort, geometry=geometry, candidate=candidate, cost=cost, metric=metric,
+                **row), curve
 
 
 def compute(ctx, *, n_jobs, n_boot=N_BOOT, n_perm=N_PERM, n_perm_type=N_PERM_TYPE, n_random=N_RANDOM, seed=SEED):
     from joblib import Parallel, delayed
 
-    jobs = [(d, c, [seed, di, ci]) for di, d in enumerate(DATASETS) for ci, c in enumerate(CANDIDATES)]
-    results = Parallel(n_jobs=min(n_jobs, len(jobs)))(delayed(_criteria_job)(ctx, d, c, s, n_boot, n_perm) for d, c, s in jobs)
+    # Both metrics share seeds, so bootstrap resamples and shuffles are paired across metrics.
+    jobs = [(d, c, m, [seed, di, ci]) for di, d in enumerate(DATASETS) for ci, c in enumerate(CANDIDATES) for m in METRICS]
+    results = Parallel(n_jobs=min(n_jobs, len(jobs)))(delayed(_criteria_job)(ctx, d, c, m, s, n_boot, n_perm)
+                                                      for d, c, m, s in jobs)
     table = pd.DataFrame([r for r, _ in results])
     curves = pd.DataFrame([c for _, cs in results for c in cs])
 
@@ -515,16 +531,17 @@ def compute(ctx, *, n_jobs, n_boot=N_BOOT, n_perm=N_PERM, n_perm_type=N_PERM_TYP
 
     by_type = []
     for di, (dataset, (modality, _, _)) in enumerate(DATASETS.items()):
-        rows = memory_by_type(matrix(ctx, dataset, ctx.candidates[modality]["top-20"]), ctx.designs[dataset], ctx.fine,
-                              ctx.lineage, seed=[seed, 7, di], n_perm=n_perm_type)
-        by_type += [dict(dataset=dataset, candidate="top-20", **r) for r in rows]
+        for metric in METRICS:
+            rows = memory_by_type(matrix(ctx, dataset, ctx.candidates[modality]["top-20"]), ctx.designs[dataset],
+                                  ctx.fine, ctx.lineage, seed=[seed, 7, di], n_perm=n_perm_type, metric=metric)
+            by_type += [dict(dataset=dataset, candidate="top-20", metric=metric, **r) for r in rows]
 
-    front_jobs = [(d, g, c, cost) for d, (_, geometries) in FRONTS.items() for g in geometries
-                  for c in CANDIDATES for cost in ("measured", "fate-only")]
+    front_jobs = [(d, g, c, cost, m) for d, (_, geometries) in FRONTS.items() for g in geometries
+                  for c in CANDIDATES for cost in ("measured", "fate-only") for m in METRICS]
     fronts = Parallel(n_jobs=n_jobs)(delayed(_front_job)(ctx, *job) for job in front_jobs)
     front_table = pd.DataFrame([r for r, _ in fronts])
-    front_curves = {f"{d}__{g}__{c}__{cost}__{column}".replace(" ", "_"): curve[column].to_numpy(float)
-                    for (d, g, c, cost), (_, curve) in zip(front_jobs, fronts) for column in curve.columns}
+    front_curves = {f"{d}__{g}__{c}__{cost}__{m}__{column}".replace(" ", "_"): curve[column].to_numpy(float)
+                    for (d, g, c, cost, m), (_, curve) in zip(front_jobs, fronts) for column in curve.columns}
     return dict(criteria=table, memory_curves=curves, random_sets=random_sets, random_metrics=random_metrics,
                 memory_by_type=pd.DataFrame(by_type), fronts=front_table, front_curves=front_curves)
 
@@ -541,7 +558,7 @@ def settings(n_boot=N_BOOT, n_perm=N_PERM, n_perm_type=N_PERM_TYPE, n_random=N_R
     return dict(seed=seed, n_boot=n_boot, n_perm=n_perm, n_perm_type=n_perm_type, n_random=n_random, random_k=RANDOM_K,
                 min_type_cells=MIN_TYPE_CELLS, bin_min_pairs=BIN_MIN_PAIRS, intervals=INTERVALS,
                 hv_fraction=fs.HV_FRACTION, rna_hv_pool="log1p_variance_mean_rank_ce_cb_cross187",
-                distance="cosine", candidates=list(CANDIDATES), datasets={k: list(v) for k, v in DATASETS.items()},
+                metrics=list(METRICS), candidates=list(CANDIDATES), datasets={k: list(v) for k, v in DATASETS.items()},
                 fate_only="children_as_fine_type_mean_parents_measured", numpy_version=np.__version__)
 
 
@@ -610,15 +627,16 @@ def validate_run(out, *, n_jobs=1, check_sources=True, replay_random=20):
         raise ValueError("Reproduction gates fail on current inputs")
     saved = {name: pd.read_csv(analysis / f"{name}.csv", keep_default_na=False, na_values=[""]) for name in TABLES}
     keys = {"dataset", "modality", "cohort", "candidate", "features", "cell", "founder", "schema_d", "fine_type",
-            "fate_group", "founders", "geometry", "cost", "in_protein_cohort", "in_cross_species_cohort", "exactly_on_front"}
+            "fate_group", "founders", "geometry", "cost", "metric", "in_protein_cohort", "in_cross_species_cohort",
+            "exactly_on_front"}
     _compare(candidate_table(ctx), saved["candidates"], "candidates", keys)
     _compare(cell_type_table(ctx), saved["cell_types"].fillna(""), "cell_types", keys)
     _compare(draw_random_sets(ctx, n=s["n_random"], seed=s["seed"]), saved["random_sets"], "random_sets", keys | {"draw"})
     sample = saved["random_sets"].sample(min(replay_random, len(saved["random_sets"])), random_state=0)
     fresh = pd.DataFrame(_random_job(ctx, list(sample[["modality", "draw", "features"]].itertuples(index=False, name=None))))
-    stored = saved["random_metrics"].merge(fresh[["modality", "draw", "dataset"]], on=["modality", "draw", "dataset"])
-    _compare(fresh.sort_values(["modality", "draw", "dataset"]), stored.sort_values(["modality", "draw", "dataset"]),
-             "random_metrics", keys)
+    order = ["modality", "draw", "dataset", "metric"]
+    stored = saved["random_metrics"].merge(fresh[order], on=order)
+    _compare(fresh.sort_values(order), stored.sort_values(order), "random_metrics", keys)
     results = compute(ctx, n_jobs=n_jobs, **{**overrides, "n_random": 0})
     for name in ("criteria", "memory_curves", "memory_by_type", "fronts"):
         _compare(results[name], saved[name], name, keys)

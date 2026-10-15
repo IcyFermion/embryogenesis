@@ -8,7 +8,7 @@ add-ons:
   `output/runs/feature_sensitivity_v1/survey_20261014/`.
 - `representation_criteria.py` (Track A1b): front-independent criteria, lineage
   memory and the fate-only control, run
-  `output/runs/representation_criteria_v1/criteria_20261014/`.
+  `output/runs/representation_criteria_v1/criteria_metric_20261014/`.
 
 No figure or manuscript text exists yet. Displayed symbols must come from
 `publication/notation.py`. `d_SD` (below) has no notation concept yet; add one
@@ -144,6 +144,13 @@ assignment, and checked endpoint ties. Reported metrics:
 - **Natural-lineage state z**: (S_L − mean_null S) / σ_S, the lineage's
   cell-state cost against first-cousin shuffles.
 
+## Distance metric (A2)
+
+Every criterion and front is also computed with Euclidean distance on the same
+values. Both metrics share bootstrap and permutation seeds, so the comparison
+is paired. The terminal analyses use cosine. The pooled full tree and the
+partial forest used Euclidean, on z-scored protein and on stored RNA values.
+
 ## Reproduction gates
 
 A run starts only if all of the following hold:
@@ -197,9 +204,9 @@ A run starts only if all of the following hold:
 recomputes every table and compares at 1e-12. Random-set criteria are checked
 on a seeded sample.
 
-## Results (run criteria_20261014)
+## Results (run criteria_metric_20261014)
 
-Analysis id `17f3a18e…`. Both gates passed: the published fronts reproduce to
+Analysis id `55be99f6…`. Cosine results below; the distance-metric comparison follows. Both gates passed: the published fronts reproduce to
 ≤ 6e-17, and the notebook values to 0.6842 and 0.6372.
 
 **Sibling separation** (Cohen's d with 95% interval; fine types, then Schema D):
@@ -255,6 +262,26 @@ Analysis id `17f3a18e…`. Both gates passed: the published fronts reproduce to
 - Among protein candidates it carries the least lineage memory, so its front
   changes least when memory is removed.
 - Report the fate-only front as the control for memory.
+
+**Distance metric** (Euclidean against cosine, top-20 sets):
+
+| Dataset | Sibling separation, fine (cos / euc) | Memory excess (cos / euc) | Measured front, 3D: d_SD (cos / euc) | Lineage state z (cos / euc) |
+|---|---|---|---|---|
+| CE protein | 0.70 / 0.91 | 0.195 / 0.229 | 1.12 / 1.16 | −4.83 / −5.34 |
+| CE RNA | 2.05 / 1.17 | 0.279 / 0.147 | 0.48 / 1.16 | −3.14 / −0.25 |
+| CB RNA | 1.82 / 1.14 | 0.255 / 0.160 | 2.09 / 3.04 | −2.46 / −1.38 |
+
+- On z-scored protein the metrics agree closely on the front. Euclidean
+  separates fine-type sisters a little more and Schema D sisters less (0.42
+  against 0.73).
+- On stored RNA values, Euclidean is dominated by the few highest-expressed
+  TFs. It nearly removes the lineage's cell-state advantage (C. elegans 3D
+  state z −0.25 against −3.14), halves fine-type sibling separation, and
+  moves the lineage away from the front in both species and geometries.
+- Cosine is scale-free and matches the terminal convention.
+
+**Decision (author, 2026-10-14):** all analyses use cosine. The pooled full
+tree and the partial forest are rerun with cosine under new run identities.
 
 ## Interpretation and limits
 
