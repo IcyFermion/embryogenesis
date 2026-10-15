@@ -2,6 +2,11 @@
 
 No missing ancestor is bridged or imputed. Existing full-tree publication
 caches and their hash-pinned implementation are never modified.
+
+Cell-state cost is cosine distance (``pooled_analysis.MOLECULAR_METRIC``), as in
+the terminal analyses (Track A2, 2026-10-14). Version 1 runs
+(``terminal_anchored_20260930``) used Euclidean distance and no longer validate
+against this code; production releases keep verifying by file hash.
 """
 from __future__ import annotations
 
@@ -27,9 +32,10 @@ from terminal_pareto.pareto_engine import build_ancestor_groups
 from terminal_pareto.subtree_analysis import exact_cousin_stats
 
 ROOT = pa.ROOT
-VERSION = "terminal-anchored-partial-forest-cross-species-1"
+VERSION = "terminal-anchored-partial-forest-cross-species-2"
 RUN_ROOT = ROOT / "full_tree_pareto/output/runs/cross_species_layerwise_v1"
-DEFAULT_RUN = "terminal_anchored_20260930"
+DEFAULT_RUN = "terminal_anchored_cosine_20261014"
+METRIC = pa.MOLECULAR_METRIC
 PRIMARY = ("ce_protein", "ce_rna", "cb_rna")
 GEOMETRIES = ("raw3d", "xy")
 FAMILIES = ("first_cousin", "second_cousin", "third_cousin", "random_rebuild")
@@ -205,7 +211,9 @@ def load_inputs():
     for config, values in expression.items():
         if not np.isfinite(values).all():
             raise ValueError(f"Nonfinite measured states: {config}")
-        states[config] = cdist(values, values, metric="euclidean")
+        if not (np.linalg.norm(values, axis=1) > 0).all():
+            raise ValueError(f"Cosine cell-state cost needs nonzero profiles: {config}")
+        states[config] = cdist(values, values, metric=METRIC)
     matrices, totals, components = {}, {}, {}
     for geometry in GEOMETRIES:
         totals[geometry] = {}
@@ -247,7 +255,7 @@ def load_inputs():
         normalization_reference="all 454 natural edges in this frozen terminal-anchored partial forest; fixed for every assignment and reference within each geometry",
         travel="equal mean of per-embryo pairwise distances divided by natural partial-forest totals; no averaged coordinates",
         coordinate_order="x,y,z; XY drops z (column 2) after explicit loader-order conversion",
-        molecular="Euclidean distances, top20 z-scored protein or shared20 RNA TF stored values; no additional RNA rescaling",
+        molecular="cosine distances, top20 z-scored protein or shared20 RNA TF stored values; no additional RNA rescaling",
         features=dict(ce_protein=ce.identity["proteins"], ce_rna=features, cb_rna=features),
         cohort_rule="start at matched biological terminal edges; ascend independently until first unavailable canonical ancestor; no skipped ancestors or imputation",
         sources=source_hashes(), numpy_version=np.__version__, scipy_version=scipy.__version__,
@@ -507,7 +515,8 @@ def validate_run(run):
                 np.testing.assert_allclose(raw/denom, arrays[f"{geometry}__{species}__{label}"], rtol=1e-12, atol=1e-14)
                 components.append(raw/denom)
             np.testing.assert_allclose(np.mean(components, axis=0), ctx.travel, rtol=1e-12, atol=1e-14)
-            np.testing.assert_allclose(cdist(arrays[f"expression__{config}"], arrays[f"expression__{config}"]), ctx.state, rtol=1e-12, atol=1e-12)
+            np.testing.assert_allclose(cdist(arrays[f"expression__{config}"], arrays[f"expression__{config}"], metric=METRIC),
+                                       ctx.state, rtol=1e-12, atol=1e-12)
             np.testing.assert_allclose(ctx.natural[0], 1, rtol=1e-12)
             groups = {f: build_ancestor_groups([ctx.names[i] for i in ctx.leaves], tree_index, step)
                       for f, step in zip(FAMILIES[:3], (2, 3, 4))}

@@ -2,6 +2,11 @@
 
 All node indices are canonical breadth-first cohort indices. Caches store
 complete parent arrays, not just scalar costs, for independent score replay.
+
+Cell-state cost is cosine distance between top-20 z-scored protein profiles,
+as in the terminal analyses (Track A2, 2026-10-14). Version 1 runs
+(``terminal_clamped_20260927``) used Euclidean distance and no longer validate
+against this code; production releases keep verifying by file hash.
 """
 from __future__ import annotations
 
@@ -25,14 +30,15 @@ from utils import load_json, lineage_name_mapping
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILE = "pooled_full_tree_v1"
-DEFAULT_RUN = ROOT / "full_tree_pareto/output/runs" / PROFILE / "terminal_clamped_20260927"
+DEFAULT_RUN = ROOT / "full_tree_pareto/output/runs" / PROFILE / "terminal_clamped_cosine_20261014"
 CUTOFFS = (255, 247, 225)
 REFERENCE = "Terminal-clamped Gaussian reference"
 METHODS = ("Layerwise assignment", "Degree-constrained spanning forest",
            "Top-down rebuild", "Bottom-up by layer", "Paired bottom-up")
 NULLS = ("First-cousin shuffle", "Internal-layer shuffle", "Full assignment shuffle",
          "Random rebuild", REFERENCE)
-VERSION = "pooled-full-tree-1"
+VERSION = "pooled-full-tree-2"
+MOLECULAR_METRIC = "cosine"
 
 
 def digest(path):
@@ -145,7 +151,9 @@ def build_context():
     denominators = components[:, edges, parents[edges]].sum(axis=1)
     travel = (components / denominators[:, None, None]).mean(axis=0)
     protein = expression.loc[names].to_numpy(float)
-    state = cdist(protein, protein)
+    if not (np.linalg.norm(protein, axis=1) > 0).all():
+        raise ValueError("Cosine cell-state cost needs a nonzero protein profile for every cell")
+    state = cdist(protein, protein, metric=MOLECULAR_METRIC)
     grouped = defaultdict(list)
     for j, leaf in enumerate(leaves):
         grouped[canonical_parent[canonical_parent[names[leaf]]]].append(j)
@@ -171,10 +179,11 @@ def build_context():
                     names=names, parents=parents.tolist(), proteins=selected,
                     source_hashes={str(p.relative_to(ROOT)): digest(p) for p in sources},
                     travel="equal mean of per-embryo pairwise distances / full-cohort natural totals",
-                    molecular="Euclidean top20 z-scored protein",
+                    molecular="cosine top20 z-scored protein",
                     optimizer_scaling="global exact first-cousin null SDs, shared by every round and heuristic",
                     denominators=denominators.tolist(), scales=scales.tolist(),
-                    reference="independent spatial processes per embryo; shared protein process; forward internal states then terminal clamp")
+                    reference="independent spatial processes per embryo; shared protein process; forward internal states then terminal clamp; "
+                              "spatial edges scored by Euclidean length, protein edges by cosine distance")
     identity["context_key"] = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
     ctx = Context(names, parents, np.array([depth[n] for n in names]), xyz, times, protein,
                   travel, state, denominators, roots, internal, leaves, edges, layers,
@@ -382,11 +391,26 @@ def random_nulls(ctx, draws=10000, seed=42):
     return results
 
 
-def forward_clamped(values, parents, clock, leaves, draws, rng, *, return_states=False):
+def edge_costs(states, edges, parents, distance="euclidean"):
+    """Per-draw summed edge cost between simulated parent and child states."""
+    child, parent = states[:, edges], states[:, parents[edges]]
+    if distance == "euclidean":
+        return np.linalg.norm(child - parent, axis=2).sum(axis=1)
+    if distance == "cosine":
+        norms = np.linalg.norm(child, axis=2) * np.linalg.norm(parent, axis=2)
+        if not (norms > 0).all():
+            raise ValueError("Cosine edge cost needs nonzero simulated states")
+        return (1 - np.einsum("dek,dek->de", child, parent) / norms).sum(axis=1)
+    raise ValueError(f"Unknown distance: {distance}")
+
+
+def forward_clamped(values, parents, clock, leaves, draws, rng, *, return_states=False, distance="euclidean"):
     """Free Gaussian internal states, then observed leaves; NOT conditioning.
 
     Omitting unused leaf innovations is distributionally identical to forward
-    simulating all nodes and overwriting the leaves afterwards.
+    simulating all nodes and overwriting the leaves afterwards. Edges are
+    scored with ``distance``: Euclidean for positions, the molecular metric
+    for expression.
     """
     edges = np.flatnonzero(parents >= 0)
     roots = np.flatnonzero(parents < 0)
@@ -406,8 +430,7 @@ def forward_clamped(values, parents, clock, leaves, draws, rng, *, return_states
         raise AssertionError("Terminal clamping failed")
     if not np.array_equal(states[:, roots], np.broadcast_to(values[roots], states[:, roots].shape)):
         raise AssertionError("Root states changed")
-    edge_norm = np.linalg.norm(states[:, edges]-states[:, parents[edges]], axis=2)
-    return edge_norm.sum(axis=1), covariance, states if return_states else None
+    return edge_costs(states, edges, parents, distance), covariance, states if return_states else None
 
 
 def gaussian(ctx, draws=10000, seed=242):
@@ -424,7 +447,8 @@ def gaussian(ctx, draws=10000, seed=242):
     for start in range(0, draws, 100):
         stop = min(start+100, draws)
         for r in range(4):
-            totals, cov, _ = forward_clamped(values[r], ctx.parents, clocks[r], ctx.leaves, stop-start, rngs[r])
+            totals, cov, _ = forward_clamped(values[r], ctx.parents, clocks[r], ctx.leaves, stop-start, rngs[r],
+                                             distance="euclidean" if r < 3 else MOLECULAR_METRIC)
             components[start:stop, r] = totals
             covariances[f"block_{r}"] = cov
     costs = np.column_stack(((components[:, :3]/ctx.denominators).mean(axis=1), components[:, 3]))

@@ -157,8 +157,8 @@ all rounds. This optimizes a product of round-wise assignment spaces, not
 unrestricted tree reconstruction. Travel averages pairwise displacements from
 three CE embryos (cutoffs 255/247/225) or two AF16 embryos (148/156), each divided
 by its fixed natural total on these {n} edges. Coordinates are not averaged.
-Cell-state distance is Euclidean across 20 z-scored protein reporters or the
-shared 20 RNA TFs on stored values, unlike terminal cosine distance.
+Cell-state distance is cosine distance across 20 z-scored protein reporters or
+the shared 20 RNA TFs on stored values, as in the terminal analyses.
 Each panel maps its own travel optimum to \((0,1)\) and state optimum to \((1,0)\);
 lineage and nulls share those anchors, with common main-axis limits.
 Blue indicates biological-parent retention; black crosses mark natural lineage

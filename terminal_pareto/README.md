@@ -260,6 +260,47 @@ remain explicit. Protein/RNA panels differ, and tracking embryos share
 molecular data. Generated outputs are Git-ignored and require the same
 external backup as other runs.
 
+## Cell-state representation (Track A, 2026-10-14)
+
+Two compute-only add-ons support the choice of expression representation
+behind the cell-state cost. The methods, parameters and results are in
+[`METHODS_cell_state_representation.md`](METHODS_cell_state_representation.md),
+written as the basis of the publication's methodology subsection. The rule is
+that the front is the outcome, never a selection input.
+
+- `feature_sensitivity.py` (A1, run `output/runs/feature_sensitivity_v1/survey_20261014/`)
+  places the classifier top-k, bottom-k and bottom-k-within-HV-pool sets
+  among 200 + 200 random sets for k in {5, 10, 20, 30}. It covers protein on
+  275 edges and CE protein / CE RNA on the 217 RNA-covered edges, in 3D and
+  XY.
+- `representation_criteria.py` (A1b/A2, run `output/runs/representation_criteria_v1/criteria_metric_20261014/`)
+  scores top-20, HV-pool and whole-panel candidates without the front:
+  - sibling separation (fate discrimination);
+  - lineage memory (same-type similarity by lineage distance, against a
+    within-type shuffle);
+  - measured vs fate-only fronts (children as fine-type means).
+  - every criterion and front for cosine and Euclidean (A2, paired seeds).
+
+  Protein uses the 275 primary edges. CE and CB RNA use the 187
+  cross-species edges.
+
+Both runs start only after the published top-20 metrics are reproduced. The
+criteria run also reproduces the notebook's sibling separation. The outcome
+is to keep the published top-20 sets, and protein remains the C. elegans gold
+standard. RNA, which is resolved by type, is limited to the terminal
+cross-species comparison. The fate-only front is the control for lineage
+memory.
+
+```bash
+python terminal_pareto/feature_sensitivity.py --run-id NEW_ID        # survey; --verify-only to replay
+python terminal_pareto/representation_criteria.py --run-id NEW_ID    # criteria; --check-only runs the gates
+python -m unittest terminal_pareto.test_feature_sensitivity terminal_pareto.test_representation_criteria
+```
+
+In a git worktree the context cache key (an absolute tracking path) differs,
+so both modules check matrix and source hashes instead of the context
+manifest. `data/embryo*` must be real copies there, not links.
+
 ## Source map and reproducibility
 
 Numerical code only; drawing, captions, notation (the cache field `d_NP` is
@@ -271,6 +312,7 @@ displayed as `d_CP`, null mean `C`), Table 1 formatting and releases are in
 | `analysis_pipeline.py` | Compute-only orchestration of the pooled terminal caches |
 | `analysis_context.py`, `global_analysis.py`, `front_coordinates.py` | Profiles, identity-checked caches, display transforms |
 | `cross_species_analysis.py`, `test_cross_species_terminal.py` | Pooled molecular/species comparison and scientific checks (`fig_terminal_cross_species.py` only redirects `--render-only`) |
+| `feature_sensitivity.py`, `representation_criteria.py` and their tests | Cell-state representation survey and criteria (compute-only; see `METHODS_cell_state_representation.md`) |
 | `fig2_fig3_*.py`, `fig5_table1_*.py`, `fig6a_*.py`, `fig6bc_*.py`, `figS3_cross_geometry.py` | Analyses behind the figures (historical file names). `fig5_table1_*` and `figS3_cross_geometry.py` stay byte-identical because validators pin their source; they still write presentation side-files, which the pipeline discards |
 | `data_loader.py`, `pareto_engine.py`, `lineage_metrics.py`, `subtree_analysis.py`, `subtree_explore.py` | Shared analysis support; `plot_style.py` re-exports `publication/style.py` for historical scripts |
 | `tracking_geometry_sensitivity.py`, `figS3_ce_tracking_robustness.py` | Saved tracking sweeps and historical tracking audit support |

@@ -80,6 +80,19 @@ class PooledTests(unittest.TestCase):
             variances += np.var(totals, axis=0)
         np.testing.assert_allclose(variances, c.scales**2, rtol=1e-10)
 
+    def test_cosine_edge_costs(self):
+        # Two draws over root -> child: orthogonal states cost 1, parallel states cost 0.
+        states = np.array([[[1., 0], [0., 2]], [[1., 1], [3., 3]]])
+        parents = np.array([-1, 0])
+        np.testing.assert_allclose(pa.edge_costs(states, np.array([1]), parents, "cosine"), [1., 0.], atol=1e-12)
+        np.testing.assert_allclose(pa.edge_costs(states, np.array([1]), parents, "euclidean"),
+                                   [np.sqrt(5), np.sqrt(8)])
+        with self.assertRaises(ValueError):
+            pa.edge_costs(np.zeros((1, 2, 2)), np.array([1]), parents, "cosine")
+
+    def test_cell_state_is_cosine(self):
+        self.assertEqual(pa.MOLECULAR_METRIC, "cosine")
+
     def test_clamping_is_not_conditioning(self):
         # Root -> internal -> leaf: free internal mean stays at root, not the
         # endpoint bridge mean. Root and leaf remain exact in every sample.

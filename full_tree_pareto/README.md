@@ -32,7 +32,8 @@ python -m publication build --family full-tree-pooled --output-dir publication/o
 python -m publication release --build publication/output/candidates/NAME --rehearse   # then --apply
 ```
 
-Working run: `output/runs/pooled_full_tree_v1/terminal_clamped_20260927/`.
+Working run: `output/runs/pooled_full_tree_v1/terminal_clamped_cosine_20261014/` (cosine; the
+Euclidean run `terminal_clamped_20260927/` supplied the 2026-10-04 release).
 `analysis/` holds source/cohort identity, matrices, node manifest, complete
 parent-array sweeps, raw costs, null draws, Gaussian covariances and validation.
 `analysis/cousin_shuffles/` adds independently hash-pinned second- and
@@ -96,9 +97,13 @@ natural travel is one. Pairwise distances are pooled; coordinates are never
 averaged into a synthetic embryo. Travel is a retained-position displacement
 proxy, not an integrated trajectory or metabolic cost.
 
-Molecular distance remains **Euclidean distance across the selected 20
-z-scored protein features**. Terminal figures use cosine dissimilarity;
-harmonizing travel and displays does not silently change this distinction.
+Molecular distance is **cosine distance across the selected 20 z-scored
+protein features**, as in the terminal analyses (author decision, 2026-10-14,
+Track A2; see `terminal_pareto/METHODS_cell_state_representation.md`). Runs
+before that date used Euclidean distance. They no longer validate against the
+current code, but production releases keep verifying by file hash. The
+Gaussian reference scores spatial edges by Euclidean length and protein edges
+by cosine distance.
 
 ## Optimization and presentation
 
@@ -223,7 +228,8 @@ results apply to the old cohort and are not mixed with this build.
 ## Cross-species partial-forest comparison
 
 The next comparison is isolated from Figure 7 under
-`output/runs/cross_species_layerwise_v1/terminal_anchored_20260930/`.
+`output/runs/cross_species_layerwise_v1/terminal_anchored_cosine_20261014/` (cosine;
+the Euclidean `terminal_anchored_20260930/` supplied the 2026-10-04 release).
 It compares CE protein, CE RNA and CB AF16 RNA in 3D and XY, using only
 layerwise assignment. Both RNA tables lack the four early Figure 7 roots and
 several intervening ancestors. The author therefore approved a bottom-up
@@ -244,8 +250,9 @@ This is not a complete or near-complete embryonic tree.
 Travel pools three CE embryos and two AF16 embryos using fixed natural totals
 on this new 454-edge reference, separately for 3D and XY. It does not use the
 terminal 275-edge denominators or reuse Figure 7's 974-edge caches. Molecular
-distance remains the full-tree **Euclidean** convention: frozen top-20
-z-scored protein or shared 20 RNA TFs on stored values, not terminal cosine.
+distance is **cosine**, as in the terminal analyses (2026-10-14): frozen
+top-20 z-scored protein or shared 20 RNA TFs on stored values. Under
+Euclidean distance the raw RNA scale let a few high-expressed TFs dominate.
 The six aggregate fronts use global exact first-cousin-null SD scaling,
 301 weights, checked endpoint tie handling and nested 1,201-weight checks.
 Each configuration has its own endpoint display spans.

@@ -65,6 +65,7 @@ def run(run_dir=pa.DEFAULT_RUN, workers=DEFAULT_WORKERS):
             temporary.with_suffix(".json").replace(final.with_suffix(".json"))
             parents[index] = p
             stamp(f"Saved weight {index}/{INTERVALS}; {len(parents)}/{WEIGHTS} complete")
+    target.parent.mkdir(parents=True, exist_ok=True)  # a fresh run has no analysis/ yet
     ordered = np.array([parents[i] for i in range(WEIGHTS)])
     costs = np.array([pa.validate_assignment(ctx, p, fixed_roots=False) for p in ordered])
     temporary = target.with_name("paired_pending.npz")
