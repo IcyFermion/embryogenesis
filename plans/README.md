@@ -37,9 +37,9 @@ metrics carry in every figure. Run B in parallel. Start C after B1.
 - Track A: top-k selected features for k = 5, 10, 20, 30, and random draws of
   the same sizes from (i) the full panel and (ii) highly variable features
   only. Decide what to present after seeing the results.
-- Distance metric: the author intended cosine molecular distance everywhere;
-  the full-tree and partial-forest analyses use Euclidean. Check this after
-  the Track A survey settles (Track A2).
+- Distance metric (Track A2, decided 2026-10-14): cosine molecular distance
+  everywhere. The full tree and the partial forest were rerun with cosine
+  under new run identities; Figures 7, 10, 11 and S4 need re-release.
 
 ## Running tracks in parallel
 

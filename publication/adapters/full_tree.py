@@ -24,7 +24,7 @@ def _run(run) -> Path:
 
 
 def cross_species(run=fcs.DEFAULT_RUN) -> FrontComparisonInput:
-    """Terminal-anchored partial forest (485 cells, 454 edges); Euclidean molecular distance."""
+    """Terminal-anchored partial forest (485 cells, 454 edges); cosine molecular distance."""
     run = _run(run)
     if not (run / "analysis/provenance.json").is_file():
         raise FileNotFoundError(

@@ -44,8 +44,8 @@ The shared \emph{C. elegans} protein/tracking cohort contains INTERNAL internal
 cells, LEAVES measured leaves and four roots, with EDGES scored edges.
 Travel is the equal mean of pairwise displacements in three embryos (cutoffs
 255, 247 and 225), each divided by its natural full-cohort travel total;
-coordinates are not averaged. Cell-state distance is Euclidean distance
-across the selected 20 z-scored protein features.
+coordinates are not averaged. Cell-state distance is cosine distance
+across the selected 20 z-scored protein features, as in the terminal analyses.
 (A) NROUNDS asynchronous bottom-up contraction rounds (ROUNDS edges)
 each reassign children to their natural parent slots using exact linear
 assignment across NWEIGHTS shared weights after global first-cousin-null SD scaling.

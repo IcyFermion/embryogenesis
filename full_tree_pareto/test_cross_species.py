@@ -117,7 +117,7 @@ class PartialForestTests(unittest.TestCase):
                 species = "cb" if config == "cb_rna" else "ce"
                 pooled = np.mean([components[f"{geometry}__{species}__{r}"] for r in positions[species]], axis=0)
                 np.testing.assert_allclose(pooled, forest.travel)
-                np.testing.assert_allclose(cdist(expression[config], expression[config]), forest.state)
+                np.testing.assert_allclose(cdist(expression[config], expression[config], metric=ca.METRIC), forest.state)
         for species in positions:
             for replicate, xyz in positions[species].items():
                 raw = cdist(xyz[:, :2], xyz[:, :2])

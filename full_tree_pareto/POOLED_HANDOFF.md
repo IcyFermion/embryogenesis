@@ -1,5 +1,10 @@
 # Pooled full-tree figure rebuild
 
+> **Update (2026-10-14, Track A2).** Cell-state distance is now cosine. The Euclidean wording and
+> numbers below describe the runs released on 2026-10-04. Current runs:
+> `pooled_full_tree_v1/terminal_clamped_cosine_20261014` and
+> `cross_species_layerwise_v1/terminal_anchored_cosine_20261014`.
+
 > **Layout change, 2026-10-04.** Figures, captions and releases moved to
 > [`publication/`](../publication/README.md); production is `publication/output/production/`.
 > This package is numerical only. Figure material that this record places in

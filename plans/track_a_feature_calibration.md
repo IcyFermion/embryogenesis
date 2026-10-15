@@ -238,6 +238,25 @@ run identities. A read-only migration map (2026-10-14):
   variability) are Euclidean by construction and outside the publication
   families.
 
+**Status 2026-10-15.** Both full-tree analyses now use cosine:
+- *Code:* `pooled_analysis.py` and `full_tree_pareto/cross_species_analysis.py`
+  (versions 2), with cosine edge scoring for the Gaussian reference's protein
+  block. `resume_paired.py` now creates `analysis/` in a fresh run.
+- *Runs:* `pooled_full_tree_v1/terminal_clamped_cosine_20261014` (paired
+  matching took 12 min on 24 workers) and
+  `cross_species_layerwise_v1/terminal_anchored_cosine_20261014`, both
+  replay-validated. Round references are rebuilt for both. The 50 full-tree
+  tests pass.
+- *Candidates:* `publication/output/candidates/full_tree_cosine_20261014`
+  (Figures 7 and S4) and `.../full_tree_cross_species_cosine_20261014`
+  (Figures 10 and 11).
+- *Not released.* Production still holds the Euclidean figures from
+  2026-10-04, so the Figure 7A pixel-parity test fails until a release (the
+  author's call).
+- *Downstream:* the round sketches and the `figures-v2` drafts in the main
+  checkout read the round references, so they need rebuilding after merge.
+- *Results:* in the methods doc (A2 section).
+
 The author intended cosine molecular distance everywhere. Terminal analyses use
 cosine; the pooled full tree, the partial forest and the per-round references
 use Euclidean. Compare both metrics on the terminal cohorts first (cheap),

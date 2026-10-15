@@ -281,7 +281,25 @@ Analysis id `55be99f6…`. Cosine results below; the distance-metric comparison 
 - Cosine is scale-free and matches the terminal convention.
 
 **Decision (author, 2026-10-14):** all analyses use cosine. The pooled full
-tree and the partial forest are rerun with cosine under new run identities.
+tree and the partial forest were rerun with cosine under new run identities:
+`pooled_full_tree_v1/terminal_clamped_cosine_20261014` and
+`cross_species_layerwise_v1/terminal_anchored_cosine_20261014`, both
+replay-validated, with round references rebuilt.
+
+- **Partial forest.** Protein is nearly unchanged (3D d_LP 0.085 → 0.083).
+  RNA moves the lineage toward the front, and the two species now agree
+  closely:
+  - C. elegans RNA, 3D: d_LP 0.112 → 0.085, maximum retention 0.59 → 0.65.
+  - C. briggsae RNA, 3D: d_LP 0.179 → 0.097, maximum retention 0.51 → 0.60.
+- **Pooled full tree (protein).** The natural-lineage state z against
+  first-cousin shuffles is −6.1 → −7.0. Against the internal-layer shuffle it
+  is −40 → −38, and against full shuffles and random rebuilds −54 → −47.
+  Against the terminal-clamped Gaussian reference it is −20.5 → −9.8: the
+  Gaussian increments are fit in Euclidean space and now scored by cosine.
+  Maximum edge retention rises slightly for every method (layerwise
+  0.503 → 0.530).
+- The single-embryo-1 sensitivities (clock, leaf-conditioned, branch
+  variability) stay Euclidean. They are outside the publication families.
 
 ## Interpretation and limits
 

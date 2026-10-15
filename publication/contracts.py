@@ -116,7 +116,7 @@ class TerminalPrimaryInput:
 class FullTreePooledInput:
     """Validated inputs for pooled full-tree Figure 7 and provisional supplement S4.
 
-    978 measured nodes, 974 scored edges, Euclidean molecular distance. Fronts
+    978 measured nodes, 974 scored edges, cosine molecular distance. Fronts
     and references are replay-validated by the back end; endpoint transforms
     are per round (Figure 7A) and aggregate layerwise (Figure 7B and S4).
     """

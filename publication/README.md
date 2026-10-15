@@ -28,8 +28,8 @@ Everything under `output/` is Git-ignored; keep an external backup.
 |---|---|---|---|
 | `terminal-primary` | 1 amendment, 2-6, S1-S3, Table 1 | `terminal_pareto/output/runs/pooled_tracking_v1/migration_candidate_20260920` | released |
 | `terminal-cross-species` | 8, 9 | `.../cross_species_terminal_v1/pooled_comparison_20260930` | released |
-| `full-tree-pooled` | 7, provisional S4 | `full_tree_pareto/output/runs/pooled_full_tree_v1/terminal_clamped_20260927` | released |
-| `full-tree-cross-species` | 10, 11 | `.../cross_species_layerwise_v1/terminal_anchored_20260930` | released |
+| `full-tree-pooled` | 7, provisional S4 | `full_tree_pareto/output/runs/pooled_full_tree_v1/terminal_clamped_cosine_20261014` | released from the Euclidean run `terminal_clamped_20260927`; cosine re-release pending |
+| `full-tree-cross-species` | 10, 11 | `.../cross_species_layerwise_v1/terminal_anchored_cosine_20261014` | released from the Euclidean run `terminal_anchored_20260930`; cosine re-release pending |
 
 `python -m publication list` prints this from `registry.py`, which also holds
 wrapper stems, printed numbers and each family's owned production assets

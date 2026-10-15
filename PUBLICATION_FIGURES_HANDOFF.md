@@ -159,7 +159,7 @@ same 187 matched terminal edges as Figures 8--9, it ascends only through
 available canonical ancestors, retaining 485 measured cells and 454 edges
 with 31 fixed boundary roots. It has no imputation, skipped ancestors, other
 reconstruction heuristics or Gaussian reference. This is not a complete tree.
-New pooled-travel, Euclidean molecular-distance and endpoint-normalized caches
+New pooled-travel, Euclidean molecular-distance (cosine since 2026-10-14, Track A2) and endpoint-normalized caches
 are isolated under
 `full_tree_pareto/output/runs/cross_species_layerwise_v1/terminal_anchored_20260930/`.
 The captioned six-panel comparison and overlays/canonical-metric companion
@@ -223,8 +223,8 @@ status, validated caches, tests and remaining checks; consult it before resuming
   All measured leaves, including cutoff/coverage leaves, and four roots are
   fixed. Spatial processes are separate per embryo; protein uses a shared
   per-transition clock. Terminal reconnection costs are recomputed.
-- Protein distance remains Euclidean top-20 z-scored features, unlike terminal
-  cosine. This distinction and unequal heuristic/reference feasible sets are
+- Protein distance was Euclidean top-20 z-scored features until 2026-10-14; it is
+  now cosine, as in the terminal analyses (Track A2). This distinction and unequal heuristic/reference feasible sets are
   retained explicitly; no biological efficiency or calibrated-null claim.
 
 The new build is isolated in
