@@ -56,6 +56,14 @@ whether per-round features go any further.
   within a round are a known caveat. Run
   `layer_features_v1/e0_groupweight_20261015`; write-up in
   `full_tree_pareto/LAYER_FEATURES.md`.
+- Track E, E1 (settings decided 2026-10-15 before results): k = 20 everywhere,
+  univariate ranking on the E0 criterion, held-out gate (beat the top-20 in
+  at least 80% of halves and at least the 90th random percentile, in each of
+  strata 2-4). Run `layer_features_v1/e1_20261015`: the gate fails (only
+  strata 1-2 pass), so the global set stands and E2 is not run. A single
+  criterion-ranked set shared by all rounds matches the per-round sets and
+  beats the top-20 on held-out halves; whether that should reopen Track A is
+  for the author.
 
 ## Running tracks in parallel
 
