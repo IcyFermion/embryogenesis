@@ -108,6 +108,24 @@ nothing.
 - **Reproduction gate:** with no resampling, the per-layer advantages equal
   the cached `round_references` metrics at 1e-12.
 
+**Status (2026-10-19): done, gate passed.** Run
+`layer_features_v1/hourglass_20261019` (analysis id `a4ca3d85…`):
+- Pooled C. elegans travel, first cousins: the dip is −0.115 [−0.150, −0.077]
+  against layer 8 and −0.082 [−0.126, −0.033] against layers 4–5.
+- Every travel sensitivity also excludes zero:
+  - the second-cousin shuffle;
+  - the partial forest (protein, RNA, C. briggsae);
+  - each tracked embryo on its own (3 C. elegans, 2 C. briggsae).
+
+  The one exception is C. elegans embryo 1 against layers 4–5, which touches
+  zero.
+- No cell-state dip excludes zero.
+- Mid-layer daughters travel farther from their mother's last position, while
+  the cousin-shuffle cost changes less. So the dip comes from the natural
+  lineage, not from tighter cousin groups.
+- The per-embryo series were added during implementation, using the
+  per-embryo travel matrices stored in the cross-species run.
+
 ## E4. Write-up and figure
 
 - **`full_tree_pareto/LAYERWISE_HOURGLASS.md`**, containing:
