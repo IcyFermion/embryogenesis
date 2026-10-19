@@ -89,11 +89,16 @@ nothing.
   Resample groups with replacement, 2,000 draws, fixed seed; advantage =
   1 − Σ natural / Σ shuffle mean over the draw. Travel and cell state are
   resampled together.
-- **Pre-specified contrast (fixed before results):**
+- **Contrast (fixed before any interval was computed, but after the point
+  estimates had shown layers 6-7 lowest in both species):**
   - mid = mean advantage of layers 6 and 7;
   - flanks = layer 8 on one side and layers 4-5 on the other, each the mean of
     its per-layer advantages;
   - dip = mid − flank, computed for each side separately.
+- **What a pass means.** It shows the observed dip is larger than the
+  resampling noise. It is not a confirmatory test, because the layers were
+  chosen after looking, in both species. Only new embryos could confirm it.
+  The write-up says this plainly.
 - **Decision rule:** the dip is claimed only if the 95% interval of the dip
   excludes zero on both sides, in pooled C. elegans travel. Otherwise the
   hourglass framing is dropped and the claim shrinks to "lineage keeps cells
@@ -150,7 +155,7 @@ nothing.
 | Claim | Wording |
 |---|---|
 | Lineage beats cousin shuffles on travel in layers 4-8 | Stated |
-| It beats them by the least in layers 6-7 | Stated if E3 passes |
+| It beats them by the least in layers 6-7 | Stated if E3 passes, as "exceeds resampling noise"; layers chosen after looking |
 | Cell-state advantage is small and flat | Stated |
 | The window matches fate-based cell sorting (Schnabel et al. 2006: 50 to ~400 cells) | "Consistent with" |
 | It coincides with the expression hourglass waist (Large et al. 2025: 200 cells) | "Coincides with" |

@@ -69,7 +69,9 @@ whether per-round features go any further.
   over cousin shuffles is smallest in layers 6-7 (layer = 9 − round; cells
   born at about 70-190 cells), in both species, while the cell-state advantage
   stays flat. Remaining work: a bootstrap over first-cousin groups with a
-  pre-specified dip contrast and decision rule (E3), a write-up and one
+  dip contrast and decision rule fixed before the intervals (the layers were
+  chosen after seeing the point estimates, so a pass shows only that the dip
+  exceeds resampling noise) (E3), a write-up and one
   candidate figure with claims limited to "consistent with" fate-based cell
   sorting and "coincides with" the expression hourglass waist (E4), then
   close (E5). Layers are numbered top-down in text and figures; code keeps
