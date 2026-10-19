@@ -25,7 +25,7 @@ meant to start in its own session from its brief.
 | B. Figure redesign | 1, 2, 3, 4 | [track_b_figure_redesign.md](track_b_figure_redesign.md) | nothing; B3 waits for the name | `figure-ideas` |
 | C. Outlier subtrees | 5 | [track_c_outlier_subtrees.md](track_c_outlier_subtrees.md) | B1 edge-change tooling | `figure-ideas` (dossier), then a research session |
 | D. Subtree symmetry | Left-right counterparts (ABplpa/ABprpa, MSaa/MSpa); since 2026-10-19 also apoptotic cells (D4); since 2026-10-27 readouts robust in tight subtrees (D5); since 2026-10-29 the mirrored pairs' literature pass (D5f, moved from C) | [track_d_subtree_symmetry.md](track_d_subtree_symmetry.md) | nothing; shares tooling with C | `subtree-symmetry`, reopened 2026-10-27 for D5 (D0–D4c merged 2026-10-22, PR #6: Figure 5B–C, reserve Note A) |
-| E. Layer-specific features | Per-round feature sets in the full-tree layerwise assignment | [track_e_layer_features.md](track_e_layer_features.md) | Track A conventions | `layer-features` |
+| E. Per-layer fronts (was: layer-specific features) | Per-layer travel and cell-state advantage in the full tree; the mid-embryo dip | [track_e_layer_features.md](track_e_layer_features.md) | Track A conventions | `layer-features` |
 
 Order: start A first, because it can change how much weight the geometric
 metrics carry in every figure. Run B in parallel. Start C after B1.
@@ -64,6 +64,16 @@ whether per-round features go any further.
   criterion-ranked set shared by all rounds matches the per-round sets and
   beats the top-20 on held-out halves; whether that should reopen Track A is
   for the author.
+- Track E, redirected (2026-10-19, author): per-layer features are closed (E2
+  not run). The per-layer fronts show the natural lineage's travel advantage
+  over cousin shuffles is smallest in layers 6-7 (layer = 9 − round; cells
+  born at about 70-190 cells), in both species, while the cell-state advantage
+  stays flat. Remaining work: a bootstrap over first-cousin groups with a
+  pre-specified dip contrast and decision rule (E3), a write-up and one
+  candidate figure with claims limited to "consistent with" fate-based cell
+  sorting and "coincides with" the expression hourglass waist (E4), then
+  close (E5). Layers are numbered top-down in text and figures; code keeps
+  rounds.
 
 ## Running tracks in parallel
 
