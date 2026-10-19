@@ -6,6 +6,11 @@ mirrored subtrees give similar front geometry and natural-lineage positions?
 Where they differ, is the cause biology (known left-right asymmetric fates),
 the data (coverage, tracking) or numerics (tiny endpoint spans)?
 
+**Extension (2026-10-19).** The ABplpa/ABprpa follow-up (D3) traced the
+travel span to an apoptotic cell. D4 asks how apoptotic cells should be
+handled in the terminal analysis as a whole. It stays in this track at the
+author's request, although it reaches beyond symmetry.
+
 ## Existing material
 
 - **Per-subtree canonical metrics** for the 42 subtrees with at least 12 edges,
@@ -197,3 +202,108 @@ move the front-level readouts:
 
 The per-pair lists in `classification.csv` are the input for the literature
 pass in the Track C research session.
+
+## D3. Trajectories of ABplpa and ABprpa (2026-10-19)
+
+Requested after the collaborator review: is ABplpa's tiny travel span a
+tracking defect? Scratch analysis on the stored runs; no run written yet.
+Review page: https://claude.ai/artifact/UcSsS7P1DehMnxUUVMw1Cm (animation,
+mirror-distance chart, swap diagram, track checks).
+
+**Tracks are clean.**
+- No missing or duplicated frames in either subtree, in any embryo.
+- Steps above the 99.9th percentile are as common on the left as on the right.
+- The only track ending before the cutoff is ABplpappap (apoptotic), in
+  embryos 2 and 3.
+- Reflected through a per-frame midline plane (fitted on the other ABpl/ABpr
+  pairs), left cells fall within the reference residual. The exceptions repeat
+  in all three embryos: the ABxpapp branch (different fates) and the early
+  ABxpaa cells.
+- Division timing, left minus right, at the last round: +4.5, −9.5 and −2
+  frames in embryos 1–3. No side is consistently late. The embryo 1 lag pushes
+  SIAD, SIBV, AMSO and CEMV past the cutoff.
+
+**The travel span is one swap.**
+- In ABplpa, natural = state optimum in every embryo.
+- The travel optimum swaps the apoptotic ABplpappap with RMEV (EXC GL L in
+  embryo 2), saving 1.83, 1.70 and 0.11 µm. That is the whole span.
+- Without ABplpappap, the front is a single point (natural = both optima).
+- In ABprpa, natural = travel optimum (pooled, embryo 2). Its state optimum is
+  a near-tie in protein expression: a five-cell reshuffle changes summed
+  cosine distance by −0.027 on the right and +0.49 on the left; SAAVR is the
+  largest term (0.77 against SAAVL's 0.45).
+- On the 15 name-matched cells, ABplpa is still a point and ABprpa keeps a
+  0.18 SD state optimum.
+
+**Conclusion.** No tracking defect. The u gap is numerical (confirms D2).
+Report z for this pair.
+
+**To do if used in the paper:** promote the analysis to a
+`subtree_symmetry.py` stage with a write-once run (per-frame planes, mirror
+distances, track checks, swap table), and decide whether the mirrored overlay
+becomes a supplementary movie or a snapshot panel.
+
+## D4. Apoptotic cells
+
+**Question.** How should apoptotic cells enter the terminal analysis? Death
+is an invariant, lineage-determined fate, so it is informative for cell state.
+A dying cell has no destination, so its travel endpoint is poorly defined.
+
+**Scratch evidence (2026-10-19, pooled canonical cohort).**
+- 30 of the 275 cohort cells are apoptotic. 13 sit in first-cousin groups
+  with another parent and so contribute to the null.
+- Endpoints are inconsistent between embryos. 12 tracks end before the cutoff
+  in some embryos but not others; 1 ends early in all three and 17 in none.
+  Lifespan to the end of the track or the cutoff ranges from 1 to 92 frames.
+- Natural travel is slightly longer than for living cells (median 2.6–3.4
+  against 2.3 µm). Natural state cost is higher (cosine 0.53 against 0.36).
+- Whole-cohort front, pooled:
+
+  | Variant | d_SD | travel z | state z | retention at nearest |
+  |---|---|---|---|---|
+  | As is | 1.12 | −9.09 | −4.83 | 0.79 |
+  | Drop deaths | 0.57 | −8.48 | −4.33 | 0.87 |
+  | Drop 30 random living cells (median of 40) | 0.84 | −8.27 | −4.43 | 0.83 |
+  | Deaths travel-neutral (constant column) | 1.89 | −8.86 | −4.83 | 0.75 |
+
+  Dropping deaths brings natural closer to the front than 37 of 40 random
+  drops. The travel-neutral variant is not neutral: it lets the optimum park
+  costs on dead cells for free, so it is ruled out.
+
+**Steps.**
+1. **Characterize the 30 cells.**
+   - Track length after the expected death: do step sizes change, which would
+     mean corpse tracking?
+   - How many frames each protein profile rests on.
+   - Whether the same cells die in C. briggsae.
+   - `data/apoptotic_cells.txt` lists names only (124). Ask the author whether
+     death times exist; with them, the endpoint can be set at death.
+2. **Variants**, each on the whole cohort, the 42 subtree fronts, the
+   fate-only cost and the 187-edge cross-species cohort:
+   - as is;
+   - drop deaths;
+   - endpoint at birth (deaths do not migrate; same duration in every embryo);
+   - endpoint at death, if death times exist.
+3. **Control.** About 1000 removals of living cells matched to the deaths on
+   depth and birth time. The 40-draw result is a hint only.
+4. **Decision rule (set before the run).**
+   - If drop deaths beats the matched control on d_SD and retention
+     (one-sided, 5%), report it as a finding: the natural lineage departs from
+     the front mostly at cells that die.
+   - Otherwise keep deaths in the canonical analysis and show the
+     drop-deaths variant in the supplement.
+   - In either case, check whether any D1/D2 classification changes.
+
+**Implementation.** A new module `terminal_pareto/apoptosis_sensitivity.py`
+writing `subtree_symmetry_v1/apoptosis_<date>/`. It reads the canonical
+context, builds every front through `cross_species_analysis.analyze`, gates
+the as-is variant against the canonical metrics, and adds its sampler to the
+guard in `publication/tests/support.py`. The canonical runs stay unchanged
+until the author decides.
+
+## Decisions (2026-10-19)
+
+- Track D absorbs the trajectory follow-up (D3) and the apoptosis question
+  (D4) rather than opening a new track.
+- A symmetry part goes into the publication; its form (table, figure, movie)
+  is still open.
