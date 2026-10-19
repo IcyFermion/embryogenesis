@@ -301,6 +301,71 @@ the as-is variant against the canonical metrics, and adds its sampler to the
 guard in `publication/tests/support.py`. The canonical runs stay unchanged
 until the author decides.
 
+## D4 results (2026-10-19)
+
+Run `subtree_symmetry_v1/apoptosis_20261019`
+(`terminal_pareto/apoptosis_sensitivity.py`), replay-verified.
+
+**Gates.**
+- The per-embryo travel matrices rebuilt from the tracks match the canonical
+  components exactly.
+- The as-is whole-cohort front reproduces the Track A criteria front
+  (measured and fate-only, ≤ 5e-15).
+- The as-is pair comparison reproduces D1.
+
+**Death times.** None are in the data, and a literature search found no
+downloadable per-cell table:
+- Sulston et al. 1983 gives approximate times only in its lineage diagrams
+  (most deaths 20–30 min after birth).
+- The Richards et al. 2012 AceTree model file is offline (404).
+- A 2026 Cell Death & Differentiation paper times corpse formation for 14
+  deaths, mostly in a figure (ABalapapaa: 13 min after birth).
+
+Nucleus radius is quantized and noisy, and the dying daughter is smaller than
+its sister from birth, so it does not mark death either. The two variants
+bracket any death-time endpoint: `birth_endpoint` (dies at once) and `as_is`
+(end of the corpse track).
+
+**The 30 deaths.**
+- Tracks end before the cutoff for 4, 10 and 7 deaths in embryos 1–3.
+- Median 28–35 frames from birth to the endpoint used. If a frame is about a
+  minute, this is beyond the literature's 13–30 min, so many endpoints are
+  corpse positions.
+- The birth-to-endpoint shift is median 2.9 µm (0.2–9.9).
+- Controls: every death's 8 nearest candidates have its depth; median
+  birth-frame gap 1.75 (MSpaapp, born early, 22.5).
+
+**Whole cohort, pooled, measured cost** (1000 matched draws):
+
+| Variant | d_SD | Retention at nearest | Travel z | State z |
+|---|---|---|---|---|
+| As is | 1.11 | 0.79 | −9.09 | −4.83 |
+| Drop deaths | 0.57 (control median 0.59, p = 0.47) | 0.87 (0.88, p = 0.67) | −8.48 | −4.33 |
+| Endpoint at birth | 0.49 (0.57, p = 0.31) | 0.88 (0.88, p = 0.47) | −9.18 | −4.83 |
+
+**Decision rule: no finding.** Deaths are not special. Removing 30 living
+cells matched on depth and birth frame helps just as much, so the departure
+of the natural lineage from the front sits in late-born, deep cells in
+general. The unmatched 40-draw hint (37/40) was a birth-time confound.
+Deaths stay in the canonical analysis; `drop_deaths` goes to the supplement.
+
+**Subtrees** (pooled d_SD, as is → drop deaths / endpoint at birth):
+- In the posterior ABpl subtrees, the distance to the front is entirely the
+  deaths' endpoints. ABp 0.47, ABpl 0.54, ABplp 1.16, ABplpp 1.67 and ABplppp
+  1.67 all go to 0 in both variants. (ABplppp drops below 12 edges without its
+  death.)
+- ABarp goes 0.78 → 0 when dropped but stays 0.73 with the birth endpoint.
+- The whole-cohort rule above does not test subtrees; no matched control was
+  run at subtree level.
+
+**Pair comparison.**
+- ABplp/ABprp: the D2 differences (d_SD, d_LP) vanish under both variants. Its
+  "data" class now has a concrete cause, the apoptotic endpoints on the
+  ABplp side.
+- ABalpa/ABarap (exploratory): a d_NP difference appears. That is an endpoint
+  metric, so it is not followed up.
+- Nothing else changes status.
+
 ## Decisions (2026-10-19)
 
 - Track D absorbs the trajectory follow-up (D3) and the apoptosis question
