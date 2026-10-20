@@ -125,9 +125,10 @@ nothing.
   The one exception is C. elegans embryo 1 against layers 4–5, which touches
   zero.
 - No cell-state dip excludes zero.
-- Mid-layer daughters travel farther from their mother's last position, while
-  the cousin-shuffle cost changes less. So the dip comes from the natural
-  lineage, not from tighter cousin groups.
+- In the gap between natural and shuffled travel per edge, at layer 6 the
+  natural lineage's daughters end up farther from their mother's last
+  position while the shuffle cost barely changes; at layer 7 both fall. So the
+  dip is not only tighter cousin groups.
 - The per-embryo series were added during implementation, using the
   per-embryo travel matrices stored in the cross-species run.
 
@@ -166,6 +167,14 @@ nothing.
 - selection versus constraint, gene age (TAI), lethality and redundancy. These
   go in one Discussion paragraph citing the literature;
 - anything about layers 1-3.
+
+**Status (2026-10-20): candidates built, choice pending.**
+- Write-up: `full_tree_pareto/LAYERWISE_HOURGLASS.md`.
+- Stage tables: `full_tree_pareto/layer_stages.py`, run
+  `layer_features_v1/stages_20261020`.
+- Five figure candidates (A-E) from `publication/sketches/hourglass.py`, in
+  `publication/output/sketches/layer_hourglass_20261020`.
+- The review page has been updated.
 
 ## E5. Close
 

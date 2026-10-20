@@ -260,3 +260,7 @@ cell-state optimum is also what stronger lineage memory produces, and the
 per-round sets carry more memory in rounds 2-3, so this is not evidence for
 them. The scaling choice of E2 (global against per-round) and the per-round
 fate-only control were not addressed.
+
+## Closed (2026-10-19)
+
+Per-layer feature sets end here: E1 failed its gate, so the global top-20 stands and E2 is not run. The track continues as per-layer fronts and the mid-embryo travel dip; see `LAYERWISE_HOURGLASS.md`.

@@ -97,8 +97,18 @@ def cross_species_partitions(out):
     return entries
 
 
+def layer_hourglass(out):
+    """Track E4: per-layer lineage advantage and the mid-embryo travel dip (figure candidates)."""
+    from publication.sketches import data, hourglass
+    d = data.layer_hourglass()
+    note = f" Runs: hourglass {d['ids']['hourglass'][:8]}, stages {d['ids']['stages'][:8]}."
+    return [dict(key=stem, group="Track E4: per-layer advantage", file=_save(build(d), out, stem), title=title,
+                 note=text + note) for stem, build, title, text in hourglass.CANDIDATES]
+
+
 SKETCHES = {"full-tree-rounds": full_tree_rounds, "cross-species-rounds": cross_species_rounds,
-            "cross-species-partitions": cross_species_partitions}
+            "cross-species-partitions": cross_species_partitions,
+            "layer-hourglass": layer_hourglass}
 
 
 def main(argv=None):
