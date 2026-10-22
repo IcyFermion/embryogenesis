@@ -68,8 +68,9 @@ Travel advantage over the first-cousin shuffle, layers 8 → 4:
 
 - Against the second-cousin shuffle the pooled pattern is the same:
   0.41, 0.25, 0.22, 0.28, 0.43.
-- Travel z against the first-cousin null is 3.6-12.8 in pooled layers 4-8, so
-  lineage beats the shuffle in every layer.
+- z_T (natural travel minus the first-cousin null mean, in null SDs; notation
+  from Track D) runs from −12.8 to −3.6 in pooled layers 8-4, so lineage beats
+  the shuffle in every layer.
 - Cell-state advantage is small and flat (0.02-0.06).
 - Layers 6-7 hold cells born at about 70-190 cells.
 - **Layers 1-3** hold 5-18 edges and have degenerate front distances. They are
@@ -175,6 +176,10 @@ nothing.
 - Five figure candidates (A-E) from `publication/sketches/hourglass.py`, in
   `publication/output/sketches/layer_hourglass_20261020`.
 - The review page has been updated.
+- Rebased on main after Track D (2026-10-22). Both runs still validate, the
+  rebuilt candidates (`layer_hourglass_20261022`) are byte-identical, and
+  notation follows Track D: z_T for the travel position, d̃_LP for the
+  null-SD distance (background only, not claimed).
 
 ## E5. Close
 

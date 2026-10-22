@@ -17,7 +17,7 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 import numpy as np
 
-from publication import style
+from publication import notation as nt, style
 
 CE, CB = style.SPECIES_COLORS["ce_protein"], style.SPECIES_COLORS["cb_rna"]
 TRAVEL, STATE = style.SEMANTIC_COLORS["travel"], style.SEMANTIC_COLORS["cell_state"]
@@ -124,7 +124,7 @@ def stacked(d):
                    edgecolor=color, lw=1, zorder=4)
         ax.scatter(f.alive_median[~claimed], f.d_LP[~claimed], s=13, marker=marker, facecolor="white", edgecolor=MUTED,
                    lw=.8, zorder=4)
-    ax.set_ylabel("Distance from\nlineage to front ($d_{LP}$)")
+    ax.set_ylabel(f"Distance from\nlineage to front ({nt.math('natural_front_distance')})")
     ax.set_ylim(bottom=0)
     stage_axis(ax, label=False)
     layer_ticks(ax, series_table(d, "pooled_ce_protein").query("layer >= @CLAIMED"))

@@ -8,6 +8,12 @@ Brief: `plans/track_e_layer_features.md`. Modules: `layer_hourglass.py` (E3) and
 Layers are numbered top-down in text and figures, **layer = 9 − round**. Code and
 run outputs keep contraction rounds.
 
+Notation follows `publication/notation.py`: d_LP is the endpoint-coordinate
+distance from the lineage to P*. z_T is the natural travel cost minus the
+first-cousin null mean, in null SDs (Track D), so negative values beat the
+shuffle. The descriptive null-SD distance d̃_LP (persisted as `d_SD`) appears
+only on the review page's background section and carries no claim.
+
 ## Method
 
 Every cell of the full tree is measured, both its position and its protein
@@ -93,7 +99,7 @@ Birth stages (run `layer_features_v1/stages_20261020`):
 
 | Claim | Wording |
 |---|---|
-| Lineage beats cousin shuffles on travel in layers 4-8 | Stated (travel z 3.6-12.8, pooled) |
+| Lineage beats cousin shuffles on travel in layers 4-8 | Stated (z_T from −12.8 to −3.6, pooled) |
 | It beats them by the least in layers 6-7 | Stated as larger than resampling noise; layers chosen after looking |
 | Cell-state advantage is small and flat | Stated |
 | The window matches fate-based cell sorting (Schnabel et al. 2006, 50 to ~400 cells) | "Consistent with" |
