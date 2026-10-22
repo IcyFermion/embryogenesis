@@ -520,3 +520,76 @@ like the deaths".
   The analysis spec stores absolute tracking paths, so a worktree gets a
   different context cache key.
 
+## D4c. One death at a time in the posterior ABpl family (set 2026-10-22, before the run)
+
+**Question.** The Figure 5 caption says only that holding the deaths'
+endpoints at birth puts ABplp, ABplpp and ABplppp on their fronts. The claim
+that one cell, ABplpppapp, carries ABplp came from a scratch check. Is that
+claim right, and does the same treatment ever move a right partner off its
+front? D4c stores the answer in a run, so it can be cited if a reviewer asks.
+
+**Subtrees.** Left: ABpl, ABplp, ABplpp, ABplppp. Right: ABpr, ABprp, ABprpp,
+ABprppp. ABpl/ABpr is not a kept pair; it is included as context.
+
+**Treatments**, for every death d of a subtree, under `drop_deaths` and
+`birth_endpoint`:
+- `only`: d alone;
+- `all_but`: every other death of the subtree (skipped when d is the only one).
+
+The subtree is also computed with no deaths treated and with all of them
+treated. These rows must reproduce D4's subtree table to 1e-12.
+
+**Endpoint table.** Every death in the family, paired with its mirror cell
+(l ↔ r at the fourth letter). For each embryo: birth frame, frames from birth
+to the endpoint, the parent-division-to-endpoint distance (the travel cost),
+and the birth-to-endpoint distance.
+
+**Readouts** (descriptive, no p-values). The tie tolerance is 1e-9, as in
+D4b.
+- **Single cell:** ABplpppapp `only` gives d_SD ≤ 1e-9 in ABplp under both
+  variants, and `all_but` ABplpppapp leaves d_SD > 1e-9 under both.
+- **Right partners:** every treatment leaves every right subtree at
+  d_SD ≤ 1e-9.
+- **Endpoint offset:** ABplpppapp's travel exceeds its mirror's in each of
+  the three embryos.
+
+**Implementation.** `terminal_pareto/apoptosis_single_deaths.py` reuses the
+D4 context and the D4b subtree front, and writes
+`subtree_symmetry_v1/apoptosis_single_<date>/`. Its computation joins the
+guard in `publication/tests/support.py`.
+
+## D4c results (2026-10-22)
+
+Run `subtree_symmetry_v1/apoptosis_single_20261022`
+(`terminal_pareto/apoptosis_single_deaths.py`), replay-verified. The
+no-treatment and all-deaths rows reproduce D4's subtree table (d_SD ≤ 1e-12).
+All three readouts hold.
+
+- **Single cell.** Treating ABplpppapp alone puts every left subtree on its
+  front, under both removal and birth endpoint: ABpl 0.54 → 0, ABplp
+  1.16 → 0, ABplpp 1.67 → 0, ABplppp 1.67 → 0. ABplppp's removal is below 12
+  edges, so it is tested with the birth endpoint only. Treating all the other
+  deaths together leaves every left subtree off its front: ABplp 1.16 and
+  1.16; ABpl 0.92 removed and 0.54 at birth.
+- **Right partners.** None of the 44 right-subtree fronts moves off its front
+  (max d_SD 1.6e-15).
+- **Endpoint offset.** ABplpppapp's travel exceeds its mirror's in every
+  embryo: 8.9 / 5.7, 4.8 / 3.4 and 7.0 / 4.4 µm. Both tracks run a similar
+  time after birth (49–69 and 63–67 frames).
+- **The other death.** ABplppaaap also ends farther than its mirror in 2 of 3
+  embryos, but treating it moves no subtree onto its front.
+
+**Reading.** The lineage is symmetric. The difference sits in where one dying
+cell's track ends. Because the offset recurs in every embryo, it may be real
+(corpse displacement or engulfment) rather than tracking noise; the data cannot
+tell. The paper should not call it an artifact.
+
+**Reserve note.** Supplementary Note A, a one-page supplementary-style page
+for reviewer questions. Code: `publication/notes/apoptosis.py`; build with
+`python -m publication.notes --output-dir publication/output/notes/<name>`.
+Current build: `publication/output/notes/noteA_20261022/`. Every number comes
+from the hash-checked D4, D4b, D4c and compare tables, and the build fails if
+a sentence stops holding. It is outside the release registry, in keeping with
+the decision to keep deaths out of the supplement; promoting it is a separate
+decision.
+

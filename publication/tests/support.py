@@ -21,7 +21,8 @@ def no_experiments():
     from terminal_pareto import global_analysis, fig6bc_ce_within_type as within, fig5_table1_ce_canonical_metrics as canonical
     from terminal_pareto import fig6a_figs2_ce_cell_types as cell_types
     from terminal_pareto import feature_sensitivity, representation_criteria
-    from terminal_pareto import apoptosis_sensitivity, apoptosis_subtree_control, subtree_symmetry
+    from terminal_pareto import apoptosis_sensitivity, apoptosis_single_deaths, apoptosis_subtree_control
+    from terminal_pareto import subtree_symmetry
     from terminal_pareto import subtree_symmetry_robustness
     targets = [(tcs, "analyze"), (tcs, "write_analysis"), (tcs, "endpoint_assignment"),
                (feature_sensitivity, "analyze"), (feature_sensitivity, "draw_feature_sets"),
@@ -32,6 +33,7 @@ def no_experiments():
                (subtree_symmetry_robustness, "compute"),
                (apoptosis_sensitivity, "compute"), (apoptosis_sensitivity, "controls"),
                (apoptosis_subtree_control, "compute"), (apoptosis_subtree_control, "controls"),
+               (apoptosis_single_deaths, "compute"), (apoptosis_single_deaths, "single"),
                (fcs, "build"), (fcs, "solve_sweep"), (fcs, "random_rebuilds"),
                (cousin_references, "sample_permutations"), (pooled_analysis, "_solve"),
                (pooled_analysis, "random_nulls"), (pooled_analysis, "gaussian"),
