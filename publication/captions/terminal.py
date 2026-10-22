@@ -12,7 +12,7 @@ from publication import notation as nt
 # Versioned TikZ schematic for Figure 3A, \input by the Figure 3 wrapper.
 NULL_SCHEMATIC = Path(__file__).resolve().parents[1] / "assets" / "fig3A_ce_null_models.tex"
 
-SYMBOLS = ['canonical_position', 'cell_state_cost', 'closest_point', 'cousin_relative', 'natural_front_distance', 'natural_lineage', 'null_front_distance', 'null_mean', 'travel_cost']
+SYMBOLS = ['canonical_position', 'cell_state_cost', 'closest_point', 'cousin_relative', 'natural_front_distance', 'natural_front_distance_sd', 'natural_lineage', 'natural_state_position', 'natural_travel_position', 'null_front_distance', 'null_mean', 'travel_cost']
 
 
 def _m():
@@ -118,7 +118,10 @@ def fig5_ce_canonical_summary():
 \begin{{figure}}[p]
 \centering
 \includegraphics[width=\textwidth]{{fig5A_ce_canonical_major_subtrees.pdf}}\\[2mm]
-\includegraphics[width=\textwidth]{{fig5B_ce_canonical_all_subtrees.pdf}}
+\includegraphics[width=\textwidth]{{fig5B_ce_canonical_all_subtrees.pdf}}\\[2mm]
+\includegraphics[width=\textwidth]{{fig5C_ce_mirrored_pairs.pdf}}
+\end{{figure}}
+\begin{{figure}}[p]
 \caption{{\textbf{{Canonical position and endpoint-normalized proximity for the
 pooled subtree fronts.}} Canonical metrics and the attained closest assignment
 {M['closest_point']} are defined in the separate Figure~1 amendment. Each subtree uses its own
@@ -132,7 +135,30 @@ dots show natural-lineage distance {M['natural_front_distance']}. Column scales 
 groups. Bold names identify the five subtrees in A. A zero distance places
 natural lineage on its sampled front. These shape-normalized coordinates
 are not absolute performance comparisons between subtrees; nested subtrees
-are not independent biological replicates.}}
+are not independent biological replicates. Numbers after a name mark the
+mirrored pairs of C. \textbf{{(C)}} Left (blue) and right (orange) partners
+of the seven left--right subtree pairs in which each subtree is the other's
+best fate match (sided match $\geq 0.85$, at least 12 edges per side), and of
+two exploratory anterior pairs (hollow). Besides {M['canonical_position']} and
+{M['natural_front_distance']}, the columns give three readouts in units of the
+first-cousin null SD: the distance {M['natural_front_distance_sd']} from {M['natural_lineage']} to
+the nearest attained front point (in this frame not necessarily
+{M['closest_point']}), and the travel and cell-state positions
+{M['natural_travel_position']} and {M['natural_state_position']} of {M['natural_lineage']} relative
+to the null mean. Shading marks a within-pair difference at or above the 90th
+percentile of random subtree pairs matched for size and depth. MSa--MSp and
+MSap--MSpp agree throughout; the other differences arise in the data or the
+metric rather than in development. $\dagger$~ABplpa's front spans 0.04 null SD
+of travel, all of it from its one apoptotic cell (without that cell the front
+is a single point), so {M['canonical_position']} is not informative; both
+partners lie on their fronts. $\ddagger$~MSpa has fewer cohort edges than MSaa
+(12 against 16) because late-born cells divide after the tracking cutoff, and
+its first-cousin null rests on a single cell group. $\S$~ABplp, ABplpp and
+ABplppp lie off their fronts because of where the tracks of their apoptotic
+cells end: with those endpoints held at the cells' birth positions all three
+lie on their fronts. ABplppp contains one apoptotic cell, ABplpppapp; in
+ABplp, the same change to three matched living cells never places the lineage
+on its front (0 of 1000 draws).}}
 \label{{fig:ce_canonical_summary}}
 \end{{figure}}
 """
@@ -224,6 +250,10 @@ improved held-out travel in only 2 of 12 settings.}}
 \end{{figure}}
 """
 
+
+# Panels A-C are taller than a page, so the caption follows on its own page
+# until panel A moves to Figure 1 (author decision 2026-10-22).
+PAGES = {"fig5_ce_canonical_summary": 2}
 
 # Wrapper stem -> (printed figure number, caption body).
 CAPTIONED_FIGURES = {

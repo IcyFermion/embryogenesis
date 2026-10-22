@@ -19,6 +19,7 @@ from matplotlib.transforms import Bbox
 
 from publication import notation as nt
 from publication import style as ps
+from publication.figures import terminal_symmetry
 
 
 def _points():
@@ -605,8 +606,12 @@ def save_component_crops(fig, ax_definition, ax_major, ax_all,
         axis.set_visible(was_visible)
 
 
-def plot_primary_rows(metrics, out_dir):
-    """Separate the null comparison from a fully labelled subtree inventory."""
+def plot_primary_rows(metrics, out_dir, symmetry=None):
+    """Separate the null comparison from a fully labelled subtree inventory.
+
+    With ``symmetry`` (Track D mirrored pairs), B numbers the paired subtrees and
+    marks the noted readouts, and C (``terminal_symmetry``) shows the pairs.
+    """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -672,6 +677,8 @@ def plot_primary_rows(metrics, out_dir):
     if displayed.subtree.duplicated().any() or set(displayed.subtree) != set(metrics.subtree):
         raise ValueError("Figure 5 row groups must include every subtree exactly once")
     row_count = max(sum(len(frame)+2 for _, frame in column)-1 for column in sections)
+    tags = terminal_symmetry.row_tags(symmetry["pairs"]) if symmetry else {}
+    name_x = -.42 if tags else -.12
     fig = plt.figure(figsize=(7.4, 4.5))
     fig.text(.015, .985, "B", fontsize=12, weight="bold", va="top")
     fig.text(.065, .985, f"All {len(metrics)} surveyed subtrees: natural lineage only",
@@ -706,7 +713,7 @@ def plot_primary_rows(metrics, out_dir):
                          zorder=5)
             for row in frame.itertuples():
                 row_number += 1
-                axes[0].text(-.12, row_number, row.subtree,
+                axes[0].text(name_x, row_number, row.subtree,
                              transform=axes[0].get_yaxis_transform(), ha="right",
                              va="center", fontsize=8.5, color="#222222",
                              weight="bold" if row.subtree in MAJOR_SUBTREES else "normal")
@@ -717,11 +724,23 @@ def plot_primary_rows(metrics, out_dir):
                     ax.hlines(row_number, 0, value, color=color, lw=.8, alpha=.45)
                     ax.scatter(value, row_number, color=color, s=19,
                                edgecolor="white", linewidth=.35, zorder=3)
+                tag = tags.get(row.subtree)
+                if tag:
+                    terminal_symmetry.tag_row(axes[0], row_number, tag)
+                    for ax, key, value, xmax in ((axes[0], "u", row.u_lineage_lp, 1.),
+                                                 (axes[1], "d_lp", row.d_lp, dmax)):
+                        if key in tag["metrics"]:
+                            terminal_symmetry.mark_value(ax, row_number, value, tag["mark"], xmax)
             row_number += 2
     fig.text(.02, .045,
              f"${nt.symbol('canonical_position')}=0$: travel optimum; ${nt.symbol('canonical_position')}=1$: cell-state optimum.  Bold names also appear in A.",
              fontsize=8, color="#444444")
+    if tags:
+        fig.text(.02, .012, "Numbered subtrees form the mirrored pairs in C (dot: blue left, orange right); "
+                 "\u2020 \u2021 \u00a7 refer to the caption.", fontsize=8, color="#444444")
     save(fig, "fig5B_ce_canonical_all_subtrees")
+    if symmetry:
+        plt.close(terminal_symmetry.plot_mirrored_pairs(symmetry, out_dir, dmax=dmax))
 
 
 def plot_summary(metrics, metric, component_names, out_dir,
