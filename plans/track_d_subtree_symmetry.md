@@ -1,5 +1,30 @@
 # Track D: left-right subtree symmetry
 
+**Status (2026-10-22): closed.** Merged to `main`. Stages D0–D4c are done,
+each a replay-verified run under `subtree_symmetry_v1/`.
+
+In the paper:
+- Figure 5B numbers the mirrored pairs, and new panel 5C shows the pairs.
+  The caption carries notes † ‡ §.
+- Release candidate: `publication/output/candidates/fig5_symmetry_20261022`.
+- Supplementary Note A is kept in reserve, outside the registry, at
+  `publication/output/notes/noteA_20261022/`.
+
+Handed off:
+- **Figure 5 layout** (`figures-v2`):
+  - The two-page layout lasts until panel A moves to Figure 1; then drop
+    `PAGES` in `captions/terminal.py`.
+  - v2's Figure 4B and 4C reuse `publication/figures/terminal_symmetry.py`.
+- **z names:** with the author's colleagues; the change is one line in
+  `notation.py`.
+- **Literature pass:** fate-unmatched cells (`classification.csv`) go to
+  Track C.
+- **Not pursued:**
+  - a D3 mirrored-trajectory movie (the analysis stays scratch; see the
+    review page);
+  - a later tracking cutoff for MSpa;
+  - the anterior fate-only lead (ABalp/ABara).
+
 **Question.** Bilaterally symmetric sublineages should behave alike in the
 terminal Pareto analysis. Examples are ABplpa ↔ ABprpa and MSaa ↔ MSpa. Do
 mirrored subtrees give similar front geometry and natural-lineage positions?
