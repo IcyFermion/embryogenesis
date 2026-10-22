@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -148,6 +149,87 @@ def _s3(context, analysis: Path):
     return pd.read_csv(table), provenance["references"], provenance
 
 
+# Track D runs behind the mirrored-pair layer of Figure 5 (B numbers, C rows, caption notes).
+SYMMETRY_RUNS = dict(compare="compare_20261015", classification="robustness_20261015",
+                     deaths="apoptosis_20261019", control="apoptosis_subtrees_20261021")
+SYMMETRY_TABLES = dict(compare=("pair_tiers", "subtree_metrics", "pair_comparison"),
+                       classification=("classification",), deaths=("deaths", "subtree_metrics"),
+                       control=("observed", "decision"))
+SYMMETRY_METRICS = dict(u="u_L", d_lp="d_LP", d_sd="d_SD", z_travel="natural_travel_z", z_state="natural_state_z")
+SYMMETRY_ZERO = 1e-9  # the D4b tie tolerance: d_SD at or below it is on the front
+
+
+def _symmetry(run: Path, analysis: Path, canonical: pd.DataFrame):
+    """Mirrored subtree pairs and the evidence their caption notes cite, from hash-checked Track D tables.
+
+    Reads stored tables only (no fronts are recomputed). Returns the display
+    rows, the cited evidence and the input files keyed relative to ``run``.
+    """
+    from terminal_pareto import subtree_symmetry as ss
+    tables, files = {}, []
+    for stage, run_id in SYMMETRY_RUNS.items():
+        folder = ss.run_path(run_id) / "analysis"
+        record = json.loads((folder / "provenance.json").read_text())
+        files.append(folder / "provenance.json")
+        for name in SYMMETRY_TABLES[stage]:
+            path = folder / f"{name}.csv"
+            if sha256(path) != record["table_hashes"][name]:
+                raise ValueError(f"{path} differs from its provenance record")
+            tables[stage, name] = pd.read_csv(path)
+            files.append(path)
+        linked = {k: record.get(f"{k}_run") for k in ("compare", "apoptosis") if f"{k}_run" in record}
+        expected = dict(compare=SYMMETRY_RUNS["compare"], apoptosis=SYMMETRY_RUNS["deaths"])
+        if any(v != expected[k] for k, v in linked.items()):
+            raise ValueError(f"{run_id} was built from other Track D runs: {linked}")
+        if stage == "compare":
+            if Path(ss.ROOT / record["canonical_analysis"]).resolve() != analysis.resolve():
+                raise ValueError(f"{run_id} compares against another canonical analysis")
+            changed = [n for n, digest in record["canonical_hashes"].items() if sha256(analysis / n) != digest]
+            if changed:
+                raise ValueError(f"Canonical files changed since {run_id}: {changed}")
+
+    metrics = tables["compare", "subtree_metrics"].query("travel == 'pooled'").set_index("subtree")
+    pct = tables["compare", "pair_comparison"].set_index(["subtree_x", "metric"]).reference_percentile
+    label = tables["classification", "classification"].set_index("subtree_x").label
+    pairs = tables["compare", "pair_tiers"].query("tier != 'excluded'")
+    rows = []
+    for p in pairs.itertuples():
+        row = dict(left=p.subtree_x, right=p.subtree_y, tier=p.tier, label=label[p.subtree_x],
+                   edges_left=int(metrics.at[p.subtree_x, "n"]), edges_right=int(metrics.at[p.subtree_y, "n"]))
+        for key, field in SYMMETRY_METRICS.items():
+            row[f"{key}_left"] = float(metrics.at[p.subtree_x, field])
+            row[f"{key}_right"] = float(metrics.at[p.subtree_y, field])
+            row[f"{key}_percentile"] = float(pct[p.subtree_x, field])
+        rows.append(row)
+    pairs = pd.DataFrame(rows)
+    shown = canonical.set_index("subtree")
+    for side in ("left", "right"):
+        for key, column in (("u", "u_lineage_lp"), ("d_lp", "d_lp")):
+            delta = np.abs(pairs[f"{key}_{side}"].to_numpy() - shown.loc[pairs[side], column].to_numpy())
+            if delta.max() > 1e-9:
+                raise ValueError(f"Track D {key} does not reproduce the canonical table ({delta.max():.2e})")
+
+    four = tables["deaths", "subtree_metrics"].query("cost == 'measured' and travel == 'pooled'")
+    four = four.set_index(["subtree", "variant"])
+    observed = tables["control", "observed"].set_index(["subtree", "variant"])
+    decision = tables["control", "decision"].set_index(["subtree", "variant"]).loc[("ABplp", "drop_deaths")]
+    deaths = tables["deaths", "deaths"].cell.drop_duplicates()
+    classes = tables["classification", "classification"].set_index("subtree_x")
+    evidence = dict(
+        abplpa_travel_span_sd=float(metrics.at["ABplpa", "travel_span_sd"]),
+        abplpa_deaths=int(four.at[("ABplpa", "as_is"), "n_deaths"]),
+        abplpa_without_death={v: four.at[("ABplpa", v), "status"] for v in ("drop_deaths", "birth_endpoint")},
+        msaa_reasons=classes.at["MSaa", "reasons"],
+        msaa_null_support_share=float(classes.at["MSaa", "min_null_support_share"]),
+        abplppp_deaths=sorted(c for c in deaths if c.startswith("ABplppp")),
+        birth_endpoint_on_front={s: bool(observed.at[(s, "birth_endpoint"), "d_SD"] <= SYMMETRY_ZERO)
+                                 for s in ("ABplp", "ABplpp", "ABplppp")},
+        abplp_control_draws=int(decision.n_ok),
+        abplp_control_on_front=int(round(decision.d_SD_p * (decision.n_ok + 1))) - 1)
+    inputs = {os.path.relpath(path.resolve(), Path(run).resolve()): sha256(path) for path in files}
+    return dict(pairs=pairs, evidence=evidence), inputs
+
+
 def _global_display(result, context):
     """Endpoint coordinates for the cached global front and its null clouds."""
     from terminal_pareto.front_coordinates import build_endpoint_transform
@@ -205,6 +287,8 @@ def primary(run_id: str = PRIMARY_RUN, *, output_root: Path | None = None):
              f"{S3_DIR}/cross_geometry_coordinates.csv", f"{S3_DIR}/provenance.json"]
     run = context.run_paths.root
     inputs = {f"analysis/{name}": sha256(analysis / name) for name in files}
+    symmetry, symmetry_inputs = _symmetry(run, analysis, canonical_display)
+    inputs.update(symmetry_inputs)
     return TerminalPrimaryInput(
         run=run, analysis_id=context.cache_key, edges=len(context.terminal_nodes),
         subtrees=len(canonical), min_cells=PRIMARY_MIN_CELLS,
@@ -213,7 +297,9 @@ def primary(run_id: str = PRIMARY_RUN, *, output_root: Path | None = None):
         subtree_nodes=nodes, subtree_edges=edges,
         cell_type_retention=cell_types.merge_small_retention(retention), cell_type_keypoints=_merge_small(keypoints),
         within_type=within, s3_projections=s3_frame, s3_references=s3_references,
+        symmetry=symmetry,
         validation=dict(context_cache_key=context.cache_key, global_analysis=result.analysis_cache_key,
                         s3_projection_count=s3_provenance["projection_count"],
-                        canonical_rows=len(canonical), subtree_map_nodes=len(nodes)),
+                        canonical_rows=len(canonical), subtree_map_nodes=len(nodes),
+                        mirrored_pairs=len(symmetry["pairs"])),
         input_files=inputs)

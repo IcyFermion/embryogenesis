@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 from publication import notation, provenance, registry
 from publication.adapters import terminal as adapter
-from publication.captions.terminal import CAPTIONED_FIGURES
+from publication.captions.terminal import CAPTIONED_FIGURES, PAGES
 from publication.figures import terminal_canonical
 from publication.tables import subtree_statistics_tex
 from publication.tests.support import no_experiments
@@ -36,10 +36,10 @@ class CacheOnlyTerminalBuild(unittest.TestCase):
     def tearDownClass(cls):
         shutil.rmtree(cls.tmp)
 
-    def test_every_wrapper_compiles_to_one_labelled_page(self):
+    def test_every_wrapper_compiles_to_its_labelled_pages(self):
         self.assertEqual(set(self.record["figures"]), set(CAPTIONED_FIGURES) | {"table1_ce_subtree_statistics"})
         for stem, figure in self.record["figures"].items():
-            self.assertEqual(figure["compiled"]["pages"], 1, stem)
+            self.assertEqual(figure["compiled"]["pages"], PAGES.get(stem, 1), stem)
             self.assertTrue(all("Float too large for page" in w for w in figure["compiled"]["warnings"]), stem)
 
     def test_rendered_inventory_matches_production_figures(self):

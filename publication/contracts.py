@@ -108,6 +108,7 @@ class TerminalPrimaryInput:
     within_type: dict  # fronts, summary, aggregate, endpoints (Figure 6B-C)
     s3_projections: pd.DataFrame
     s3_references: dict
+    symmetry: dict = field(default_factory=dict)  # mirrored pairs + cited evidence (Figure 5B-C)
     validation: dict = field(default_factory=dict)
     input_files: dict = field(default_factory=dict)
 

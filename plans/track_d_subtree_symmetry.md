@@ -347,7 +347,8 @@ bracket any death-time endpoint: `birth_endpoint` (dies at once) and `as_is`
 cells matched on depth and birth frame helps just as much, so the departure
 of the natural lineage from the front sits in late-born, deep cells in
 general. The unmatched 40-draw hint (37/40) was a birth-time confound.
-Deaths stay in the canonical analysis; `drop_deaths` goes to the supplement.
+Deaths stay in the canonical analysis. The rule sent `drop_deaths` to the
+supplement, but the author kept it to this brief (decision 2026-10-21).
 
 **Subtrees** (pooled d_SD, as is → drop deaths / endpoint at birth):
 - In the posterior ABpl subtrees, the distance to the front is entirely the
@@ -372,3 +373,150 @@ Deaths stay in the canonical analysis; `drop_deaths` goes to the supplement.
   (D4) rather than opening a new track.
 - A symmetry part goes into the publication; its form (table, figure, movie)
   is still open.
+
+## Decisions (2026-10-21)
+
+- Apoptotic cells stay in the canonical analysis as before. The D4 variants
+  are not added to the supplement. They are kept here so the manuscript can
+  answer a reviewer's question about them.
+- The subtree-level effect in posterior ABpl gets a matched control (D4b).
+  After that comes the question of what to show in the paper.
+- Figure sketch on the review page (https://claude.ai/artifact/UxCTYL2LAUf5cYCPLABDi1,
+  "Figure sketch"). It has four panels: (a) pair coverage; (b) both fronts
+  per pair in the null-SD frame; (c) left against right z; (d) reference
+  percentiles. Main, Figure 4 row or supplement is still open.
+- Table alternative, preferred by the author (same page, "Table sketch").
+  Number the 18 paired subtrees in Figure 5B. Add a panel 5C with one row per
+  pair: u, d_LP, d_SD, z_S, z_T, with left and right on the same row, cells
+  at or above the 90th reference percentile shaded, and the D2 class. A side
+  note covers the standouts:
+  - † ABplpa/ABprpa u: one apoptotic-cell swap, travel span 0.04 null SD;
+  - ‡ MSaa/MSpa u and z_S: missing late-born cells, one-group null;
+  - § ABplp/ABplpp/ABplppp d_LP: the ABplpppapp corpse endpoint.
+  Not yet built in `publication/`.
+- Notation: the author wants d_SD shown as a decorated d_LP. Suggested
+  `\tilde{d}_{LP}`, with "nearest front point" in the definition, because in
+  null-SD units the nearest point can differ from P*. Not yet in
+  `publication/notation.py`. The z names (sketch: z_T, z_S) go to the
+  author's colleagues.
+
+## D4b. Subtree-level control (set 2026-10-21, before the run)
+
+**Question.** Inside the posterior ABpl subtrees, d_SD goes to 0 when the
+deaths are dropped or held at birth. Is that because they are deaths, or
+would removing any equally many late-born cells of the same subtree do the
+same? Small subtrees have few cells near the front, so a large change from
+removing a few cells is expected.
+
+**Control.** As in D4, but within the subtree. Each draw picks one living cell
+of that subtree per death, at random among the `POOL_SIZE` nearest free
+candidates (same depth first, then birth frame), and applies the same
+operation: drop, or endpoint at birth. 1000 draws per subtree and variant,
+pooled travel, measured cost. Small subtrees have few distinct control sets;
+their number is reported with each p-value.
+
+**Subtrees tested.** Every canonical subtree with at least one death and a
+pooled as-is d_SD above 1e-9, except P0 (done in D4). Ties in the p-values are
+counted within the same 1e-9.
+- **Primary:** ABplp, the left partner of the D2 pair ABplp/ABprp.
+- **Supporting:** ABp, ABpl, ABplpp, ABplppp (nested with ABplp, so they
+  share its deaths). ABplppp without its death drops below 12 edges, so only
+  its birth-endpoint variant is tested.
+- **Descriptive:** the rest, including ABarp.
+
+**Decision rule.**
+- **Finding:** in ABplp, drop deaths beats the matched control on d_SD
+  (lower) and on retention at the nearest point (higher), each one-sided at
+  5%. Then the ABplp/ABprp difference has a specific cause: the deaths'
+  endpoints. Endpoint at birth is reported as the check.
+- **Otherwise:** the departure is a small-subtree effect that any matched
+  removal reproduces. ABplp/ABprp stays "data", with no cause specific to
+  apoptosis.
+
+**Implementation.** `terminal_pareto/apoptosis_subtree_control.py` reuses the
+D4 context and sampler and writes `subtree_symmetry_v1/apoptosis_subtrees_<date>/`.
+Its sampler joins the guard in `publication/tests/support.py`.
+
+## D4b results (2026-10-21)
+
+Run `subtree_symmetry_v1/apoptosis_subtrees_20261021`
+(`terminal_pareto/apoptosis_subtree_control.py`), replay-verified. The as-is and variant
+fronts reproduce D4's subtree table (d_SD ≤ 1e-16). 14 subtrees tested.
+
+**Decision rule: finding.** In ABplp, dropping the three deaths takes d_SD
+from 1.16 to 0 and retention from 0.91 to 1. None of 1000 matched draws (119
+distinct sets) gets there: control d_SD median 1.22, 5th percentile 1.15;
+p = 0.001 on both metrics. Endpoint at birth gives the same (p = 0.001).
+
+| Subtree | Role | Drop deaths: d_SD p / control at 0 | Endpoint at birth: d_SD p / control at 0 |
+|---|---|---|---|
+| ABplp | primary | 0.001 / 0% | 0.001 / 0% |
+| ABplpp | supporting | 0.24 / 24% | 0.001 / 0% |
+| ABplppp | supporting | below 12 edges | 0.001 / 0% (8 distinct sets) |
+| ABpl | supporting | 0.11 / 11% | 0.11 / 11% |
+| ABp | supporting | 0.14 / 14% | 0.09 / 9% |
+| ABarp | descriptive | 0.24 / 24% | 0.22 / 22% |
+
+Retention p equals d_SD p in every row above.
+
+**One death carries it** (scratch, same context). Dropping or holding
+ABplpppapp at birth alone gives d_SD 0 in ABplp; dropping the other two deaths,
+alone or together, leaves 1.16. Its mirror ABprpppapp also dies, but ABprp is
+on its front. The left cell's endpoint is farther from its parent in every
+embryo (8.9, 4.8 and 7.0 µm against 5.7, 3.4 and 4.4) and its state cost is
+higher (cosine 1.21 against 0.97). Its tracks run 49–69 frames past birth,
+past the literature's death times, so the endpoint is likely a corpse
+position. Endpoint at birth removes it, so travel, not state, is the cause.
+
+**Caveat: matching is weak inside ABplp.** It has no living depth-9 cohort
+cells, so every candidate is one division deeper and born 23–68 frames later.
+The control asks "any three other cells of the subtree", not "three cells
+like the deaths".
+
+**Reading.**
+- The ABplp/ABprp difference (D2: d_SD, d_LP; class "data") has a specific
+  cause: the corpse endpoint of ABplpppapp. The class stays "data".
+- ABplpp and ABplppp, nested on the same cell, agree with endpoint at birth.
+  Dropping 2 of 15 cells from ABplpp is too coarse a test (24% of controls
+  also reach 0).
+- In ABpl and ABp the effect is diluted: 9–14% of matched removals also bring
+  the lineage onto the front.
+- Descriptive: in MS, EMS, P1 and MSp the deaths bring the lineage closer to
+  the front (dropping them raises d_SD, e.g. MS 0.20 → 0.61). In AB, holding
+  deaths at birth beats the control (p = 0.016 / 0.014); this is not
+  followed up.
+
+## Decisions (2026-10-22): Figure 5 symmetry layer
+
+- **Table route.** The four-panel figure sketch is dropped.
+  - Figure 5B numbers the 18 paired subtrees, with a side dot after each name,
+    and puts † ‡ § beside the readout each note explains.
+  - New panel 5C has one row per pair, with columns u, d_LP, d̃_LP, z_T and
+    z_S. A cell is shaded when the within-pair difference is at or above the
+    90th reference percentile.
+  - The notes go into the Figure 5 caption.
+- **Notation** (in `publication/notation.py`):
+  - `natural_front_distance_sd` is `\tilde{d}_{LP}`, defined to the nearest
+    front point, which in this frame is not necessarily P*.
+  - `natural_travel_position` is `z_T` and `natural_state_position` is `z_S`.
+  - If the colleagues choose other names, the change is one line.
+- **Code.**
+  - `publication/figures/terminal_symmetry.py` holds the pair numbers, note
+    marks, panel C and `check_notes`. `check_notes` fails the build if a
+    caption claim stops holding in the stored runs.
+  - `publication/adapters/terminal.py::_symmetry` reads the compare,
+    robustness, D4 and D4b tables. It hash-checks each one against its
+    provenance and records them as inputs of the terminal-primary family.
+  - The helpers take plain axes, so v2 can reuse them when it adopts the
+    layout (its Figure 4B rows, with panel C as 4C).
+- **Every caption claim comes from a stored run.** The D3 detail (the RMEV
+  swap) is not cited. The claim that ABplpppapp alone accounts for ABplp is
+  replaced by run-backed statements: ABplppp has that cell as its only death,
+  and holding birth endpoints puts all three subtrees on their fronts.
+- **Page.** Panels A–C are taller than a page, so the caption is on a second
+  page (`PAGES` in `captions/terminal.py`). This lasts until panel A moves to
+  Figure 1 in the next layout iteration (author, 2026-10-22).
+- **Builds** of terminal-primary must run from `/home/bingran/code/embryogenesis`.
+  The analysis spec stores absolute tracking paths, so a worktree gets a
+  different context cache key.
+

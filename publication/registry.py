@@ -74,13 +74,14 @@ def _build_specs(family, data, out):
 
 def _build_terminal_primary(family, data, out):
     """Render every panel, then write and compile each multi-panel wrapper."""
-    from publication.captions.terminal import CAPTIONED_FIGURES
+    from publication.captions.terminal import CAPTIONED_FIGURES, PAGES
     from publication.figures import terminal
     terminal.render_panels(data, out)
     figures = {}
     for stem, number in family.wrappers:
         wrapper = assembly.write_wrapper(out, stem, number=number, body=CAPTIONED_FIGURES[stem][1]())
-        figures[stem] = dict(number=number, compiled=assembly.compile_wrapper(wrapper, label=number))
+        figures[stem] = dict(number=number, compiled=assembly.compile_wrapper(wrapper, label=number,
+                                                                       pages=PAGES.get(stem, 1)))
     table = out / f"{tables.TABLE1_STEM}.tex"
     figures[table.stem] = dict(number="1", compiled=assembly.compile_wrapper(
         table, label="1", kind="Table"))
@@ -130,6 +131,8 @@ TERMINAL_PRIMARY_ASSETS = (
     "fig5A_ce_canonical_major_subtrees.png",
     "fig5B_ce_canonical_all_subtrees.pdf",
     "fig5B_ce_canonical_all_subtrees.png",
+    "fig5C_ce_mirrored_pairs.pdf",
+    "fig5C_ce_mirrored_pairs.png",
     "fig5_ce_canonical_summary.pdf",
     "fig5_ce_canonical_summary.tex",
     "fig6A_ce_retention_heatmap.pdf",

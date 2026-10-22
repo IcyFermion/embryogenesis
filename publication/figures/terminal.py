@@ -27,7 +27,7 @@ def render_panels(data, out: Path) -> None:
     shutil.copy2(NULL_SCHEMATIC, out / NULL_SCHEMATIC.name)
     terminal_subtree_map.emit_figure(data.subtree_nodes, data.subtree_edges, data.min_cells,
                                      out / "fig4_ce_subtree_map_panel")
-    terminal_canonical.plot_primary_rows(data.canonical_display, out)
+    terminal_canonical.plot_primary_rows(data.canonical_display, out, symmetry=data.symmetry)
     terminal_canonical.plot_summary(data.canonical_display, metric="r",
                                     component_names=terminal_canonical.SUPPLEMENT_COMPONENTS, out_dir=out)
     terminal_cell_types.plot_retention_heatmap(data.cell_type_retention, out_dir=out)
