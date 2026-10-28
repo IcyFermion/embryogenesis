@@ -788,3 +788,63 @@ pairs get the same treatment.
   the pair comparison.
 - Rank readouts (candidate c) do not fix a thin null.
 
+## D5b. Candidate readouts (set 2026-10-27, before the run)
+
+All candidates live in the null-SD frame: x = T/σ_T and y = S/σ_S, with σ
+from the exact first-cousin null. They use the canonical sweep, 301 points
+at α_k = k/300, where α is the weight on travel, so α = 0 is the state
+optimum and α = 1 the travel optimum. With d_k the distance from the natural
+lineage to sweep point k:
+- **α̂, trade-off position (replaces u).**
+  - α̂ = Σ w_k α_k / Σ w_k, with w_k = exp(−d_k² / 2τ²) and τ = 1 null SD.
+    τ is the frame's unit, the same as `TINY_SPAN_SD`, and is fixed here.
+  - τ = 0.5 and τ = 2 are sensitivity checks only.
+  - Hard variant α̂₀: the mean α of the sweep points nearest the natural
+    lineage. For a lineage on its front, this is the middle of its trade-off
+    window, the α range where the natural lineage is optimal.
+  - A front collapsed to a point gives α̂ = 0.5 instead of an arbitrary end.
+- **ρ, proximity (replaces d_LP and d̃_LP).**
+  - ρ = 1 − d̃_LP / R_N, where R_N is the distance from the null mean to the
+    nearest sweep point.
+  - ρ = 1 on the front and 0 as far from it as the null mean. It still has a
+    ceiling at 1.
+- **G, mean trade-off gap.**
+  - g_k(P) = α_k (x_P − x_k) + (1 − α_k)(y_P − y_k), and
+    G = mean_k g_k(natural) / mean_k g_k(null mean).
+  - G = 0 when the lineage is optimal at every trade-off, and 1 when it is
+    no better than the null mean on average.
+  - It is continuous across the front, but it mixes position with distance.
+- **z_T and z_S** are unchanged.
+- **Jackknife SE** for every readout, over the single-cell removals that
+  leave a front: SE = √((m−1)/m · Σ(θ_(i) − θ̄)²).
+
+Candidate c (rank among null shuffles) is the shuffle share computed under
+resolution below. Candidates d (a shared ruler) and e (an equivalence margin)
+act on pairs, so they go to D5c.
+
+**Scores**, over all 42 subtrees. The current readouts (u, d_LP, d̃_LP,
+d_CP, z_T, z_S) are scored the same way.
+1. **Stability.** For each subtree, the largest rank shift one removal
+   causes: the perturbed value's midrank percentile among the other 41
+   subtrees' values, minus the unperturbed one. Report the median, the 90th
+   percentile and the count of subtrees shifted by 0.25 or more, plus the
+   median jackknife SE over the across-subtree SD.
+2. **Continuity.** Spearman correlation with the replaced readout, over the
+   subtrees with both spans ≥ 1 null SD and null support ≥ 12 (α̂ against
+   1 − u; ρ against −d̃_LP; G against d_LP).
+3. **Resolution.**
+   - Distance readouts (ρ, G, z): the natural lineage against 1000
+     first-cousin shuffles (`pareto_engine.compute_group_shuffle_costs`,
+     seed 42). Report the share of shuffles at least as good as the natural
+     lineage, and the separation (natural − shuffle mean) / shuffle SD.
+   - Position readouts (α̂, u): the across-subtree SD over the median
+     jackknife SE.
+
+**Not read in D5b:** pair differences of any candidate. They come in D5c,
+after the author has picked the readouts.
+
+**Implementation (scratch).** The script repeats `analyze`'s sweep up to the
+costs, so that α̂, ρ and G exist where the endpoint frame does not. Gate:
+the costs reproduce `analyze`'s curve on every non-degenerate front to
+1e-12.
+
