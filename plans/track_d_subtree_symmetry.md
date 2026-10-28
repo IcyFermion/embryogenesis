@@ -635,6 +635,12 @@ decision.
 - Tweaking the current metrics and adding new ones are both in scope.
 - The released Figure 5B–C and Note A stay in production until a D5
   candidate replaces them.
+- **Ground rule accepted** (author, same day): readouts are chosen on
+  stability, continuity and resolution across all 42 subtrees before the
+  pairs are read, with random pairs as the negative control.
+- **Scope:** candidates are tested on the subtree analysis first. Whether a
+  readout carries over to the rest of the paper (Figures 5 and 9) is decided
+  after D5b, once it is known to work there.
 
 ## D5. Readouts that hold up in tight subtrees (set 2026-10-27)
 
@@ -694,13 +700,10 @@ mirroring, and a reviewer will check that.
   the negative control. State has one protein dataset and no floor, so its
   reference stays the random pairs.
 
-**Scope question for the author.** u and d_LP are the core readouts of
-Figures 5 and 9. If a stabilized version is adopted:
-- only 5C changes, and the caption says why; or
-- it replaces u and d_LP everywhere, and every terminal family is
-  re-released.
-Decide after D5a shows how far stabilized and current values differ outside
-the tiny-span subtrees.
+**Scope (decided 2026-10-27).** u and d_LP are the core readouts of Figures 5
+and 9. D5 tests candidates on the subtree analysis only. Carrying a readout
+over to the rest of the paper would re-release every terminal family; that
+is decided after D5b.
 
 **Steps.**
 - **D5a. Diagnose (no decision).** For all 42 subtrees: leave-one-cell-out
@@ -722,4 +725,66 @@ the tiny-span subtrees.
 - The hash-pinned modules above stay untouched. D0–D4c runs are not
   rewritten.
 - Builds and releases run from the main checkout.
+
+## D5a results (2026-10-27, scratch)
+
+For each of the 42 canonical subtrees, the pooled measured-cost front was
+recomputed with each cohort cell left out once: 1599 fronts through
+`apoptosis_sensitivity._front`. The unmodified fronts reproduce the compare
+run (max deviation 4e-16). Three removals leave no front to measure:
+- ABplpappap from ABplpa: degenerate span;
+- ABalpaapppa from ABalpa: degenerate span;
+- MSpapaapp from MSpa: no first-cousin null left.
+
+Scripts and tables are in the session scratchpad (`d5a/loo.py`,
+`summary.py`). No run has been written.
+
+**Readouts measured from the front are extremes; those measured from the
+null are averages.**
+- **d_LP and d̃_LP are on/off.** "On the front" means the natural lineage
+  equals one of the swept optimal assignments, which is a discrete event.
+  - 11 of the 15 subtrees off their front reach it when a single cell is
+    removed; 1–3 different cells do it in each.
+  - None of the 27 on-front subtrees ever leaves it.
+  - ABplp, ABplpp and ABplppp each reach their front by removing any one of
+    three cells: the death ABplpppapp, or the living ABplpppaaap or
+    ABplppppapa. D4c's statement still holds (treating ABplpppapp alone is
+    enough), but the death is not the only cell that closes the gap.
+- **d_CP explodes as the span collapses.** Single-cell influence follows the
+  smaller span (Spearman −0.91). ABplpa is 64, with a leave-one-out range of
+  50–358.
+- **u jumps.** In 12 subtrees one cell moves u by at least the typical
+  difference between unrelated subtrees (0.093), mostly in MS. This does
+  not follow the span (Spearman 0.2): the nearest front point jumps between
+  distant parts of the front. ABplpa's u stays 1 under every removal but
+  one: removing ABplpappap collapses the front to a point, where u is
+  undefined.
+- **z_T is stable.** The largest single-cell shift has a median of 0.24–0.37
+  (by null support), at most 0.52, about the typical between-subtree
+  difference (0.51).
+- **z_S is stable except where the null is thin.** Median shift 0.36–0.53;
+  up to 1.65 where null support is at most 11 cells (ABpra, ABprpp/ABprppp,
+  ABaraa, ABarp).
+
+**Figure 5C, comparing like with like.** Each pair difference is recomputed
+after the most favourable single removal in either partner. The reference
+pairs get the same treatment.
+- The d_LP and d̃_LP shading of ABplp, ABplpp and ABplppp drops to the
+  37th–48th percentile.
+- ABplpa/ABprpa u stays at the 97th percentile. The one removal that would
+  change it makes u undefined, so the gap comes from the collapse itself, not
+  from a removable cell.
+- MSaa/MSpa z_S stays at the 98th percentile. This is not a single-cell
+  effect but D2's data problem: missing late-born cells and a one-group
+  null.
+
+**Leads for D5b.**
+- z_T can carry the comparison as it is.
+- z_S needs a minimum null support, or an interval.
+- A continuous replacement for d_LP and d̃_LP must not depend on the natural
+  lineage hitting an optimum exactly. One option is the share of the
+  null-to-front distance covered, in null-SD units.
+- u needs a smoother position (soft nearest point) or should drop out of
+  the pair comparison.
+- Rank readouts (candidate c) do not fix a thin null.
 
