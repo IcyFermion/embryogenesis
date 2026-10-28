@@ -848,3 +848,65 @@ costs, so that α̂, ρ and G exist where the endpoint frame does not. Gate:
 the costs reproduce `analyze`'s curve on every non-degenerate front to
 1e-12.
 
+## D5b results (2026-10-27, scratch)
+
+1641 fronts: 42 subtrees as they are, plus each single-cell removal.
+- **Gates:** the sweep reproduces `analyze` exactly; d̃_LP, z_T and z_S
+  reproduce to ≤ 3e-13; the unmodified fronts match the compare run
+  (4e-16).
+- **Fronts lost:** α̂, ρ and G are undefined only where the null vanishes
+  (MSpa without MSpapaapp). The endpoint-frame readouts also lose the two
+  degenerate spans.
+- **Scripts:** `d5b/candidates.py`, `score.py` and `sigma_diag.py`, in the
+  session scratchpad.
+- **Pairs:** no pair difference was computed.
+
+| Readout | Rank shift, median / 90th pct | Subtrees shifted ≥ 0.25 | Jackknife SE / SD across subtrees | Continuity (Spearman) | Resolution |
+|---|---|---|---|---|---|
+| u | 0.20 / 0.46 | 16 | 0.36 | — | SD/SE 2.7 |
+| d_LP | 0.13 / 0.58 | 17 | 0 (27 at 0) | — | — |
+| d̃_LP | 0.12 / 0.56 | 17 | 0 (27 at 0) | — | — |
+| d_CP | 0.18 / 0.41 | 13 | 0.03 | — | — |
+| **z_T** | **0.07 / 0.23** | **4** | 0.30 | — | separation median 2.6, min 1.2 |
+| **z_S** | **0.16 / 0.27** | **5** | 0.67 | — | separation median 1.6, min −0.9 |
+| α̂ (τ = 1) | 0.24 / 0.41 | 19 | 0.79 | 0.31 against 1 − u | SD/SE 1.3 |
+| α̂ (τ = 0.5 / 2 / hard) | 0.22–0.23 | 16–20 | 0.74–0.90 | 0.14–0.53 | SD/SE 1.1–1.4 |
+| ρ | 0.01 / 0.58 | 15 | 0 (27 at 1) | 0.97 against −d̃_LP | separation median 2.6 |
+| G | 0.18 / 0.39 | 14 | 0.86 | 0.17 against d_LP | separation median 2.4, min 0.5 |
+
+Continuity is measured on the 23 subtrees with both spans ≥ 1 null SD and
+null support ≥ 12.
+
+**Reading.**
+- **No new candidate passes the ground rule better than the readouts it would
+  replace:**
+  - ρ behaves like d̃_LP (it is a rescaling with the same ceiling).
+  - G is continuous but no more stable than u, and it fails continuity: it
+    mixes position with distance.
+  - α̂ is less stable than u and resolves subtrees about half as well.
+    Holding the null SDs at their unperturbed values improves it only
+    partly (rank shift 0.24 → 0.18, 15 subtrees ≥ 0.25, SD/SE 1.6). The front
+    itself reshapes when a cell is removed.
+  - Candidate c (rank among shuffles) saturates. The natural lineage beats
+    all 1000 shuffles on travel in 16 subtrees and on state in 6.
+- **The readouts anchored on the null (z_T, and z_S except in thin nulls)
+  are the stable ones.** Every readout anchored on the front, old or new, is
+  fragile at these subtree sizes (12–30 edges for most pairs), because a
+  front is an optimum, and an optimum can turn on one cell.
+- **Caveat for D5c: noise.** z's single-cell noise is about the size of the
+  typical between-subtree difference. The jackknife SE is median 0.43–0.52
+  for z_T and 0.68–0.81 for z_S; the typical differences are 0.51 and 0.79.
+  A per-pair percentile against random pairs therefore has little power, in
+  both directions. A difference within noise is not evidence of symmetry on
+  its own.
+
+**Proposal for D5c (for the author).**
+- Compare the pairs on z_T and z_S, each with its jackknife interval. Flag z_S
+  where null support is ≤ 11.
+- Test across the 9 pairs together, not pair by pair: are mirror-pair
+  differences smaller than random-pair differences overall? The random
+  pairs are the negative control.
+- Show u and d_LP (and d̃_LP) as descriptive columns without shading, or
+  drop them from 5C.
+- MSaa/MSpa stays a stated coverage caveat (D2), whatever readout is used.
+
