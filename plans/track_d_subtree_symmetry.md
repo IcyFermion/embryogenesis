@@ -1,7 +1,12 @@
 # Track D: left-right subtree symmetry
 
-**Status (2026-10-22): closed.** Merged to `main`. Stages D0–D4c are done,
-each a replay-verified run under `subtree_symmetry_v1/`.
+**Status (2026-10-27): reopened for D5** (readouts that one cell or a
+collapsed span cannot decide; see D5 at the end). Branch `subtree-symmetry`,
+recreated from `main` at `2542a03`.
+
+D0–D4c were closed on 2026-10-22 and merged to `main` (PR #6). Each is a
+replay-verified run under `subtree_symmetry_v1/`. Everything below up to D5
+describes that state.
 
 In the paper:
 - Figure 5B numbers the mirrored pairs, and new panel 5C shows the pairs.
@@ -35,6 +40,10 @@ the data (coverage, tracking) or numerics (tiny endpoint spans)?
 travel span to an apoptotic cell. D4 asks how apoptotic cells should be
 handled in the terminal analysis as a whole. It stays in this track at the
 author's request, although it reaches beyond symmetry.
+
+**Extension (2026-10-27).** D5 reopens the track. Figure 5C does not make
+the case for symmetry at a glance, because the core readouts are fragile in
+tightly bound subtrees. D5 looks for readouts that hold up there.
 
 ## Existing material
 
@@ -617,4 +626,100 @@ from the hash-checked D4, D4b, D4c and compare tables, and the build fails if
 a sentence stops holding. It is outside the release registry, in keeping with
 the decision to keep deaths out of the supplement; promoting it is a separate
 decision.
+
+## Decisions (2026-10-27)
+
+- The author reopened Track D. The symmetry presentation (Figure 5C and its
+  notes) does not convince: the narrative stays "mirrored subtrees behave
+  alike", but the readouts must support it without footnotes.
+- Tweaking the current metrics and adding new ones are both in scope.
+- The released Figure 5B–C and Note A stay in production until a D5
+  candidate replaces them.
+
+## D5. Readouts that hold up in tight subtrees (set 2026-10-27)
+
+**Why.** In the stored compare run, 5 of the 9 pairs in Figure 5C have a
+shaded cell (within-pair difference ≥ 90th reference percentile). D2–D4c
+traced every one of them to how the readout behaves, not to the lineages:
+- **Collapsed span (u, d_LP, d_CP).** These are measured in the endpoint
+  frame, which divides each axis by the span between the two optima. When a
+  subtree's cells are tightly bound, the span collapses and one reassignment
+  sets the value. ABplpa's u is 1 against ABprpa's 0 (97th percentile) on a
+  travel span of 0.04 null SD, one swap of ABplpappap with RMEV (D3).
+- **Zero inflation (d_LP, d̃_LP).** Both are 0 whenever the lineage is on its
+  front (26 of 42 subtrees for d̃_LP), so one cell off the front becomes a
+  whole-pair difference. ABplpppapp alone gives ABplp, ABplpp and ABplppp
+  d̃_LP 1.16–1.67 against 0 (90th–95th percentile; D4c).
+- **Thin null (z_T, z_S, and the d̃_LP scale).** The first-cousin null can
+  rest on very few cells. MSpa's rests on one three-cell group, behind the
+  MSaa/MSpa z_S difference (96th percentile).
+
+In contrast, z_T is below the 72nd percentile in every pair, and z_S in every
+pair except MSaa/MSpa.
+
+**Goal.** A pair comparison whose readouts one cell, a collapsed span or a
+thin null cannot decide. The claim tested stays the same: mirrored subtrees
+behave alike.
+
+**Ground rule (set before any pair is read).** Choose a readout only on
+properties that do not depend on the pair outcome, scored on all 42 subtrees:
+1. **Stability:** how far one cell's removal moves the value
+   (leave-one-cell-out).
+2. **Continuity:** where the span is wide and the null well supported, it
+   agrees with the readout it replaces, so it measures the same thing as the
+   rest of the paper.
+3. **Resolution:** it still separates the natural lineage from the
+   first-cousin null.
+
+Only then read the pairs, against the D1 references: size- and depth-matched
+random pairs, and the between-embryo floor. Random pairs are the negative
+control. A readout that also makes random pairs look alike says nothing about
+mirroring, and a reviewer will check that.
+
+**Candidates** (to narrow with the author after D5a):
+- **a. Stabilized frame:** u and d_LP in null-SD units, or with the endpoint
+  span floored at one null SD (the `TINY_SPAN_SD` threshold), so that a
+  collapsed front cannot amplify a difference.
+- **b. Single-cell influence:** each readout with its leave-one-cell-out
+  range, and a flag where one cell decides it. This turns the † and § notes
+  into one stated rule.
+- **c. Rank readouts:** the natural lineage's percentile among first-cousin
+  null draws on each axis, and the share of null lineages that dominate it.
+  They are bounded, scale-free and assume no normal null.
+- **d. Shared ruler:** both partners on one scale, either the pair's pooled
+  null SD or the counterpart-matched cells (as in D2's matched cohort), so
+  that the difference has one unit.
+- **e. Equivalence framing:** the left-right difference is no larger than the
+  same subtree's difference between embryos (travel), with random pairs as
+  the negative control. State has one protein dataset and no floor, so its
+  reference stays the random pairs.
+
+**Scope question for the author.** u and d_LP are the core readouts of
+Figures 5 and 9. If a stabilized version is adopted:
+- only 5C changes, and the caption says why; or
+- it replaces u and d_LP everywhere, and every terminal family is
+  re-released.
+Decide after D5a shows how far stabilized and current values differ outside
+the tiny-span subtrees.
+
+**Steps.**
+- **D5a. Diagnose (no decision).** For all 42 subtrees: leave-one-cell-out
+  influence on u, d_LP, d̃_LP, d_CP, z_T and z_S, alongside span and null
+  support. List which 5C differences survive the removal of any single cell.
+  Scratch first; a write-once run if it feeds the paper.
+- **D5b. Candidates.** Compute a–e on all 42 subtrees and score them on the
+  ground rule. The author picks.
+- **D5c. Pairs.** Compare the pairs with the chosen readouts against random
+  pairs and the embryo floor. Build a new 5C candidate; v2's 4C follows
+  through `terminal_symmetry`.
+
+**Implementation.**
+- New module (proposed `terminal_pareto/symmetry_readouts.py`) writing
+  `subtree_symmetry_v1/readouts_<date>/`. Write-once, with source hashes,
+  replay validation and tests.
+- It reads the canonical context and the stored runs. Any new front goes
+  through `cross_species_analysis.analyze`.
+- The hash-pinned modules above stay untouched. D0–D4c runs are not
+  rewritten.
+- Builds and releases run from the main checkout.
 
