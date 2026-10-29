@@ -1693,3 +1693,7 @@ Script: `d5c/lean_test.py`. The u values are the released ones (pooled,
   and says the above. The suggested wording (D5f) never used the lean; the
   page's version did, and is corrected.
 
+
+**Findings page, version 5 (2026-10-29).** Same URL. The coarse-lean bullet
+now reports D5g, and the page's suggested wording says u separates mirror
+pairs from random ones neither by value nor by lean.
