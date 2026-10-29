@@ -642,6 +642,32 @@ decision.
   readout carries over to the rest of the paper (Figures 5 and 9) is decided
   after D5b, once it is known to work there.
 
+## Decisions (2026-10-29)
+
+After D5c, the author chose both options:
+1. **Reframe first.**
+   - Figure 5C keeps its five readouts (u, d_LP, d̃_LP, z_T, z_S) and its
+     shading.
+   - Each shaded cell is tied to the cell that D2–D4c identified behind it.
+   - z_T and z_S get jackknife intervals.
+   - This is the readout pick under the D5 ground rule, so the pairs are
+     unblinded.
+   - The review page is rebuilt as a findings page.
+2. **Then refine the twin model** as a follow-up (D5e). Twins should differ
+   the way real partners do, and the model should fix the on-front misfit.
+   It is set before its run.
+3. **u stays (author, same day).**
+   - u is the paper's direct readout of how a lineage balances the two
+     objectives, and it is the easiest to read off a plotted front.
+   - Beyond the shading, the 5C pairs agree on u no better than random
+     pairs (4 of 9 below the median).
+   - The symmetry section has to explain that carefully, not drop u.
+   - D5e therefore centres on why u says little in small subtree pairs.
+
+**Findings page.** The review page was rebuilt around these decisions
+(version 2): https://claude.ai/artifact/3MnYp8RyUaD1tQt92j83mk. The pairs are
+named; the D5b scores version is in the page's history.
+
 ## D5. Readouts that hold up in tight subtrees (set 2026-10-27)
 
 **Why.** In the stored compare run, 5 of the 9 pairs in Figure 5C have a
