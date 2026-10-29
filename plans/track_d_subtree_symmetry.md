@@ -1187,3 +1187,91 @@ kind: the shaded d̃_LP differences are 1.16–1.67.
   die, which no twin here reproduces.
 - A twin model built on those differences would have to be set before its
   run, and justified by the misfit, not by the 5C count.
+
+## D5e. Twins that differ like real partners, centred on u (set 2026-10-29, before the run)
+
+**Question.** Beyond the shading, the 5C pairs agree on u no better than
+random pairs do: 4 of 9 sit below the median, and the median pair sits at
+the 59th percentile. D5c's twins agreed well, but its model put u in the
+wrong regime and its twin noise was not tied to real partners:
+- u median 0.17 in the model, against 0.08 in the real subtrees;
+- 31% of subtrees on their front, against 64%.
+
+Does u still agree no better than random pairs for symmetric lineages, once
+the model sits where real subtrees sit and twins differ as much as real
+mirror cells do?
+
+**Model refit** (done before this entry).
+- **Coupling c.** A daughter's state step mixes in its spatial step, a
+  fraction c through a fixed random 3→20 map, so travel and state can
+  co-vary. With c = 0 the generator reproduces D5c bit for bit.
+- **Targets:** D5c's targets, plus:
+  - the share of subtrees on their front (0.64);
+  - the median u (0.078);
+  - the median first-cousin null correlation of travel and state (0.58).
+- **Fit:** m = 0.22, e = 2.61, β = 3.83, c = 0.40.
+
+| | z_T/√s quartiles | z_S/√s quartiles | Travel span/√s | State span/√s | Support/n | On front | u median | Null corr |
+|---|---|---|---|---|---|---|---|---|
+| Real | −0.76 / −0.72 / −0.70 | −0.51 / −0.44 / −0.33 | 3.03 | 2.22 | 0.62 | 0.64 | 0.078 | 0.58 |
+| Refit | −0.78 / −0.75 / −0.71 | −0.53 / −0.41 / −0.28 | 2.78 | 1.69 | 0.62 | 0.58 | 0.065 | 0.47 |
+
+**Twin noise from D1's counterpart cells.** This is measured at the cell
+level, not on the readouts.
+- **κ_T:** set so the twins' parent-to-child steps meet the partners'
+  median angle, 35.3°. Unrelated cells sit at 87.7°.
+- **κ_S:** set so the partner cosine distance, over the natural
+  parent-to-child cosine, meets its median, 0.45 (93 counterpart pairs).
+- **Out-of-sample check:** the relative difference in step length (real
+  median 0.28).
+- **Coverage:** twin B loses as many random terminal cells as the pair's
+  edge difference (0–4).
+
+**Runs.**
+- **Size curve:** no missing cell; n = 12–256 (14 sizes), 300 templates
+  each.
+- **Pair-matched:** each 5C pair is a template at the larger partner's size.
+  Twin B loses k cells. 300 templates per pair.
+
+**Outcomes.**
+1. **Twin correlation** (Pearson) of each readout, by size. It is the share
+   of the readout that the lineage sets; the rest comes from cell-level
+   partner differences.
+2. **Pair-matched comparison.** Draw one twin pair per real pair, 10,000
+   times. From each draw take the median of the nine twin percentiles and
+   the count below 0.5. Compare with the real pairs:
+
+| Readout | Median percentile | Count below 0.5 |
+|---|---|---|
+| u | 0.59 | 4 |
+| z_T | 0.38 | 6 |
+| z_S | 0.21 | 8 |
+
+3. **5C count:** the shaded cells these twins produce, against the released
+   7 (6 under the tie rule).
+4. **Coarse lean:** for each pair, the share of twin pairs with both u
+   values on the same side of 0.5. In the real data, both partners sit below
+   0.5 in 8 of 9 pairs.
+
+**Reading, set in advance.**
+- **Inside the twin range.** If the real median u percentile falls inside
+  the central 90% of twin draws, u's random-pair-like agreement is what
+  symmetric lineages with partner-sized cell differences produce at these
+  sizes.
+  - The symmetry section then explains u as a coarse readout at these
+    sizes: both partners sit at the travel end.
+  - The twin-correlation curve is the evidence.
+  - How 5C shows u is decided with the author.
+- **Above the twin range.** If it falls above the 95th percentile, the
+  pairs differ on u by more than such twins do. That is reported as a
+  difference in balance.
+- The same reading applies to every readout and to the 5C count.
+
+**Limits.**
+- The refit's state span is 24% narrower than real, and its null
+  correlation is 0.47, not 0.58.
+- D1's partner differences include measurement and biology together, which
+  is what a real mirror partner is.
+
+**Implementation (scratch).** In the session scratchpad: `d5c/calib_e.py`
+(refit), `run_e.py` (jitter calibration and twins) and `summarize_e.py`.
