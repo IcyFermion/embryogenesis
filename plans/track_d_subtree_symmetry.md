@@ -1610,3 +1610,41 @@ single out a pair, they land on one of three things:
 decomposition, a section on mirror-cell differences in the literature, the
 two u drafts, a literature paragraph per cause, the suggested wording above,
 and the sources.
+
+## D5g. Does the coarse lean of u show symmetry? (set 2026-10-29, before the run)
+
+**Why.** D5e's reading and the suggested wording use the coarse lean as
+evidence that the lineage sets u: both partners lean to the travel end in 8
+of 9 pairs. But 41 of the 42 subtrees have u < 0.5, so two random subtrees
+would agree about 95% of the time. A side note raised this, and the author
+asked for the test against random pairs.
+
+**Agreement, two definitions set now.**
+1. **Side** (the claim as worded): both u < 0.5, or both u ≥ 0.5.
+2. **At the travel optimum** (secondary, exploratory): both u ≤ 1e-9, or
+   both above. This is the finest coarse split the data offer: u is 0 in 17
+   of the 42 subtrees. It was added after the side note, so it is not part
+   of the D5 ground rule.
+
+**Reference.** Each pair's size- and depth-matched random pairs in
+`reference_pairs.csv` (`compare_20261015`), the same set behind 5C's
+percentiles.
+
+**Statistics.**
+- Per pair: the share of its reference pairs that agree.
+- The number of the nine mirror pairs that agree.
+- Null for that number: draw one reference pair per mirror pair, 10,000
+  draws, seed 20261029. P is the share of draws with at least the observed
+  count.
+- Context: D5e's twins agree on the side in 99–100% of draws.
+
+**Reading rule.**
+- P ≥ 0.05 under definition 1: the lean is described as a property of all
+  subtrees, not as evidence about mirror pairs. The suggested wording and
+  the findings page change accordingly.
+- Definition 2 is read the same way. A P < 0.05 there would be reported as
+  exploratory only.
+
+**Expected limit.** With random agreement near 95%, even 9 of 9 would give
+P near 0.6. Definition 1 therefore cannot show symmetry whatever the pairs
+do; the test quantifies that.
