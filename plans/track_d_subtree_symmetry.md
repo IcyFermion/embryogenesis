@@ -712,7 +712,10 @@ is decided after D5b.
   Scratch first; a write-once run if it feeds the paper.
 - **D5b. Candidates.** Compute a–e on all 42 subtrees and score them on the
   ground rule. The author picks.
-- **D5c. Pairs.** Compare the pairs with the chosen readouts against random
+- **D5c. Simulated twins (added 2026-10-28).** Simulate subtrees with
+  symmetry built in, across sizes. Does each readout tell twins from
+  unrelated subtrees, and from what size on? No pair is read.
+- **D5d. Pairs.** Compare the pairs with the chosen readouts against random
   pairs and the embryo floor. Build a new 5C candidate; v2's 4C follows
   through `terminal_symmetry`.
 
@@ -820,7 +823,7 @@ lineage to sweep point k:
 
 Candidate c (rank among null shuffles) is the shuffle share computed under
 resolution below. Candidates d (a shared ruler) and e (an equivalence margin)
-act on pairs, so they go to D5c.
+act on pairs, so they go to D5d.
 
 **Scores**, over all 42 subtrees. The current readouts (u, d_LP, d̃_LP,
 d_CP, z_T, z_S) are scored the same way.
@@ -840,7 +843,7 @@ d_CP, z_T, z_S) are scored the same way.
    - Position readouts (α̂, u): the across-subtree SD over the median
      jackknife SE.
 
-**Not read in D5b:** pair differences of any candidate. They come in D5c,
+**Not read in D5b:** pair differences of any candidate. They come in D5d,
 after the author has picked the readouts.
 
 **Implementation (scratch).** The script repeats `analyze`'s sweep up to the
@@ -896,14 +899,14 @@ null support ≥ 12.
   are the stable ones.** Every readout anchored on the front, old or new, is
   fragile at these subtree sizes (12–30 edges for most pairs), because a
   front is an optimum, and an optimum can turn on one cell.
-- **Caveat for D5c: noise.** z's single-cell noise is about the size of the
+- **Caveat for D5d: noise.** z's single-cell noise is about the size of the
   typical between-subtree difference. The jackknife SE is median 0.43–0.52
   for z_T and 0.68–0.81 for z_S; the typical differences are 0.51 and 0.79.
   A per-pair percentile against random pairs therefore has little power, in
   both directions. A difference within noise is not evidence of symmetry on
   its own.
 
-**Proposal for D5c (for the author).**
+**Proposal for D5d (for the author).**
 - Compare the pairs on z_T and z_S, each with its jackknife interval. Flag z_S
   where null support is ≤ 11.
 - Test across the 9 pairs together, not pair by pair: are mirror-pair
@@ -913,3 +916,123 @@ null support ≥ 12.
   drop them from 5C.
 - MSaa/MSpa stays a stated coverage caveat (D2), whatever readout is used.
 
+## D5c. Simulated twins (set 2026-10-28, before the run)
+
+**Question.** D5a–b found that u and the two d_LP readouts move with one
+cell at the pairs' sizes (12–36 edges). Is that a property of the readouts at
+that size, whatever the lineage? Simulate subtrees with symmetry built in and
+ask each readout whether it can tell twins from unrelated subtrees. If it
+cannot at 12–36 edges, a shaded 5C cell for that readout is no evidence
+against symmetry.
+
+**Model.** A subtree grows by divisions, and the two objectives follow the
+tree. Costs are built as in `pareto_engine.build_cost_matrices`.
+- **Tree.** The subtree has n terminal edges. A leaf at relative depth d
+  divides next with weight exp(−βd), so β sets how synchronous divisions
+  are. First-cousin groups come from the tree, as in the real data.
+- **Position (travel).** Daughters sit at the parent's position ± half a
+  division step, in a random direction. The step shrinks by 2^(−1/3) per
+  generation, starting 4 generations above the subtree root. Each daughter
+  then migrates by m × step (SD per axis). Travel is the parent-to-child
+  distance.
+- **State.** States have 20 dimensions, like the protein panel. A daughter
+  inherits its parent's state plus one unit step per dimension. Every cell
+  is read with noise of SD e, which is not inherited. State cost is the
+  parent-to-child cosine distance.
+- **Readouts.** Every readout comes from `subtree_symmetry.front_metrics`,
+  the production code, applied to the simulated matrices.
+
+**Calibration** (done before this entry; no twins were run). m, e and β
+were fitted to the 42 real subtrees (pooled) on quantities that do not
+measure readout stability:
+- the quartiles of z_T/√support and z_S/√support;
+- the median spans/√support;
+- the median support/n.
+
+Each simulated subtree took a real subtree's size, with 10 per size. The fit
+gives m = 1.0, e = 2.37 and β = 3.07.
+
+| | z_T/√s quartiles | z_S/√s quartiles | Travel span/√s | State span/√s | Support/n |
+|---|---|---|---|---|---|
+| Real | −0.76 / −0.72 / −0.70 | −0.51 / −0.44 / −0.33 | 3.03 | 2.22 | 0.62 |
+| Simulated | −0.74 / −0.69 / −0.63 | −0.53 / −0.40 / −0.27 | 2.98 | 1.84 | 0.60 |
+
+- The simulated state span is 17% narrower than the real one, so simulated
+  fronts are slightly more collapsed on the state axis.
+- Simulated subtrees already spread at least as widely as real ones, with no
+  per-subtree variation in m or e, so none is added.
+
+**Twins.**
+- A template is one simulated subtree. Each twin copies all of it: the tree,
+  every ancestor and every value.
+- The twin's terminal cells are then jittered by κ × one division step: the
+  RMS step per axis for position, the unit step for state.
+- κ = 0.1, 0.25 (lead) and 0.5.
+- Twins share everything above the terminal cells. That is stronger symmetry
+  than any real mirror pair has.
+
+**Sizes.** n = 12, 13, 14, 15, 16, 19, 24, 27, 30, 34, 40, 48, 64, 96, 128,
+192 and 256 edges.
+- These include the 9 pairs' sizes, each the mean of its two partners
+  rounded half up: 12, 13, 14, 15, 19, 27, 30 and 34.
+- There are 300 templates per size, with two twins per template and κ.
+
+**Readouts.** u, d_LP, d̃_LP, z_T and z_S (the 5C set), plus d_CP.
+
+**Outcomes.**
+1. **Twin percentile.**
+   - For template i, the twin difference |r(A_i) − r(B_i)| is ranked against
+     the unrelated differences |r(A_i) − r(B_j)|, j ≠ i, at the same size and
+     κ.
+   - Ties count half, as in `pair_comparison`. Values and differences within
+     1e-9 count as tied, the `SYMMETRY_ZERO` tolerance.
+   - A twin pair is shaded at ≥ 0.9, the 5C rule.
+   - Fronts with a degenerate span or null drop out, and their count is
+     reported.
+2. **False-asymmetry rate F(n, κ)** for each readout: the share of twin pairs
+   shaded. A readout with no resolution gives 0.10; a perfect one gives 0.
+3. **Figure 5C under built-in symmetry.**
+   - Draw one twin pair for each real pair, at that pair's size, and read all
+     five readouts.
+   - Count the shaded cells (out of 45) and the pairs with at least one.
+     Repeat 10,000 times per κ.
+   - Compare with the released 5C: 7 cells, in 5 of 9 pairs.
+   - Caveat, stated with the result: the real references are different
+     lineages, matched in size only within 0.67–1.5×, so they spread more
+     than same-size simulated templates. A wider reference spread shades
+     less.
+4. **Single-cell fragility against size.**
+   - Setting: κ = 0.25, twin A, sizes ≤ 64, 100 templates per size; every
+     single-cell removal.
+   - Rank shift as in D5b, against the same-size template population.
+   - The real subtrees' D5b rank shifts go on the same axes as an
+     out-of-sample check; they were not fitted.
+5. **Out-of-sample checks** at the real subtrees' sizes: the share of
+   subtrees on their front (real: 27 of 42) and the distribution of u.
+
+**Real-data check: the same subtree in two embryos.** This uses the stored
+compare run, with no new fronts.
+- For each of the 42 subtrees and each pair of tracking embryos: the
+  difference in a readout between the two embryos' fronts.
+- Reference: the same two embryos, with a different, non-nested subtree
+  0.67–1.5× its size.
+- Percentile and share ≥ 0.9, as above.
+- State is shared across embryos, so z_S is the same in every embryo and is
+  left out.
+- Mirrored-pair subtrees keep their codes.
+
+**Reading, set in advance.**
+- If a readout's F stays near 0.10 at the pairs' sizes for every κ, its 5C
+  shading is no evidence about mirroring.
+- If the released 5C count falls inside the simulated range, the 5C shading
+  is what perfect symmetry looks like with these readouts.
+- Neither result shows that the pairs are symmetric. That positive case
+  stays with D5d.
+
+**Gates.**
+- κ = 0 twins give identical readouts.
+- On simulated subtrees, the exact first-cousin moments agree with 2000
+  sampled shuffles to within Monte Carlo error.
+
+**Implementation (scratch).** In the session scratchpad: `d5c/sim.py`
+(model), `calib.py` (fit) and `run.py` (twins and removals).
