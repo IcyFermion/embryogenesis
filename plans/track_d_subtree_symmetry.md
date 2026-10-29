@@ -860,6 +860,9 @@ the costs reproduce `analyze`'s curve on every non-degenerate front to
 - **Scripts:** `d5b/candidates.py`, `score.py` and `sigma_diag.py`, in the
   session scratchpad.
 - **Pairs:** no pair difference was computed.
+- **Review page:** https://claude.ai/artifact/3MnYp8RyUaD1tQt92j83mk. The
+  18 mirrored-pair subtrees appear under random codes (M01–M18) until the
+  readouts are picked.
 
 | Readout | Rank shift, median / 90th pct | Subtrees shifted ≥ 0.25 | Jackknife SE / SD across subtrees | Continuity (Spearman) | Resolution |
 |---|---|---|---|---|---|
