@@ -230,7 +230,8 @@ fate-only front, the cross-species metrics, and the XY matrix against the
 
 **No pair classifies as biological.** The fate asymmetries are real but do not
 move the front-level readouts:
-- ABplpa: excretory cell, duct and gland, K, rectal cells, PVT.
+- ABplpa: excretory cell and duct, K, rectal cells, PVT. (Corrected in D5f:
+  the excretory glands come one from each side.)
 - ABprpa: AVL, G1, RIH, RIR, RIS, AVG, VIRL/VIRR.
 - MSaa/MSpa: VPI against body-wall muscle.
 - Known asymmetric pairs: AWCL/AWCR, and ASEL in ABalp.
@@ -1393,22 +1394,23 @@ exception is ABplpa, cause B.
     documented asymmetry was found.
   - **B.** On the left, ABplpappap dies and ABplpappaaa becomes RMEV (the
     unpaired ventral RME). On the right, ABprpappap survives and gives rise
-    to DB4, and ABprpappaaa becomes RIH (an unpaired ring interneuron). The
+    to RIS and DB4 (corrected in D5f), and ABprpappaaa becomes RIH (an unpaired ring interneuron). The
     collapsed travel span is the swap of exactly these cells: a lineage
     asymmetry recorded in the canonical lineage.
   - **C.** MSaa makes the valve cells VPI2V and VPI3V where MSpa makes
     body-wall muscle (D1). These are sister-only groups and do not move z,
     so the shading itself is the coverage gap.
   - The exploratory ABalp/ABara pair contains MI and E3D among its fate
-    mismatches. Nakano, Ellis and Horvitz (2010) specified that left-right
-    asymmetry within the two sisters that split the lineage.
+    mismatches. Nakano, Ellis and Horvitz (2010) describe how the MI/e3D
+    asymmetry is specified. (Corrected in D5f: both cells lie inside ABara,
+    so that asymmetry is internal to ABara, not between the partners.)
 - **Literature framework.** Hutter and Schnabel (1995, Development 121:3417)
   show that the left-right asymmetry of the AB lineage is set by a series of
   inductions: MS at the 12-cell stage, then a left-restricted induction at
   about the 24-cell stage.
   - No mechanistic paper was found yet for RMEV/RIH or for the MS valve
     asymmetry.
-  - The fate-unmatched literature pass is already handed to Track C.
+  - The fate-unmatched literature pass was with Track C; it is now D5f.
 
 ## Decisions (2026-10-29, after D5e)
 
@@ -1452,7 +1454,8 @@ Where the real pairs fall against their twins:
   every pair. A symmetric lineage can produce nearly any u difference at
   these sizes, and the figure shows this without a footnote.
 - Only ABplpa falls beyond its twins. It sits on a lineage asymmetry already
-  recorded in the canonical lineage (RMEV and a death against RIH and DB4).
+  recorded in the canonical lineage (RMEV and a death against RIH, RIS and
+  DB4), induced by MS (D5f).
 - Lower ends that equal the box's lower edge are twin ties (both twins'
   u = 0, counted as half).
 - Figure 5B already shows every subtree's u next to its pair number, so the
@@ -1490,4 +1493,115 @@ citations. Two kinds matter:
 **Output.** A table per cause and per pair, a paragraph on cell-level
 left-right differences, the sources, and suggested wording for the symmetry
 section.
+
+## D5f results (2026-10-29)
+
+Done by a literature agent, then spot-checked:
+- **Re-read for this record:** Hutter and Schnabel 1995 and Moskowitz and
+  Rothman 1996 (cause B), Murray et al. 2012, Jiang and Wu 2014, Liu and
+  Murray 2023, and the Nakano et al. 2010 abstract.
+- **Our cell key:** every lineage name below was checked against it.
+- **Other sources:** read in full text by the agent unless marked
+  "abstract".
+
+**The three causes.**
+
+| Cause | Cells | In the literature | Mechanism |
+|---|---|---|---|
+| B: ABplpa u | Left: ABplpappap dies, ABplpappaaa is RMEV. Right: ABprpappap gives rise to RIS and DB4, ABprpappaaa is RIH. | Documented, induced asymmetry | MSap signals to ABplpa around the 24-cell stage, redundantly through LIN-12 and GLP-1. Without the induction the left death does not occur: ABplpappap divides "like its wild-type bilateral homologue, ABprpappap". The asymmetric division that makes the excretory cell is also lost. The same induction makes ABplpapp's lineage differ from ABprpapp's, including the rectal cells. |
+| C: MSaa/MSpa z_S | MSaa makes VPI2V and VPI3V; MSpa makes body-wall muscle at the same positions | Recorded in the lineage. No mechanism was found for these four cells. | MSa and MSp descendants carry different TFs: ETS-7, IRX-1 and HLH-16 in MSp, ALR-1 in MSa (Liu and Murray 2023). The related mirror pair pm8 (MSaaapapp) vs VPI1 (MSpaapapp) is set by a Notch signal (Rasmussen et al. 2008, abstract). The shading itself is the coverage gap (D2). |
+| A: ABplp family d_LP, d̃_LP | ABplpppapp and ABprpppapp | Both die as a lineal-homolog pair, through LIN-3/EGF → egl-1 (Jiang and Wu 2014). Nothing was found on a left-right difference in their timing, engulfment or corpse movement. | Neighbours engulf corpses promptly: most deaths come within about 30 min of birth (Sulston 1983), and phagosomes rarely last over an hour (Haley et al. 2018). The farther left endpoint is unexplained. It is the one lead for undocumented biology, one cell, and needs independent tracking. |
+
+**Corrections to our records.**
+- ABprpappap gives rise to RIS (ABprpappapa) and DB4 (ABprpappapp), not DB4
+  alone. Our cell key agrees.
+- The excretory glands are not asymmetric: EXC GL L comes from ABplpapapaa,
+  EXC GL R from ABprpapapaa. D2's list said otherwise; `classification.csv`
+  was right.
+- MI (ABaraappaaa) and E3D (ABaraapaaaa) both lie inside ABara, so Nakano et
+  al. 2010 describe an asymmetry within ABara. In the ABalp/ABara pair,
+  MI's mirror (ABalpappaaa) dies, and E3D's mirror (ABalpapaaaa) is RIPL.
+- DA8 (ABprpapappp) is on the ABprpa side; its left mirror is DB5.
+- Our key calls ABplpapppap "RECT HYP" (rectal hypodermis); WormAtlas and
+  WBbt call it K′, a rectal cell. Whether this moves D2's fate-only variant
+  was not checked.
+- The excretory duct (ABplpaaaapa) against G1 (ABprpaaaapa) is a known
+  competition. LIN-3/EGF from the canal cell makes the left cell the duct
+  (Abdus-Saboor et al. 2011).
+
+**Same-fate mirror cells** are close but not identical:
+- **Positions.**
+  - The embryo is chiral from the six-cell stage (Wood 1991, abstract).
+  - The midline is tilted from the 8- to the 88-cell stage, and cell
+    movements re-align it by about 350 cells (Pohl and Bao 2010).
+  - The positional noise of left-right symmetric cells is correlated:
+    R = 0.74, against 0.30 for mock pairs (Li et al. 2019).
+  - Between embryos, nuclei sit a median 2.2 µm from their model positions
+    (Richards et al. 2013).
+  - Nothing was found measuring systematic position offsets between mirror
+    cells at terminal stages.
+- **Division timing.** Same-fate bilateral pairs divide nearly together but
+  not exactly: MSaa against MSpa, 0.1 ± 0.9 min (Bao et al. 2008).
+- **Expression.**
+  - Reporters: 39 genes differ at least 10-fold within a left-right pair.
+    Together they give at least one asymmetric reporter in 284 of 313 pairs
+    from homologous lineages (Murray et al. 2012).
+  - Single-cell RNA: most bilateral pairs could not be told apart. Among
+    neurons, only ASE and AWC differed (Packer et al. 2019).
+  - Chromatin: left-right pairs are more alike than lineage-distance-matched
+    controls in 91% of cases (Zhao et al. 2021).
+  - Our protein atlas (Ma et al. 2021): no left-right analysis was found.
+
+**Reading.**
+- The literature supports defining symmetry by lineage organization. Sulston
+  et al. treat most mirrored blastomeres as homologous lineages, with
+  symmetry broken at named cells: 72 cells in 29 homologous lineage pairs
+  (counted in Murray et al. 2012).
+- **The one u difference beyond the twin range lands on a known induced
+  asymmetry (B).** The readout found real, documented biology, not noise.
+- C sits on a recorded lineage asymmetry, but its shading is the coverage
+  gap.
+- A is unexplained in the literature.
+- The remaining partner differences match the published scale of same-fate
+  mirror-cell variability in position, timing and expression.
+
+**Suggested wording.** "We call mirrored subtrees symmetric when their
+lineages are organized alike, not when their cells are identical. Mirror
+cells that share a fate still differ in position and expression (Richards et
+al. 2013; Murray et al. 2012). In subtrees of 12–36 terminal cells, these
+differences set most of u (Fig. 5C, simulated twins). Where the readouts
+single out a pair, they land on one of three things:
+- the MS-induced left-right asymmetry of the ABplpapp sublineage (Hutter
+  and Schnabel 1995; Moskowitz and Rothman 1996);
+- a coverage gap in MSpa;
+- one apoptotic cell, ABplpppapp, whose endpoint lies farther from its
+  parent than its mirror's in all three embryos."
+
+**Sources** (full citations and DOIs):
+- Sulston et al. 1983, Dev Biol 100:64 (WormAtlas edition).
+- Hutter and Schnabel 1995, Development 121:3417, doi:10.1242/dev.121.10.3417.
+- Moskowitz and Rothman 1996, Development 122:4105,
+  doi:10.1242/dev.122.12.4105.
+- Abdus-Saboor et al. 2011, Development 138:3545,
+  doi:10.1242/dev.068148.
+- Nakano, Ellis and Horvitz 2010, Development 137:4017,
+  doi:10.1242/dev.058834.
+- Jiang and Wu 2014, PLoS Genet 10:e1004513,
+  doi:10.1371/journal.pgen.1004513.
+- Haley, Wang and Zhou 2018, PLoS Genet 14:e1007558,
+  doi:10.1371/journal.pgen.1007558.
+- Rasmussen et al. 2008, Dev Cell 14:559, doi:10.1016/j.devcel.2008.01.019.
+- Liu and Murray 2023, Genetics 225:iyad174, doi:10.1093/genetics/iyad174.
+- Wood 1991, Nature 349:536, doi:10.1038/349536a0.
+- Pohl and Bao 2010, Dev Cell 19:402, doi:10.1016/j.devcel.2010.08.014.
+- Li et al. 2019, Cell Rep 26:313, doi:10.1016/j.celrep.2018.12.052.
+- Richards et al. 2013, Dev Biol 374:12, doi:10.1016/j.ydbio.2012.11.034.
+- Bao et al. 2008, Dev Biol 318:65, doi:10.1016/j.ydbio.2008.02.054.
+- Murray et al. 2012, Genome Res 22:1282, doi:10.1101/gr.131920.111.
+- Packer et al. 2019, Science 365:eaax1971, doi:10.1126/science.aax1971.
+- Zhao et al. 2021, Mol Syst Biol 17:e10075, doi:10.15252/msb.202010075.
+- Ma et al. 2021, Nat Methods 18:893, doi:10.1038/s41592-021-01216-1.
+- Poole and Hobert 2006, Curr Biol 16:2279, doi:10.1016/j.cub.2006.09.041
+  (ASE, for completeness).
+- Troemel, Sagasti and Bargmann 1999, Cell 99:387 (AWC, stochastic side).
 

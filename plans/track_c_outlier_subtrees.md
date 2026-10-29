@@ -47,7 +47,8 @@ also covers cell-level left-right differences in the embryo.
 Two outliers here are Track D causes, already traced to single cells:
 - **ABplpa** (cause B): the near-zero travel span is one swap of the dying
   ABplpappap with RMEV (D3). The left-right asymmetry behind it (RMEV and a
-  death on the left, RIH and DB4 on the right) is in the canonical lineage.
+  death on the left, RIH, RIS and DB4 on the right) is the MS-induced one
+  (Hutter and Schnabel 1995; Moskowitz and Rothman 1996; D5f).
 - **ABplppp** (cause A): off its front only because of the endpoint of one
   apoptotic cell, ABplpppapp (D4c).
 
