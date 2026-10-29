@@ -1531,16 +1531,23 @@ Done by a literature agent, then spot-checked:
   (Abdus-Saboor et al. 2011).
 
 **Same-fate mirror cells** are close but not identical:
-- **Positions.**
+- **Positions.** No published study compares left and right mirror cells'
+  positions at late stages, so the evidence for position is our own (D1):
+  - In each embryo, one reflection plane maps the 55 sided cohort pairs onto
+    each other with a residual of 2.0–2.5 µm, against 11–13 µm left-right
+    separation.
+  - Mirror cells' parent-to-cell steps point 35° apart (median), against 88°
+    for unrelated cells.
+
+  Published context, none of it a left-against-right comparison of positions:
   - The embryo is chiral from the six-cell stage (Wood 1991, abstract).
   - The midline is tilted from the 8- to the 88-cell stage, and cell
     movements re-align it by about 350 cells (Pohl and Bao 2010).
   - The positional noise of left-right symmetric cells is correlated:
     R = 0.74, against 0.30 for mock pairs (Li et al. 2019).
-  - Between embryos, nuclei sit a median 2.2 µm from their model positions
-    (Richards et al. 2013).
-  - Nothing was found measuring systematic position offsets between mirror
-    cells at terminal stages.
+  - Scale only: between embryos, a nucleus sits a median 2.2 µm from its
+    model position (Richards et al. 2013). This is embryo-to-embryo scatter,
+    not a left-right difference. Our mirror residual is of the same order.
 - **Division timing.** Same-fate bilateral pairs divide nearly together but
   not exactly: MSaa against MSpa, 0.1 ± 0.9 min (Bao et al. 2008).
 - **Expression.**
@@ -1563,13 +1570,20 @@ Done by a literature agent, then spot-checked:
 - C sits on a recorded lineage asymmetry, but its shading is the coverage
   gap.
 - A is unexplained in the literature.
-- The remaining partner differences match the published scale of same-fate
-  mirror-cell variability in position, timing and expression.
+- The remaining partner differences match the published left-right
+  differences in timing and expression. For position nothing comparable is
+  published; our own mirror residual is of the same order as the
+  embryo-to-embryo scatter.
 
-**Suggested wording.** "We call mirrored subtrees symmetric when their
-lineages are organized alike, not when their cells are identical. Mirror
-cells that share a fate still differ in position and expression (Richards et
-al. 2013; Murray et al. 2012). In subtrees of 12–36 terminal cells, these
+**Suggested wording** (position citation corrected the same day: Richards
+et al. 2013 measure embryo-to-embryo scatter, not left against right). "We
+call mirrored subtrees symmetric when their lineages are organized alike,
+not when their cells are identical. Mirror cells that share a fate still
+differ. In most left-right pairs, including many that share a fate, at
+least one reporter differs tenfold (Murray et al. 2012). One reflection maps their positions onto each other to within
+2.0–2.5 µm, against 11–13 µm between the sides (this study). That residual
+is of the same order as the embryo-to-embryo scatter of cell positions
+(Richards et al. 2013). In subtrees of 12–36 terminal cells, these
 differences set most of u (Fig. 5C, simulated twins). Where the readouts
 single out a pair, they land on one of three things:
 - the MS-induced left-right asymmetry of the ABplpapp sublineage (Hutter
@@ -1697,3 +1711,7 @@ Script: `d5c/lean_test.py`. The u values are the released ones (pooled,
 **Findings page, version 5 (2026-10-29).** Same URL. The coarse-lean bullet
 now reports D5g, and the page's suggested wording says u separates mirror
 pairs from random ones neither by value nor by lean.
+
+**Findings page, version 6 (2026-10-29).** Same URL. The position claim now
+cites our own D1 measurements; Richards et al. 2013 is cited only for the
+scale of embryo-to-embryo scatter (a side note caught the mislabel).
