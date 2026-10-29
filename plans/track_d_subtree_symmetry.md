@@ -1346,3 +1346,10 @@ exception is ABplpa, cause B.
   correlation is 0.47, not 0.58.
 - The pair-matched draws treat the nine pairs as independent. Three are
   nested (ABplp ⊃ ABplpp ⊃ ABplppp).
+
+**Findings page, version 3 (2026-10-29).** Same URL.
+- The twin results now come from D5e.
+- A new section, "Why u says little in small pairs", shows the twin
+  correlation by size and the nine pairs against the twin range.
+- It ends with suggested wording for the symmetry section. How 5C shows u
+  is still the author's call.
