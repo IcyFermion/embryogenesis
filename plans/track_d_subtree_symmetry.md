@@ -1336,7 +1336,8 @@ exception is ABplpa, cause B.
   at these sizes, when their cells differ as much as real mirror cells do.
   - u is a coarse readout at 12–36 edges. The lineage sets which end of the
     front a subtree leans to: both partners lean to travel, in 8 of 9 pairs
-    and in nearly all twins.
+    and in nearly all twins. (Superseded by D5g: random pairs agree on the
+    lean just as often, so it is not evidence of symmetry.)
   - Cell-level differences set the fine position within that end.
   - D5c's twins overstated u's resolution: their model put u in the wrong
     regime, and their twin noise was smaller than real partner differences.
@@ -1648,3 +1649,47 @@ percentiles.
 **Expected limit.** With random agreement near 95%, even 9 of 9 would give
 P near 0.6. Definition 1 therefore cannot show symmetry whatever the pairs
 do; the test quantifies that.
+
+## D5g results (2026-10-29, scratch)
+
+Script: `d5c/lean_test.py`. The u values are the released ones (pooled,
+`compare_20261015`).
+
+| Pair | u left | u right | Same side of 0.5 | Matched random pairs on the same side | Both at the travel optimum or both off it | Matched random pairs, same |
+|---|---|---|---|---|---|---|
+| ABalp/ABara | 0.000 | 0.053 | yes | 1.00 | no | 0.61 |
+| ABalpa/ABarap | 0.000 | 0.000 | yes | 0.91 | yes | 0.49 |
+| ABplp/ABprp | 0.202 | 0.053 | yes | 1.00 | yes | 0.84 |
+| ABplpa/ABprpa | 1.000 | 0.000 | no | 0.92 | no | 0.47 |
+| ABplpp/ABprpp | 0.177 | 0.085 | yes | 0.91 | yes | 0.49 |
+| ABplppp/ABprppp | 0.000 | 0.096 | yes | 0.87 | no | 0.46 |
+| MSa/MSp | 0.085 | 0.381 | yes | 0.82 | yes | 0.53 |
+| MSaa/MSpa | 0.000 | 0.418 | yes | 0.91 | no | 0.49 |
+| MSap/MSpp | 0.208 | 0.378 | yes | 0.90 | yes | 0.49 |
+
+| Definition | Mirror pairs agreeing | Matched random: expected (5–95%) | P(≥ observed) |
+|---|---|---|---|
+| 1. Side of 0.5 | 8 of 9 | 8.2 (7–9) | 0.83 |
+| 2. At the travel optimum | 5 of 9 | 4.9 (3–7) | 0.60 |
+
+- Under definition 1, matched random pairs give 9 of 9 in 44% of draws.
+- The D5e twins' 99–100% agreement was no evidence either. Unrelated
+  simulated subtrees of the same sizes agree on the side just as often
+  (99.3–100%), because the model's subtrees also lean to travel almost
+  always.
+
+**Reading, against the rule set in advance.**
+- **Both definitions: P ≥ 0.05.** The coarse lean is a property of all
+  subtrees, not evidence about mirror pairs. The side note was right.
+- **At these sizes u carries no pair-specific signal**, neither in its value
+  (D5e) nor in which end it leans to.
+- The case for symmetry rests on what does carry the lineage: z_T and z_S
+  inside the twin range, and the named causes. For u, 5C's twin box shows
+  that this lack of signal is what symmetric lineages produce.
+- The travel lean itself stays a finding about the lineage, for the
+  paper's main story: 41 of 42 natural lineages lean to the travel end of
+  their fronts (u < 0.5). It is not part of the symmetry argument.
+- **Changes.** The findings page drops the coarse-lean bullet as evidence
+  and says the above. The suggested wording (D5f) never used the lean; the
+  page's version did, and is corrected.
+
