@@ -1722,3 +1722,32 @@ its 219 matched pairs, on z_S (211 smaller, 96th, shaded) and z_T (156
 smaller, 71st, not shaded). The percentile is exhaustive over the matched
 pairs, not a bootstrap. Data: `ref_example` in `d5c/page_export.py`; the
 recomputed percentiles match `pair_comparison.csv` exactly.
+
+## Exploratory: a z_T/z_S angle as a front-free lean (2026-10-29, author's idea, no pairs read)
+
+θ = atan2(−z_S, −z_T): 0° means the natural lineage beats its first-cousin
+shuffles only in travel, 90° only in state, and 45° equally (in null SD).
+Checked on the 42 subtrees and the D5e twins only; no pair was read.
+
+**Findings.**
+- **Stability equals z_S, not better.** Its twin correlation is 0.48–0.66 at
+  12–34 edges, the same as z_S at every size. That beats u (0.32–0.50).
+  - The reason: once size is factored out, z_T barely varies between
+    subtrees (z_T/√s quartiles −0.76 to −0.70). θ's variation is therefore
+    z_S's: Spearman −0.60 with z_S, against −0.06 with z_T.
+- **Not the same quantity as u.** Spearman(θ, u) is −0.01 over the 42
+  subtrees, and −0.01 over the 39 with both spans ≥ 1 null SD. θ says how much
+  more the lineage beats its local shuffles on travel than on state; u says
+  where it sits among the best trade-offs.
+- **Agrees with u in aggregate.** θ < 45° in 41 of 42 subtrees (median 32°,
+  interquartile range 24–36°), the same travel lean as u < 0.5 in 41 of 42.
+- **Size-free:** Spearman with edge count 0.02.
+
+**Proposal (author to decide).**
+- Not for the symmetry section. For pairs, θ would repeat the z_S column,
+  with z_S's thin-null caveat.
+- Possible use: a front-free check on the paper's main claim that lineages
+  favour travel. That belongs with Figures 5 and 9, not Track D (scope
+  decision of 2026-10-27).
+- 45° assumes one null SD of travel weighs the same as one of state, the
+  convention of the null-SD frame.
