@@ -1275,3 +1275,74 @@ level, not on the readouts.
 
 **Implementation (scratch).** In the session scratchpad: `d5c/calib_e.py`
 (refit), `run_e.py` (jitter calibration and twins) and `summarize_e.py`.
+
+## D5e results (2026-10-29, scratch)
+
+**Twin noise.** κ_T = 0.60 and κ_S = 2.32 meet the D1 targets: step angle
+34.5° (target 35.3°), cosine ratio 0.46 (target 0.45).
+- **Out-of-sample check:** the relative difference in step length is 0.284,
+  against 0.283 in the real data.
+- **Fronts:** 8400 size-curve fronts and 5400 pair-matched fronts, none
+  degenerate.
+
+**1. How much of each readout the lineage sets** (twin correlation,
+Pearson):
+
+| Edges | u | d_LP | d̃_LP | z_T | z_S | d_CP |
+|---|---|---|---|---|---|---|
+| 12–34 | 0.32–0.50 | 0.12–0.29 | 0.08–0.40 | 0.79–0.89 | 0.48–0.66 | 0.39–0.60 |
+| 96–256 | 0.62–0.74 | 0.29–0.47 | 0.49–0.56 | 0.88–0.92 | 0.57–0.64 | 0.64–0.72 |
+
+- At the pairs' sizes, the lineage sets a third to a half of u. The rest
+  comes from cell-level partner differences.
+- u becomes mostly lineage-set only above about 100 edges.
+- z_T is lineage-set at every size.
+- Shaded twin pairs at 12–34 edges:
+
+| u | d_LP | d̃_LP | z_T | z_S |
+|---|---|---|---|---|
+| 2–6% | 6–9% | 4–9% | ≤ 1% | 1–3% |
+
+**2. Pair-matched twins against the nine real pairs** (median of nine
+percentiles, 10,000 draws):
+
+| Readout | Real median | Twins 5 / 50 / 95% | P(twin ≥ real) | Real count below 0.5 | Twins 5 / 50 / 95% |
+|---|---|---|---|---|---|
+| u | 0.59 | 0.21 / 0.38 / 0.64 | 0.10 | 4 | 3 / 6 / 8 |
+| d_LP | 0.70 | 0.21 / 0.42 / 0.68 | 0.04 | 4 | 3 / 5 / 8 |
+| d̃_LP | 0.68 | 0.21 / 0.41 / 0.66 | 0.04 | 4 | 3 / 5 / 8 |
+| z_T | 0.38 | 0.16 / 0.32 / 0.50 | 0.29 | 6 | 4 / 7 / 8 |
+| z_S | 0.21 | 0.15 / 0.31 / 0.53 | 0.83 | 8 | 4 / 7 / 8 |
+
+**3. 5C count.** These twins shade 2.1 cells on average (90% of draws:
+0–5).
+- P(≥ 7) = 0.011 and P(≥ 6) = 0.031.
+- Pairs with a shaded cell: 1.6 on average, P(≥ 5) = 0.010.
+
+**4. Coarse lean.** Twins put both u values on the same side of 0.5 in
+99–100% of draws, for every pair. Real partners do so in 8 of 9 pairs; the
+exception is ABplpa, cause B.
+
+**Reading, against the rule set in advance.**
+- **u: inside the twin range.** The real pairs' u agreement (median 59th
+  percentile, 4 of 9 below the median) is what symmetric lineages produce
+  at these sizes, when their cells differ as much as real mirror cells do.
+  - u is a coarse readout at 12–36 edges. The lineage sets which end of the
+    front a subtree leans to: both partners lean to travel, in 8 of 9 pairs
+    and in nearly all twins.
+  - Cell-level differences set the fine position within that end.
+  - D5c's twins overstated u's resolution: their model put u in the wrong
+    regime, and their twin noise was smaller than real partner differences.
+- **z_T and z_S: inside the twin range.** On z_S the real pairs are more
+  alike than the median twin pair.
+- **d_LP and d̃_LP: just above the range** (P = 0.04). The excess is
+  cause A: one death behind three nested pairs.
+- **5C count: above the range** (P = 0.01–0.03). The named causes carry
+  it. Cause A counts five times because the three pairs it affects are
+  nested.
+
+**Limits.**
+- The refit's state span is 24% narrower than real, and its null
+  correlation is 0.47, not 0.58.
+- The pair-matched draws treat the nine pairs as independent. Three are
+  nested (ABplp ⊃ ABplpp ⊃ ABplppp).
