@@ -22,8 +22,9 @@ Handed off:
   - v2's Figure 4B and 4C reuse `publication/figures/terminal_symmetry.py`.
 - **z names:** with the author's colleagues; the change is one line in
   `notation.py`.
-- **Literature pass:** fate-unmatched cells (`classification.csv`) go to
-  Track C.
+- **Literature pass:** fate-unmatched cells (`classification.csv`) went to
+  Track C on 2026-10-22. The author moved the pass back here on 2026-10-29
+  (D5f); Track C's brief points to it.
 - **Not pursued:**
   - a D3 mirrored-trajectory movie (the analysis stays scratch; see the
     review page);
@@ -744,6 +745,11 @@ is decided after D5b.
 - **D5d. Pairs.** Compare the pairs with the chosen readouts against random
   pairs and the embryo floor. Build a new 5C candidate; v2's 4C follows
   through `terminal_symmetry`.
+- **D5e. Partner-like twins (added 2026-10-29).** Twins that differ as much
+  as real mirror cells, centred on why u says little in small pairs.
+- **D5f. Literature (added 2026-10-29, moved from Track C).** What is known
+  about the cells where mirror partners differ, and about cell-level
+  left-right differences in the embryo.
 
 **Implementation.**
 - New module (proposed `terminal_pareto/symmetry_readouts.py`) writing
@@ -1403,3 +1409,85 @@ exception is ABplpa, cause B.
   - No mechanistic paper was found yet for RMEV/RIH or for the MS valve
     asymmetry.
   - The fate-unmatched literature pass is already handed to Track C.
+
+## Decisions (2026-10-29, after D5e)
+
+1. **"Symmetric" means the same lineage organization**, not identical cells.
+   The symmetry section states three things:
+   - how much mirror cells differ (D1's counterpart distances);
+   - that small subtrees amplify those differences in u (D5e);
+   - the named cells where partners differ (causes A–C).
+2. **How 5C shows u: try both and see.** The author leans to the percentile
+   alone, if it is enough to show that u is fragile at these sizes. Drafts
+   below.
+3. **The literature pass moves here from Track C** (D5f). Track C's brief now
+   points to this track for it.
+
+## u display drafts (2026-10-29, scratch)
+
+Two drafts of 5C, built from the stored compare run and the D5e twins
+(`d5c/u_display.py`). The other four columns are the released 5C, with the
+released shading.
+- **Value and percentile.** The u values stay, unshaded. A new column shows
+  each pair's u-difference percentile (against size- and depth-matched random
+  pairs) over a box for the D5e pair-matched twins (box: middle 50% of their
+  percentiles; line: middle 90%).
+- **Percentile alone.** The same percentile column replaces the u values.
+
+Where the real pairs fall against their twins:
+
+| Pair | Real percentile | Twins 25–75% | Twins 5–95% | Reading |
+|---|---|---|---|---|
+| ABalp | 0.39 | 0.19–0.62 | 0.04–0.88 | inside the box |
+| ABalpa | 0.28 | 0.18–0.60 | 0.18–0.89 | inside the box |
+| ABplp | 0.67 | 0.16–0.61 | 0.04–0.87 | inside the line |
+| ABplpa | 0.97 | 0.13–0.66 | 0.13–0.93 | beyond the line (cause B) |
+| ABplpp | 0.45 | 0.18–0.61 | 0.18–0.87 | inside the box |
+| ABplppp | 0.39 | 0.23–0.68 | 0.23–0.92 | inside the box |
+| MSa | 0.68 | 0.17–0.64 | 0.07–0.90 | inside the line |
+| MSaa | 0.89 | 0.21–0.69 | 0.21–0.89 | at the line's end (cause C) |
+| MSap | 0.59 | 0.24–0.68 | 0.24–0.92 | inside the box |
+
+- The twin boxes span about 0.2–0.65 and their lines reach about 0.9 in
+  every pair. A symmetric lineage can produce nearly any u difference at
+  these sizes, and the figure shows this without a footnote.
+- Only ABplpa falls beyond its twins. It sits on a lineage asymmetry already
+  recorded in the canonical lineage (RMEV and a death against RIH and DB4).
+- Lower ends that equal the box's lower edge are twin ties (both twins'
+  u = 0, counted as half).
+- Figure 5B already shows every subtree's u next to its pair number, so the
+  value column in 5C repeats it. **Proposal: the percentile alone.** The u
+  column is then not shaded; the dashed line marks the 90th percentile.
+
+## D5f. Literature on the mirror-pair differences (set 2026-10-29, before the results)
+
+**Why.** With "symmetric" defined as the same lineage organization, the
+paper has to say which mirror-pair differences are already known, with
+citations. Two kinds matter:
+1. fate and lineage differences (different fates, one-sided deaths,
+   unpaired cells);
+2. cell-level differences between mirror cells with the same fate, in
+   positions (which drive u's fragility), division timing and expression.
+
+**Inputs.**
+- The fate-unmatched lists in `classification.csv`
+  (`robustness_20261015`).
+- The cells behind causes A–C:
+  - A: ABplpppapp and ABprpppapp;
+  - B: ABplpappap and ABprpappap, ABplpappaaa (RMEV) and ABprpappaaa (RIH);
+  - C: MSaa's VPI2V and VPI3V against MSpa's body-wall muscle.
+- MI and e3D, in the exploratory ABalp/ABara pair.
+
+**Rules.**
+- Every claim needs a source that was opened (primary paper, or WormAtlas
+  and WormBase for lineage facts).
+- Each claim is marked as verified, abstract or snippet only, or not found.
+  "Not found" is a valid outcome.
+- Where our cell key disagrees with the literature, say so.
+- No result in this track changes because of the pass. It adds citations
+  and wording.
+
+**Output.** A table per cause and per pair, a paragraph on cell-level
+left-right differences, the sources, and suggested wording for the symmetry
+section.
+
