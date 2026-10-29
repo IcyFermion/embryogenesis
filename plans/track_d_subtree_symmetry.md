@@ -1715,3 +1715,10 @@ pairs from random ones neither by value nor by lean.
 **Findings page, version 6 (2026-10-29).** Same URL. The position claim now
 cites our own D1 measurements; Richards et al. 2013 is cited only for the
 scale of embryo-to-embryo scatter (a side note caught the mislabel).
+
+**Findings page, version 7 (2026-10-29).** Same URL. A worked example
+before the 5C table shows where a percentile comes from: MSaa · MSpa against
+its 219 matched pairs, on z_S (211 smaller, 96th, shaded) and z_T (156
+smaller, 71st, not shaded). The percentile is exhaustive over the matched
+pairs, not a bootstrap. Data: `ref_example` in `d5c/page_export.py`; the
+recomputed percentiles match `pair_comparison.csv` exactly.
