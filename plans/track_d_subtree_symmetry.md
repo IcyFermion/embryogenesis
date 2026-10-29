@@ -1353,3 +1353,53 @@ exception is ABplpa, cause B.
   correlation by size and the nine pairs against the twin range.
 - It ends with suggested wording for the symmetry section. How 5C shows u
   is still the author's call.
+
+**Exploratory follow-up (2026-10-29, not in the pre-set design).**
+- **Which part of the partner nudge makes u fragile.** Twin correlation of
+  u at 12–34 edges, same templates as the size curve:
+
+| Nudge | Twin correlation of u |
+|---|---|
+| State only | 0.69–0.82 |
+| Travel only | 0.46–0.63 |
+| Both (D5e) | 0.32–0.50 |
+
+  - Position differences do most of the damage: u sits at the travel end,
+    so fine positions decide it.
+  - As expected, z_T responds only to the travel nudge and z_S only to the
+    state nudge.
+  - Script: `d5c/decompose_e.py`.
+- **Mirror-cell differences by founder** (D1 counterparts):
+
+| Founder | Partner cosine over the parent-to-child cosine (median) | Step angle |
+|---|---|---|
+| Posterior AB | 0.45 | 30° |
+| MS | 0.38 | 36° |
+| Anterior AB (exploratory pairs) | 0.81 | 60° |
+
+  - D5e's pooled targets (0.45, 35°) fit the strict and priority pairs.
+  - D1 called the MS counterparts "not closest of type" because all MS
+    pharyngeal cells look alike, not because MS partners are unusually far
+    apart.
+- **The causes in the lineage annotation** (cell key; apoptotic list).
+  - **A.** ABplpppapp and its mirror ABprpppapp both die. Only the left
+    corpse's endpoint differs, farther in all 3 embryos (D4c). No
+    documented asymmetry was found.
+  - **B.** On the left, ABplpappap dies and ABplpappaaa becomes RMEV (the
+    unpaired ventral RME). On the right, ABprpappap survives and gives rise
+    to DB4, and ABprpappaaa becomes RIH (an unpaired ring interneuron). The
+    collapsed travel span is the swap of exactly these cells: a lineage
+    asymmetry recorded in the canonical lineage.
+  - **C.** MSaa makes the valve cells VPI2V and VPI3V where MSpa makes
+    body-wall muscle (D1). These are sister-only groups and do not move z,
+    so the shading itself is the coverage gap.
+  - The exploratory ABalp/ABara pair contains MI and E3D among its fate
+    mismatches. Nakano, Ellis and Horvitz (2010) specified that left-right
+    asymmetry within the two sisters that split the lineage.
+- **Literature framework.** Hutter and Schnabel (1995, Development 121:3417)
+  show that the left-right asymmetry of the AB lineage is set by a series of
+  inductions: MS at the 12-cell stage, then a left-restricted induction at
+  about the 24-cell stage.
+  - No mechanistic paper was found yet for RMEV/RIH or for the MS valve
+    asymmetry.
+  - The fate-unmatched literature pass is already handed to Track C.
