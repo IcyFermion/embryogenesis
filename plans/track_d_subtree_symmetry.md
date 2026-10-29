@@ -1605,3 +1605,8 @@ single out a pair, they land on one of three things:
   (ASE, for completeness).
 - Troemel, Sagasti and Bargmann 1999, Cell 99:387 (AWC, stochastic side).
 
+
+**Findings page, version 4 (2026-10-29).** Same URL. New: the positions
+decomposition, a section on mirror-cell differences in the literature, the
+two u drafts, a literature paragraph per cause, the suggested wording above,
+and the sources.
