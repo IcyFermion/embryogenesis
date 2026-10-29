@@ -1036,3 +1036,128 @@ compare run, with no new fronts.
 
 **Implementation (scratch).** In the session scratchpad: `d5c/sim.py`
 (model), `calib.py` (fit) and `run.py` (twins and removals).
+
+## D5c results (2026-10-28, scratch)
+
+**Gates.**
+- κ = 0 twins reproduce their template exactly.
+- The exact null matches 2000 sampled shuffles on 40 simulated subtrees:
+  |mean z| ≤ 3.0, and the SD ratio is 0.96–1.04.
+- The removal run's unmodified fronts equal the twin run's (delta 0).
+
+**Fronts.**
+- 30,600 twin fronts, none degenerate.
+- 36,900 removal fronts, 7 degenerate.
+
+**Pre-set outcomes.**
+
+1–2. **Twins are recognized by every readout, at every size.** The
+     false-asymmetry rate F is the share of twin pairs shaded. A readout
+     that cannot tell twins from unrelated subtrees gives 0.10.
+
+| κ | u | d_LP | d̃_LP | z_T | z_S | d_CP |
+|---|---|---|---|---|---|---|
+| 0.1 | 0.006 | 0.017 | 0.009 | 0 | 0 | 0.008 |
+| 0.25 (lead) | 0.011 | 0.033 | 0.015 | 0.001 | 0 | 0.017 |
+| 0.5 | 0.016 | 0.053 | 0.030 | 0.004 | 0 | 0.022 |
+
+F is the mean over the pairs' sizes (n ≤ 34). Above 34 edges, F falls to
+about 0 for every readout except d_LP, which stays at 0.01–0.05.
+
+Median twin percentiles at κ = 0.25:
+
+| u | d_LP | d̃_LP | z_T | z_S |
+|---|---|---|---|---|
+| 0.18 | 0.24 | 0.23 | 0.08 | 0.05 |
+
+The percentiles barely change with size.
+
+3. **Figure 5C under built-in symmetry.** The released 5C has 7 shaded
+   cells in 5 pairs (u 1, d_LP 2, d̃_LP 3, z_S 1). Built-in symmetry gives
+   far fewer:
+
+| κ | Shaded cells, mean [5–95%] | Pairs with a shaded cell, mean [5–95%] | P(as many as released) |
+|---|---|---|---|
+| 0.1 | 0.3 [0–2] | 0.2 [0–1] | 0 |
+| 0.25 | 0.5 [0–2] | 0.4 [0–2] | 0 |
+| 0.5 | 1.0 [0–3] | 0.8 [0–2] | 0 |
+
+4. **Single-cell fragility.** The largest rank shift any one removal causes
+   is median 0.18–0.23 for every readout at n ≤ 34, and it shrinks slowly
+   with size.
+   - Real subtrees inside the simulated 10–90% band: u 31, d_LP 35, d̃_LP
+     34, z_S 31, d_CP 26 and z_T 17, all out of 42.
+   - Real z_T is more stable than the model's.
+5. **Out-of-sample checks: one clear misfit.**
+   - Real lineages sit on their front in 64% of subtrees; simulated ones in
+     31%.
+   - Real u is lower: quartiles 0 / 0.08 / 0.17, against 0 / 0.17 / 0.26
+     simulated.
+   - The model therefore under-represents the zero inflation of d_LP and
+     d̃_LP.
+
+**Real-data check: the same subtree in two embryos** (126 comparisons; z_S
+left out because state is shared):
+
+| | u | d_LP | d̃_LP | z_T | d_CP |
+|---|---|---|---|---|---|
+| Share ≥ 0.9, all sizes | 0.04 | 0.10 | 0.13 | 0 | 0.05 |
+| Share ≥ 0.9, ≤ 34 edges (90 comparisons) | 0.04 | 0.06 | 0.07 | 0 | 0.03 |
+| Median percentile, ≤ 34 edges | 0.28 | 0.38 | 0.38 | 0.13 | 0.10 |
+
+- The simulated twins at κ = 0.5 reach about the same median percentiles:
+  u 0.26, d_LP 0.32, d̃_LP 0.30, z_T 0.14.
+- κ = 0.5 is therefore about the size of the real difference between two
+  embryos (travel only).
+
+**Exploratory, not in the pre-set design: twins one cell apart.**
+- Setup: twin 2 is twin 1 without one terminal cell.
+- Recognized almost as well as jittered twins: F ≤ 0.03 at 12–19 edges and
+  ≤ 0.01 above.
+- Expected 5C count: 0.2 cells [0–1].
+- Why D5b's large rank shifts do not show here: a rank shift takes the
+  worst removal. A typical removal moves a readout little; it takes one
+  particular cell to move it far.
+
+**Correction to D5b.** D5b ranked values with exact ties. u, d_LP and d̃_LP
+have values at about 1e-12 where they are 0 in fact (6 subtrees for u), so
+floating-point noise broke ties. With ties within 1e-9:
+
+| Readout | Rank shift median | Subtrees shifted ≥ 0.25 |
+|---|---|---|
+| u | 0.05 (was 0.20) | 12 (was 16) |
+| d_LP | 0 | 11 (was 17) |
+| d̃_LP | 0 | 11 (was 17) |
+| z_T | 0.07 | 4 (unchanged) |
+| z_S | 0.16 | 6 |
+| d_CP | 0.18 | 13 (unchanged) |
+
+D5b's conclusion holds: z_T is the most stable readout, and no candidate
+beats it. The 5C percentiles use exact ties too, so on-front pairs whose d̃_LP
+differs only by noise could rank arbitrarily. No shaded 5C cell is of that
+kind: the shaded d̃_LP differences are 1.16–1.67.
+
+**Reading, against the rule set in advance.**
+- F for u and d_LP is 0.01–0.05 at the pairs' sizes, not near 0.10.
+- The released 5C count (7 cells, 5 pairs) is far outside the range
+  symmetric twins give (0–3 cells), at every κ and for twins one cell
+  apart.
+- **So the simulation does not support "5C shading is what perfect
+  symmetry looks like".**
+- The real two-embryo check agrees: differences of replicate size shade few
+  cells at the pairs' sizes (u 4%, d_LP 6%, d̃_LP 7%, z_T 0%).
+- What the readouts are sensitive to is a particular cell, not random noise.
+  This is what D2–D4c found for each shaded pair:
+  - one death in the ABplp family (ABplpppapp);
+  - one swap in ABplpa;
+  - the MSpa coverage gap.
+- The defensible statement is that the mirrored lineages match except at
+  identified single cells, and that u and d_LP turn on those cells. "The
+  readouts cannot see symmetry at these sizes" is not supported.
+
+**Limits.**
+- The model misses the real 64% on-front share.
+- Real mirror partners differ in coverage (0–4 edges) and in where cells
+  die, which no twin here reproduces.
+- A twin model built on those differences would have to be set before its
+  run, and justified by the misfit, not by the 5C count.
