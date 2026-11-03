@@ -1,5 +1,10 @@
 # Track D: left-right subtree symmetry
 
+**Status (2026-11-02): D6.** The author's group changed direction. Symmetry
+leaves the paper, and the subtree floor rises from 12 to 24 cells by a
+resolution rule (D6, at the end). D5d is cancelled. D0–D5 stay below as
+reviewer defense.
+
 **Status (2026-10-27): reopened for D5** (readouts that one cell or a
 collapsed span cannot decide; see D5 at the end). Branch `subtree-symmetry`,
 recreated from `main` at `2542a03`.
@@ -1751,3 +1756,119 @@ Checked on the 42 subtrees and the D5e twins only; no pair was read.
   decision of 2026-10-27).
 - 45° assumes one null SD of travel weighs the same as one of state, the
   convention of the null-SD frame.
+
+## D6. Raise the subtree floor and retire the symmetry layer (set 2026-11-02, before any build)
+
+**Why (author's group, 2026-11-02).**
+- The subtree analysis was meant to relate front readouts to subtree biology,
+  for example fate diversity. That did not hold up. At the current sizes, u
+  is noisy and can mislead (D5a–D5e).
+- Symmetry compounds this. D2–D5f show that the apparent asymmetries come
+  from single cells, but presenting them that way weakens the story.
+- The layer-by-layer hourglass trend (Track E) now carries the biology, so
+  the subtree part no longer needs biological talking points.
+- The 12-cell floor was arbitrary.
+
+**Decisions (author, same day).**
+1. **Symmetry leaves the paper**: no figure, no text. D0–D5 stay in this
+   brief as reviewer defense, and D5d is cancelled.
+2. **The floor is set by the resolution rule below.**
+3. **The justification stays in reserve**, like the apoptosis variants
+   (2026-10-21). The paper gets one Methods sentence. The size curve (D5e)
+   and the per-subtree table stay here.
+
+**Rule.** A subtree is resolved when both conditions hold:
+- its first-cousin null shuffles at least 12 cells, since D5a found z_S
+  fragile only at a null support of 11 or less;
+- its front spans at least one first-cousin null SD in travel and in cell
+  state (`TINY_SPAN_SD`).
+
+The floor is the smallest size above which every subtree is resolved. The
+values come from `compare_20261015` (pooled travel, `subtree_metrics.csv`).
+
+**Result.**
+- Every subtree with at least 25 cells is resolved. The largest unresolved
+  are ABala (22 cells, null on 9 cells) and ABprpa (21 cells, state span 0.91
+  null SD).
+- No subtree has 23 or 24 cells, so any floor from 23 to 25 keeps the same
+  18 subtrees: P0, AB, ABa, ABp, P1, EMS, ABal, MS, ABpl, ABpr, ABar, ABprp,
+  ABplp, ABalp, ABara, MSa, P2, MSp.
+- **The floor is 24.** It is fixed: it does not move to drop MSp (25 cells,
+  highest u) or ABplp (32 cells, farthest from its front).
+- A per-subtree filter by the same rule would keep 23 subtrees, five of them
+  small (ABalpp, C, MSpp, ABprpap, MSap; MSpp is off its front). That set is
+  ragged and harder to state, so the floor is a size.
+
+**What the floor fixes, and what it does not.**
+- It removes the collapsed fronts. Below 25 cells, 15 of 24 subtrees sit
+  exactly at the travel optimum (u = 0), and ABplpa sits at u = 1. Among the
+  18 kept, two sit at u = 0 (ABalp, P2), and all 18 have u < 0.5 (highest:
+  MSp, 0.38).
+- It does not make u precise. The twin correlation of u (D5e) is 0.42 at 24
+  cells, 0.49 at 48 and 0.62 at 96. The text therefore compares no u values
+  between subtrees.
+- The claim is the shared travel lean: every major branch favours travel.
+  The 18 are nested and not independent. Six of them are disjoint (ABal,
+  ABar, ABpl, ABpr, MS, P2); they cover 273 of 275 cells (the other two are
+  E's), and each has u < 0.5.
+- One known oddity remains. ABplp is the farthest from its front (d_LP 0.061;
+  next MSp 0.046, then ABpl 0.027), and 11 of the 18 are off their fronts.
+  D4c traces ABplp's distance to one cell, ABplpppapp:
+  - holding that cell's endpoint at its birth position (or dropping the
+    cell) puts ABplp on its front;
+  - treating either of the other two deaths alone (ABplpappap, ABplppaaap)
+    does not;
+  - D4b: the same change to three matched living cells never puts ABplp on
+    its front (0 of 1000 draws).
+
+**Changes in the paper** (production, terminal-primary family):
+- **Floor in the publication layer only.** The floor applies after
+  validation. Back-end caches keep their floor of 12, so manifests and
+  validators (`validate_pooled_migration.py`) are unchanged. No front is
+  recomputed: each subtree's front is its own, so the 18 keep their released
+  numbers.
+- **Build guard.** The rule is checked against the hash-checked
+  `compare_20261015` subtree table, so a data change that breaks it fails the
+  build.
+- **Figure 4** (subtree map) goes from 42 subtrees to 18, and the caption
+  counts follow.
+- **Figure 5:**
+  - A is unchanged.
+  - B shows the 18 without pair numbers or side dots.
+  - C is removed, and the caption loses C, † and ‡.
+  - § stays, on ABplp's d_LP only (ABplpp and ABplppp leave the figure). Its
+    claims are checked at build time against D4–D4c.
+  - If A, B and the caption fit one page, the two-page layout ends (`PAGES`).
+- **Figure S1:** the all-subtrees panel goes from 42 to 18, and the outlier
+  labels are re-chosen from the kept set.
+- **Table 1:** 42 rows become 18, and the caption gives the floor.
+- **Unchanged:**
+  - Figures 2, 3 and 6, and S2–S3 (whole tree or cell types);
+  - the cross-species and full-tree families. C. briggsae subtrees appear
+    only in sketches; if Figure 7B shows subtrees, it uses the same floor
+    (25 → 12 subtrees on the 187 matched edges).
+- **Supplementary Note A** stays in reserve. Its question changes from "is
+  ABplp/ABprp a symmetry break?" to "why is ABplp farthest from its front?".
+  The mirror cell stays as the control for the endpoint.
+- **Removed:**
+  - `publication/figures/terminal_symmetry.py` and its test;
+  - the adapter's `_symmetry`;
+  - the `symmetry` field of `TerminalPrimaryInput`.
+  
+  The Track D runs and back-end modules stay, because they are the record.
+- **figures-v2:** Figure 4 becomes one panel (4A without pair tags), and 4B
+  goes. This is done on `figures-v2` once its checkout is free.
+
+**Steps.**
+- D6a: this design.
+- D6b: code and tests on `subtree-symmetry`.
+- D6c: a candidate build from the main checkout, with parity and a review
+  page.
+- D6d: release after the author's OK.
+- D6e: figures-v2.
+- D6f: close the track (PR, memory, remove the worktree).
+
+**Methods sentence (draft).** "We analyse subtrees with at least 24 terminal
+cells. This is the smallest size above which every subtree's first-cousin
+null shuffles at least 12 cells and its front spans at least one null SD in
+both travel and cell state."
