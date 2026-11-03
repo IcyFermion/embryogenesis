@@ -1872,3 +1872,66 @@ values come from `compare_20261015` (pooled travel, `subtree_metrics.csv`).
 cells. This is the smallest size above which every subtree's first-cousin
 null shuffles at least 12 cells and its front spans at least one null SD in
 both travel and cell state."
+
+## D6b–c results (2026-11-02)
+
+**Code** (commit `4e3bec0` on `subtree-symmetry`).
+
+`publication/adapters/terminal.py`:
+- `SUBTREE_FLOOR = 24` applies after validation. `PRIMARY_MIN_CELLS = 12`
+  stays as the floor of the caches.
+- `_track_d` loads three hash-checked runs, with their provenance links:
+  `compare_20261015`, `apoptosis_subtrees_20261021` and
+  `apoptosis_single_20261022`.
+- `_resolution` checks the rule:
+  - it fails if a subtree at or above the floor is unresolved;
+  - it fails if the floor drops a subtree larger than the largest unresolved
+    one;
+  - it also checks that the compare table reproduces the canonical u and
+    d_LP.
+- `_note_evidence` gathers what the ABplp note cites.
+
+`terminal_canonical.py`:
+- `NOTES = {"ABplp": ("†", "d_lp")}`, guarded by `check_notes`:
+  - ABplp is the farthest from its front;
+  - it has three deaths;
+  - only ABplpppapp's birth endpoint puts it on its front;
+  - the matched control gives 0 of 1000.
+- Figure 5B keeps the 42-subtree row pitch, so the panel shrinks to fit.
+
+Removed: `terminal_symmetry.py`, its test and `TerminalPrimaryInput.symmetry`
+(replaced by `notes`).
+
+Note A is reframed around ABplp. It no longer cites the pair comparison, and
+it builds to one page without warnings.
+
+New test: `publication/tests/test_terminal_floor.py` (9 tests).
+
+**Candidate.** `publication/output/candidates/d6_floor24_20261102`
+(terminal-primary). The adapter validates only from the main checkout's path,
+because the tracking paths enter the cache key. The main checkout held
+uncommitted figures-v2 work, so the build ran from a scratch directory: the
+branch's `publication` package, linked in, loaded the main checkout's back
+end, which is identical on both branches. Build provenance is hash-based, so
+the record is the same as a build from the checkout.
+- Validation: `resolution = {floor 24, kept 18, resolved 23, largest
+  unresolved ABala 22}`.
+- Every wrapper is one page with no warnings. Figure 5 now fits one page, and
+  `PAGES` is empty.
+- **Parity against production:**
+  - Differ: Figure 4 (map and caption), Figure 5B and its page, S1C and its
+    page, and Table 1.
+  - Pixel-identical: Figures 1–3, 5A, 6, S1A–B, S2 and S3.
+- **Tests:** 64 of 65 pass. The one failure is expected:
+  `test_rendered_inventory_matches_production_figures` still finds the
+  released `fig5C_ce_mirrored_pairs.*` in production, and it clears on
+  release.
+- **Release rehearsal** (terminal-primary): clean. It removes the two 5C
+  files, and production is unchanged.
+
+**Open.**
+- D6d: release, after the author's OK.
+- D6e: figures-v2. Its Figure 4 still imports `terminal_symmetry` (pair tags,
+  4B). Once D6 merges to `main`, figures-v2 must drop them before it rebases,
+  and that waits until the uncommitted v2 edits in the main checkout are
+  committed.
