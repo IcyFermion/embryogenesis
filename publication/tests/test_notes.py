@@ -32,7 +32,7 @@ class ApoptosisNote(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "right partner off its front"):
             apoptosis.check(changed)
 
-    def test_inputs_are_the_four_track_d_runs(self):
+    def test_inputs_are_the_track_d_runs(self):
         self.assertEqual({name.split("/")[0] for name in self.inputs}, set(apoptosis.RUNS.values()))
 
     @unittest.skipUnless(HAS_TEX, "tectonic or pdflatex required")

@@ -75,7 +75,7 @@ class TerminalNotation(unittest.TestCase):
                 self.assertTrue(any(MARKER in text.get_text() for text in ax.texts))
             finally:
                 plt.close(fig)
-        self.assertIn(r"\(d_{CP}\)", subtree_statistics_tex(self.data.canonical, self.data.subtree_summary, 12))
+        self.assertIn(r"\(d_{CP}\)", subtree_statistics_tex(self.data.canonical, self.data.subtree_summary, self.data.min_cells))
         self.assertNotIn("d_{NP}", CAPTIONED_FIGURES["fig5_ce_canonical_summary"][1]())
 
     def test_table_rows_cover_every_endpoint_valid_subtree(self):

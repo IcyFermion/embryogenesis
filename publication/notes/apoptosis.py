@@ -1,9 +1,9 @@
-"""Reserve note: one apoptotic cell's track endpoint and the ABplp/ABprp difference (Track D4-D4c).
+"""Reserve note: one apoptotic cell's track endpoint places ABplp off its front (Track D4-D4c).
 
-Answers the question a reader of Figure 5C (note §) may ask: is the posterior
-ABpl/ABpr difference a break in left-right symmetry? Every number comes from
-hash-checked Track D tables, and ``check`` fails the build if a sentence no
-longer holds.
+Answers the question a reader of Figure 5B (note †) may ask: is ABplp's
+distance from its front how the lineage is organized, or one cell? Every
+number comes from hash-checked Track D tables, and ``check`` fails the build
+if a sentence no longer holds. The mirror subtrees and cells serve as controls.
 """
 
 from __future__ import annotations
@@ -18,18 +18,16 @@ import pandas as pd
 from matplotlib.lines import Line2D
 
 from publication import assembly, notation as nt, style
-from publication.figures.terminal_symmetry import SIDE_COLORS
 from publication.provenance import sha256
 
 STEM = "noteA_apoptosis_abplp"
 LABEL = "A"
-RUNS = dict(compare="compare_20261015", deaths="apoptosis_20261019", control="apoptosis_subtrees_20261021",
-            single="apoptosis_single_20261022")
-TABLES = dict(compare=("subtree_metrics", "pair_comparison"), deaths=("decision",), control=("decision",),
-              single=("single", "endpoints", "readouts"))
+RUNS = dict(deaths="apoptosis_20261019", control="apoptosis_subtrees_20261021", single="apoptosis_single_20261022")
+LINKS = dict(compare_run="compare_20261015", apoptosis_run=RUNS["deaths"])
+TABLES = dict(deaths=("decision",), control=("decision",), single=("single", "endpoints", "readouts"))
 CELL = "ABplpppapp"
 LEFT = ("ABplp", "ABplpp", "ABplppp", "ABpl")
-PAIRS = ("ABplp", "ABplpp", "ABplppp")  # the kept pairs marked in Figure 5C
+SIDE_COLORS = dict(left=style.COLORS["blue"], right=style.COLORS["orange"])
 DYING = (("ABplpppapp", "ABprpppapp"), ("ABplppaaap", "ABprppaaap"))
 ZERO = 1e-9  # Track D4b tie tolerance
 
@@ -45,7 +43,7 @@ def load():
     for stage, run_id in RUNS.items():
         folder = ss.run_path(run_id) / "analysis"
         record = json.loads((folder / "provenance.json").read_text())
-        for key, expected in (("compare_run", RUNS["compare"]), ("apoptosis_run", RUNS["deaths"])):
+        for key, expected in LINKS.items():
             if key in record and record[key] != expected:
                 raise ValueError(f"{run_id} was built from {record[key]}, not {expected}")
         files[str(folder.relative_to(ss.RUN_ROOT) / "provenance.json")] = sha256(folder / "provenance.json")
@@ -74,8 +72,6 @@ def facts(tables):
             right_max=float(single[(single.subtree == mirror(s)) & (single.status == "ok")].d_SD.max())))
     ends = tables["single", "endpoints"]
     cell = ends[ends.cell == CELL].sort_values("embryo")
-    pc = tables["compare", "pair_comparison"]
-    z = pc[pc.subtree_x.isin(PAIRS) & pc.metric.isin(["natural_travel_z", "natural_state_z"])]
     control = tables["control", "decision"].set_index(["subtree", "variant"]).loc[("ABplp", "drop_deaths")]
     whole = tables["deaths", "decision"].set_index("variant").loc["drop_deaths"]
     return dict(
@@ -85,7 +81,6 @@ def facts(tables):
                 (int(cell.mirror_frames_to_endpoint.min()), int(cell.mirror_frames_to_endpoint.max()))),
         second=[(float(a), float(b)) for a, b in ends[ends.cell == DYING[1][0]].sort_values("embryo")[
             ["travel", "mirror_travel"]].itertuples(index=False)],
-        z_percentiles=(z.reference_percentile.min(), z.reference_percentile.max()),
         control=dict(draws=int(control.n_ok), on_front=int(round(control.d_SD_p * (control.n_ok + 1))) - 1,
                      median=float(control.d_SD_control_median)),
         whole=dict(n_deaths=30, d_SD_p=float(whole.d_SD_p), retention_p=float(whole.retention_at_nearest_p)),
@@ -181,7 +176,6 @@ def tex(f, figure):
     t = nt.tex
     (l1, l2, l3), (r1, r2, r3) = zip(*[(a, b) for a, b in f["travel"]])
     (lf0, lf1), (rf0, rf1) = f["frames"]
-    zp0, zp1 = (round(100 * p) for p in f["z_percentiles"])
     rows = {r["subtree"]: r for r in f["rows"]}
     c, w = f["control"], f["whole"]
     return rf"""\documentclass[10pt]{{article}}
@@ -195,16 +189,14 @@ def tex(f, figure):
 \setlength{{\parskip}}{{4pt}}
 \setlength{{\parindent}}{{0pt}}
 \begin{{document}}
-{{\large\textbf{{Supplementary Note {LABEL}: One apoptotic cell's track endpoint accounts for\\
-the \mbox{{ABplp--ABprp}} difference}}}}
+{{\large\textbf{{Supplementary Note {LABEL}: One apoptotic cell's track endpoint places ABplp\\
+off its front}}}}
 
-\textbf{{Question.}} In Figure~5C (note~\S), ABplp, ABplpp and ABplppp lie off their terminal
-fronts ({t('natural_front_distance_sd')} = {rows['ABplp']['left']:.2f}, {rows['ABplpp']['left']:.2f} and
-{rows['ABplppp']['left']:.2f}) while their mirror subtrees ABprp, ABprpp and ABprppp lie on theirs; ABpl
-against ABpr shows the same ({rows['ABpl']['left']:.2f} against 0). Is this a break in left--right symmetry?
-The readouts that do not depend on the front, the travel and cell-state positions {t('natural_travel_position')}
-and {t('natural_state_position')}, differ between partners no more than between random subtree pairs
-matched for size and depth ({zp0}th--{zp1}th percentile).
+\textbf{{Question.}} In Figure~5B (note~$\dagger$), ABplp lies farther from its terminal front than
+any other subtree ({t('natural_front_distance_sd')} = {rows['ABplp']['left']:.2f} in null-SD units). Its parent ABpl
+({rows['ABpl']['left']:.2f}) and two smaller subtrees of the same family, ABplpp and ABplppp ({rows['ABplpp']['left']:.2f}
+and {rows['ABplppp']['left']:.2f}; below the figure's size floor), lie off their fronts too, while the mirror
+subtrees ABpr, ABprp, ABprpp and ABprppp lie on theirs. Is this how the lineage is organized, or one cell?
 
 \textbf{{One cell.}} Each left subtree was recomputed with each of its apoptotic cells treated alone, and
 with all its other apoptotic cells treated together. A cell is treated either by removing it from the
@@ -235,8 +227,8 @@ embryos, but treating it moves no subtree onto its front.
 \includegraphics[width=\linewidth]{{{figure}}}
 \end{{minipage}}
 
-\textbf{{Reading.}} The left and right lineages are symmetric; the difference lies in where one dying
-cell's track ends. It recurs in all three embryos, so it may reflect a real left--right difference in
+\textbf{{Reading.}} The lineage does not place ABplp off its front; where one dying cell's track
+ends does. It recurs in all three embryos, so it may reflect a real left--right difference in
 how the corpse is displaced or engulfed rather than tracking noise; these data cannot separate the two,
 and no conclusion of the paper depends on it. Apoptotic cells remain in the analysis: across the whole
 cohort, removing all {w['n_deaths']} of them changes {t('natural_front_distance_sd')} and the edge
@@ -245,7 +237,7 @@ and birth time ($p = {w['d_SD_p']:.2f}$ and ${w['retention_p']:.2f}$).
 
 {{\footnotesize\textbf{{Data.}} Track D runs \texttt{{{_tt(RUNS['single'])}}} (single-cell treatments,
 endpoints), \texttt{{{_tt(RUNS['control'])}}} (matched control within ABplp), \texttt{{{_tt(RUNS['deaths'])}}}
-(whole cohort) and \texttt{{{_tt(RUNS['compare'])}}} (pair comparison), each replay-verified; pooled travel
+(whole cohort), each replay-verified; pooled travel
 over three embryos, top-20 protein cosine cell-state cost, first-cousin null.}}
 \end{{document}}
 """
