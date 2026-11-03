@@ -1935,3 +1935,31 @@ the record is the same as a build from the checkout.
   4B). Once D6 merges to `main`, figures-v2 must drop them before it rebases,
   and that waits until the uncommitted v2 edits in the main checkout are
   committed.
+
+## D6: C and D founders (2026-11-02, after a side note)
+
+At the 24-cell floor, C (14 cells) and D (12) leave the subtree figures. E was
+never shown: only 2 of its cells are in the data. All three still count inside
+P2 (C, D and the germline, 28 cells) and EMS.
+
+| Founder | Cells | Null shuffles | Travel span | State span | Resolved | u |
+|---|---|---|---|---|---|---|
+| C | 14 | 12 cells | 5.22 SD | 8.03 SD | yes | 0, on front |
+| D | 12 | 8 cells | 14.42 SD | 2.38 SD | no (thin null) | 0, on front |
+| P3 (D + P4) | 14 | 8 cells | 14.42 SD | 2.38 SD | no | 0, on front |
+| E | 2 | – | – | – | no | – |
+
+**Proposal: no exception.**
+- D fails the rule. Showing it would override the rule that removed
+  everything else.
+- C alone passes the rule. "Founder lineages are shown when resolved" would
+  be principled, since founder status is fixed before any result. But it
+  adds one row, makes the floor a two-part rule, and still leaves out D and
+  E.
+
+**Claim wording** (this replaces "every major branch" above): "every subtree
+of at least 24 cells favours travel (u < 0.5), including P2, which holds the
+C and D lineages." The C and D values stay here for reviewers. Both sit at
+the travel optimum on their fronts.
+
+Review page: https://claude.ai/artifact/4AfUYvbRUrD6NTf6z7ZT6y.
