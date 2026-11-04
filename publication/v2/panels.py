@@ -16,6 +16,7 @@ import numpy as np
 
 from publication import notation as nt
 from publication import style
+from publication.figures import terminal_symmetry
 
 FRONT_COLOR = style.COLORS["black"]
 LINEAGE_RED = "#D7191C"
@@ -284,11 +285,12 @@ def _pie(ax, center, radius, composition, colors):
         angle -= sweep
 
 
-def metric_columns(fig, left, bottom, height, sections, *, row_count, dmax, pies=None, label_width=.105,
-                   pie_width=.035, column_width=.08, gap=.03):
-    """Figure 4B-style rows: [labels | pie | position u | distance d_LP] for grouped ``sections``.
+def metric_columns(fig, left, bottom, height, sections, *, row_count, dmax, pies=None, tags=None, label_width=.105,
+                   pie_width=.035, column_width=.08, gap=.03, tag_width=.022):
+    """Figure 4A-style rows: [labels | pair tag | pie | position u | distance d_LP] for grouped ``sections``.
 
-    ``sections``: [(heading, [(label, u, d_lp, key), ...]), ...]; ``pies``: {key: Counter} or None.
+    ``sections``: [(heading, [(label, u, d_lp, key), ...]), ...]; ``pies``: {key: Counter} or None;
+    ``tags``: {key: mirrored-pair tag from ``terminal_symmetry.row_tags``} or None.
     """
     x = left + label_width
     pie_ax = None
@@ -319,7 +321,8 @@ def metric_columns(fig, left, bottom, height, sections, *, row_count, dmax, pies
         pie_ax.set_ylim(row_count - .3, -1.2)
         pie_ax.axis("off")
     extra = (pie_width + .008) if pie_ax is not None else 0
-    label_x = -(extra + .006) / column_width
+    tag_x = -(extra + .004 + tag_width) / column_width
+    label_x = -(extra + .006 + (tag_width + .008 if tags else 0)) / column_width
     heading_x = -(label_width + extra) / column_width
     row = 0
     for heading, entries in sections:
@@ -336,6 +339,12 @@ def metric_columns(fig, left, bottom, height, sections, *, row_count, dmax, pies
                 ax.scatter(value, row, color=color, s=18, edgecolor="white", linewidth=.35, zorder=3)
             if pie_ax is not None and key in pies:
                 _pie(pie_ax, (pie_ax.get_xlim()[1] / 2, row), .42, pies[key], PIE_COLORS)
+            tag = (tags or {}).get(key)
+            if tag:
+                terminal_symmetry.tag_row(u_ax, row, tag, x=tag_x, fontsize=6.5)
+                for ax, metric, value, xmax in ((u_ax, "u", u, 1.), (d_ax, "d_lp", d, dmax)):
+                    if metric in tag["metrics"]:
+                        terminal_symmetry.mark_value(ax, row, value, tag["mark"], xmax)
         row += 2
     return u_ax, d_ax
 
@@ -355,8 +364,12 @@ def fate_legend(fig, types, *, y=.02):
                frameon=False, handletextpad=.2, columnspacing=1.1)
 
 
-def subtree_rows(canonical, nodes, *, size=(7.4, 5.4)):
-    """Figure 4B: every subtree with fate pie, position u and distance d_LP (no null)."""
+def subtree_rows(canonical, nodes, *, symmetry=None, size=(7.4, 5.4)):
+    """Figure 4A: every subtree with fate pie, position u and distance d_LP (no null).
+
+    With ``symmetry`` (Track D), paired subtrees carry their pair number and side dot (as in
+    production Figure 5B) and the caption note marks; the pairs themselves are panel B.
+    """
     metrics = canonical
     root = metrics[metrics.subtree.isin(["P0", "AB"])].set_index("subtree")
     root = root.loc[[n for n in ("P0", "AB") if n in root.index]].reset_index()
@@ -376,11 +389,27 @@ def subtree_rows(canonical, nodes, *, size=(7.4, 5.4)):
     row_count = max(sum(len(es) + 2 for _, es in column) - 1 for column in columns)
     dmax = max(.2, np.ceil(float(metrics.d_lp.max()) * 10) / 10)
     pies = {name: nodes[name]["composition"] for name in shown if name in nodes}
+    tags = terminal_symmetry.row_tags(symmetry["pairs"]) if symmetry else None
     fig = plt.figure(figsize=size)
     for left, column in zip((.0, .335, .668), columns):
-        metric_columns(fig, left, .1, .8, column, row_count=row_count, dmax=dmax, pies=pies)
+        metric_columns(fig, left, .1, .8, column, row_count=row_count, dmax=dmax, pies=pies, tags=tags)
     types = sorted({t for c in pies.values() for t in c}, key=lambda t: -sum(c[t] for c in pies.values()))
-    fate_legend(fig, types)
+    fate_legend(fig, types, y=.035 if tags else .02)
+    if tags:
+        fig.text(.5, .008, "Numbered subtrees form the mirrored pairs in B (dot: blue left, orange right); "
+                 "\u2020 \u2021 \u00a7 refer to the caption.", fontsize=7.5, color="#444444", ha="center")
+    return fig
+
+
+def mirrored_pairs(symmetry, out_dir, *, dmax, stem):
+    """Figure 4B: production Figure 5C (``terminal_symmetry``) without its baked-in letter and title.
+
+    The production module is reused unchanged (editing it would make the released family stale);
+    the v2 page sets panel letters in TeX, so the figure's own letter and title are dropped and re-saved.
+    """
+    fig = terminal_symmetry.plot_mirrored_pairs(symmetry, out_dir, dmax=dmax, stem=stem)
+    for text in [t for t in fig.texts if t.get_text() == "C" or t.get_text().startswith("Mirrored subtree pairs")]:
+        text.remove()
     return fig
 
 

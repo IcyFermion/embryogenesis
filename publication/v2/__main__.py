@@ -1,8 +1,8 @@
 """Build the revised manuscript layout: ``python -m publication.v2 --output-dir DIR``.
 
 Draft pages carry panels and panel letters only; captions follow once the
-layout is approved. Figure 1 and Figure 4A are the authors' OmniGraffle files
-from ``paper/FIGS/``, included unchanged.
+layout is approved. Figure 1 is the schematic figure: panels A-C and D are the
+authors' OmniGraffle files from ``paper/FIGS/``, included unchanged.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ import shutil
 import subprocess
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 from publication import notation as nt
 from publication.provenance import sha256
@@ -91,10 +92,14 @@ def build(out: Path):
         f"\\panel{{A}}{{\\includegraphics[width=.5\\textwidth]{{{a}}}}}\n"
         f"\\noindent\\includegraphics[width=\\textwidth]{{{b}}}")
 
-    # Figure 4: distance schematic (A) and subtree rows with fate pies (B).
-    b = save(panels.subtree_rows(t.data.canonical_display, t.data.subtree_nodes), out, "fig4B_subtree_rows")
+    # Figure 4: subtree rows with fate pies and mirrored-pair numbers (A), mirrored pairs (B, Track D).
+    canonical = t.data.canonical_display
+    dmax = max(.2, np.ceil(float(canonical.d_lp.max()) * 10) / 10)  # shared d_LP scale, as in A
+    a = save(panels.subtree_rows(canonical, t.data.subtree_nodes, symmetry=t.data.symmetry), out, "fig4A_subtree_rows")
+    b = save(panels.mirrored_pairs(t.data.symmetry, out, dmax=dmax, stem="fig4B_mirrored_pairs"), out,
+             "fig4B_mirrored_pairs")
     figures["fig4"] = page(out, "fig4_subtrees", "Figure 4",
-        "\\panel{A}{\\includegraphics[width=.62\\textwidth]{FigX_distances_schematic.pdf}}\n"
+        f"\\panel{{A}}{{\\includegraphics[width=.95\\textwidth]{{{a}}}}}\n"
         f"\\panel{{B}}{{\\includegraphics[width=.95\\textwidth]{{{b}}}}}")
 
     # Figure 6: full tree by layer.
@@ -119,9 +124,11 @@ def build(out: Path):
     figures["fig7"] = page(out, "fig7_briggsae", "Figure 7",
         f"\\panel{{A}}{{\\includegraphics[width=.78\\textwidth]{{{a}}}}}\n\\panel{{B}}{{\\sffamily\\small To follow.}}")
 
+    # Figure 1: schematics. Placeholder assembly of the two authors' files; D was v2 draft 1's Figure 4A.
     figures["fig1"] = page(out, "fig1_overview", "Figure 1",
-        "\\noindent\\includegraphics[width=\\textwidth]{Fig1_overview.pdf}",
-        note="Authors' file, unchanged: panels B-C still read \\emph{expression}.")
+        "\\noindent\\includegraphics[width=\\textwidth]{Fig1_overview.pdf}\\par\\bigskip\n"
+        "\\panel{D}{\\includegraphics[width=.62\\textwidth]{FigX_distances_schematic.pdf}}",
+        note="Authors' files, unchanged: B-C still read \\emph{expression}.")
     record = dict(figures=figures, notation=NOTATION,
                   external={name: sha256(out / name) for name in EXTERNAL},
                   files={p.name: sha256(p) for p in sorted(out.iterdir()) if p.suffix in (".pdf", ".png", ".csv")})
