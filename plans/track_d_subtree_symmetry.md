@@ -1,6 +1,6 @@
 # Track D: left-right subtree symmetry
 
-**Status (2026-11-04): D6 released** (D6d, at the end); figures-v2 and the PR remain.
+**Status (2026-11-04): D6 released** (D6d), figures-v2 on draft 3 (D6e); the PR remains.
 
 **Status (2026-11-02): D6.** The author's group changed direction. Symmetry
 leaves the paper, and the subtree floor rises from 12 to 24 cells by a
@@ -1994,3 +1994,28 @@ The author reviewed the page above and approved the candidate as shown: the
   `verify --production` from the figures-v2 checkout reports all four
   families stale. That's expected, because figures-v2 runs the pre-D6 source.
 - D6f: PR to `main`, close the track, remove the worktree.
+
+## D6e: figures-v2 follows the floor (2026-11-04)
+
+The "uncommitted v2 edits" in the main checkout were draft 2 of the revised
+layout, made by an earlier session on 2026-10-22 at the author's request and
+never committed. They are now committed on `figures-v2` ("Draft 2 of the revised layout"), and the
+branch is rebased onto this one.
+
+- **Draft 3** ("Draft 3 of the revised layout"): Figure 4 is one panel. It shows the 18 subtree rows
+  with fate pies (taken from `canonical_display`, so the floor carries over)
+  and the ABplp † (`terminal_canonical.NOTES`, checked by `check_notes`).
+  The pair tags and draft 2's 4B are removed. The rows keep draft 2's pitch,
+  and the height follows the row count. Figure 1D (the schematic move from
+  draft 2) is kept. All other draft outputs are byte-identical to draft 2.
+- Build: `publication/output/candidates/v2_draft3`, from the main checkout
+  directly, with no hybrid route needed now. Tests: 66 of 66 on
+  `figures-v2`. `verify --production` from the main checkout: no stale
+  sources.
+- Review page https://claude.ai/artifact/GcnxZDEjPod2cw6t55KcA9 is at
+  version 6. It has a "What changed since draft 2" list and the new Figure 4
+  and S1 images.
+
+**Open.** D6f: push this branch and open the PR to `main` (held for the
+author), then close the track and remove the worktree. After the merge,
+`figures-v2` rebases onto `main` with nothing to resolve.
