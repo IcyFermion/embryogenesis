@@ -14,7 +14,6 @@ import shutil
 import subprocess
 
 import matplotlib.pyplot as plt
-import numpy as np
 
 from publication import notation as nt
 from publication.provenance import sha256
@@ -92,15 +91,11 @@ def build(out: Path):
         f"\\panel{{A}}{{\\includegraphics[width=.5\\textwidth]{{{a}}}}}\n"
         f"\\noindent\\includegraphics[width=\\textwidth]{{{b}}}")
 
-    # Figure 4: subtree rows with fate pies and mirrored-pair numbers (A), mirrored pairs (B, Track D).
-    canonical = t.data.canonical_display
-    dmax = max(.2, np.ceil(float(canonical.d_lp.max()) * 10) / 10)  # shared d_LP scale, as in A
-    a = save(panels.subtree_rows(canonical, t.data.subtree_nodes, symmetry=t.data.symmetry), out, "fig4A_subtree_rows")
-    b = save(panels.mirrored_pairs(t.data.symmetry, out, dmax=dmax, stem="fig4B_mirrored_pairs"), out,
-             "fig4B_mirrored_pairs")
+    # Figure 4: one panel, the subtree rows with fate pies and the ABplp note (Track D6 floor of 24 cells).
+    a = save(panels.subtree_rows(t.data.canonical_display, t.data.subtree_nodes, notes=t.data.notes), out,
+             "fig4_subtree_rows")
     figures["fig4"] = page(out, "fig4_subtrees", "Figure 4",
-        f"\\panel{{A}}{{\\includegraphics[width=.95\\textwidth]{{{a}}}}}\n"
-        f"\\panel{{B}}{{\\includegraphics[width=.95\\textwidth]{{{b}}}}}")
+        f"\\noindent\\includegraphics[width=.95\\textwidth]{{{a}}}")
 
     # Figure 6: full tree by layer.
     by_layer, layer_metrics = data.layers()
