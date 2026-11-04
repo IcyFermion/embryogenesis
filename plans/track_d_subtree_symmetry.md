@@ -1,5 +1,7 @@
 # Track D: left-right subtree symmetry
 
+**Status (2026-11-04): D6 released** (D6d, at the end); figures-v2 and the PR remain.
+
 **Status (2026-11-02): D6.** The author's group changed direction. Symmetry
 leaves the paper, and the subtree floor rises from 12 to 24 cells by a
 resolution rule (D6, at the end). D5d is cancelled. D0–D5 stay below as
@@ -1963,3 +1965,32 @@ C and D lineages." The C and D values stay here for reviewers. Both sit at
 the travel optimum on their fronts.
 
 Review page: https://claude.ai/artifact/4AfUYvbRUrD6NTf6z7ZT6y.
+
+## D6d: released (2026-11-04)
+
+The author reviewed the page above and approved the candidate as shown: the
+24-cell floor, the † note on ABplp, and no exception for C and D.
+
+- **terminal-primary** released from `d6_floor24_20261102` (release
+  `20261104T210050589362Z`). This retires `fig5C_ce_mirrored_pairs.*` and
+  updates Figures 4 and 5B, S1C and Table 1.
+- **The other three families** (full-tree-pooled, terminal-cross-species,
+  full-tree-cross-species) were re-released from a fresh `--all` build,
+  `d6_all_20261104` (release `20261104T210233745639Z`). D6 changed
+  `contracts.py`, `registry.py` and the terminal adapter, which they share,
+  so `verify --production` had marked them stale. Their figures are
+  unchanged: every PNG and TeX file is byte-identical, and every PDF is
+  pixel-identical at 100 dpi. Only the presentation manifests (source
+  hashes) changed.
+- `verify --production`: four families, no stale sources. Tests: 65 of 65
+  pass.
+- Both releases ran through the hybrid route (D6b–c) because the main
+  checkout is on figures-v2 with uncommitted edits. Once this branch merges,
+  `main` carries the same presentation source, so production stays current
+  there.
+
+**Open.**
+- D6e: figures-v2 (unchanged from above). Until figures-v2 picks up D6, a
+  `verify --production` from the figures-v2 checkout reports all four
+  families stale. That's expected, because figures-v2 runs the pre-D6 source.
+- D6f: PR to `main`, close the track, remove the worktree.
