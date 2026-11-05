@@ -141,3 +141,28 @@ class FullTreePooledInput:
     settings: dict  # weights, draws, display_draws
     validation: dict = field(default_factory=dict)
     input_files: dict = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class FullTreeLayersInput:
+    """Per-layer lineage cost against the first-cousin shuffle (Track E): Figure 6B-C (revised layout) and S5.
+
+    Layers are counted top-down (layer = 9 - contraction round); only layers
+    from ``caption["first_layer"]`` on are present. ``layers`` (pooled
+    C. elegans protein) has birth-size median and quartiles, the front
+    distance, the fewest lineage edges any front assignment rewires
+    (1 - maximum edge retention along the front) and the natural / shuffle cost for travel and cell state with 95%
+    bootstrap bounds. ``per_edge`` has travel per edge to the own mother,
+    an aunt (first-cousin mean) and a random mother (full-shuffle mean) for the
+    pooled tree and the C. briggsae partial forest; ``changes`` has the percent
+    change of the first two from each flank to layers 6 and 7.
+    """
+
+    run: Path
+    analysis_id: str
+    layers: pd.DataFrame
+    per_edge: pd.DataFrame
+    changes: pd.DataFrame
+    caption: dict = field(default_factory=dict)
+    validation: dict = field(default_factory=dict)
+    input_files: dict = field(default_factory=dict)

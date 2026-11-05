@@ -1,98 +1,253 @@
-# Track E: layer-specific expression features in the full tree
+# Track E: per-layer fronts in the full tree
 
-**Question.** The pooled full-tree layerwise assignment uses one feature set,
-the top-20 proteins chosen on terminal cells, in every contraction round.
-Earlier cells may be told apart by different factors than terminal fates.
-Is a different feature set per layer more reasonable, and does it change the
-fronts?
+**Revised 2026-10-19 (author).** Track E began as a question about
+layer-specific features (E0-E2 below). E1 answered it: the global top-20
+stands. Along the way the per-layer fronts showed a pattern worth finishing
+instead: the natural lineage sits farthest from the front in the mid-embryo
+layers, and the gap is spatial. The remaining work (E3-E5) turns that into a
+small set of defensible claims and then stops.
 
-**Layer convention.** Analysis code uses contraction rounds
-(`pooled_analysis.contraction_layers`), which count bottom-up. Round 1 holds the
-491 terminal edges and round 8 holds 5 edges. The v2 Figure 6 numbers layers
-top-down. Keep rounds in all analysis output and convert only in figures.
+**Question (revised).** Layer by layer, how much does the natural lineage beat
+a cousin shuffle on travel and on cell state, and does that advantage change
+with developmental stage?
 
-## Principles (from Track A)
+**Layer convention.** Analysis code and run outputs keep contraction rounds
+(`pooled_analysis.contraction_layers`), which count bottom-up: round 1 holds
+the 491 measured leaves, round 8 holds 5 edges. Text and figures use layers,
+counted top-down: **layer = 9 − round** (collaborator request, 2026-10-19;
+matches the v2 Figure 6). Layer 1 holds the 5 cells born around the 6-cell
+stage; layer 8 holds the measured leaves.
 
-See `terminal_pareto/METHODS_cell_state_representation.md`.
-- **The front never selects features.** Per-round features are chosen by a
-  criterion that uses neither travel nor the front. Fronts are a robustness
-  check only.
-- **The single global top-20 is the baseline.** A per-round scheme must beat
-  it on that criterion, and by more than random sets of the same size do. Keep
-  the options few: one k for all rounds and one ranking method.
-- **Cosine cell-state distance**, as decided in Track A2.
+## Closed: E0-E2 (layer-specific features)
 
-## Existing material
+- **E0** (decided 2026-10-15): Schema D descendant-mixture labels and the
+  equal-relatedness separation criterion. Run
+  `layer_features_v1/e0_groupweight_20261015`.
+- **E1**: per-round top-20 sets fail the held-out gate in strata 3 and 4
+  (run `layer_features_v1/e1_20261015`). **The global top-20 stands.**
+- **Front check** (run `layer_features_v1/e1_fronts_20261015`): per-round
+  sets shift the lineage toward the cell-state end in rounds 3-5, which lineage
+  memory alone would also produce. Descriptive only. The mid-layer hump in
+  d_LP survives the per-round sets; this is E3's robustness check.
+- **E2 is not run.** The scaling choice and the per-round fate-only control
+  are dropped with it.
 
-- **Pooled cosine run** `full_tree_pareto/output/runs/pooled_full_tree_v1/terminal_clamped_cosine_20261014/`:
-  layerwise sweeps, plus per-round references (`analysis/round_references/`:
-  fronts, metrics and draws per round).
-- **Protein values for internal cells.** `data/protein/aggregated_all/s3_zscore.csv`
-  covers internal cells (210 features); raw values are in `s3.csv`. Start with
-  protein. RNA is resolved by cell type and covers only the 485-cell partial
-  forest.
-- **Earlier time-resolved feature work** in `expression_embedding/`:
-  - `timepoint_terminal_feature_select.ipynb` and
-    `stepped_avg_feature_select.ipynb`;
-  - `timepoint_embedding.py` and `search_timepoint.py`.
+Details: `full_tree_pareto/LAYER_FEATURES.md`.
 
-  Check what they selected, and with which labels, before building anew.
-- **Reusable machinery.** `terminal_pareto/representation_criteria.py` has
-  sibling separation, lineage memory (within-type shuffle) and the fate-only
-  cost.
+## Method (fixed; no new optimizer)
 
-## E0. Labels and criterion (do first)
+Every cell in the tree is measured, both position and protein. The bottom-up
+tree therefore splits into independent per-layer assignment problems: a
+layer's daughters are matched to its mothers' slots, with every other layer
+fixed. Nothing is solved recursively.
 
-- **Labels.** Internal cells have no fate. Proposed label: the composition of
-  terminal cell types among a cell's descendants (fine or Schema D types).
-- **Criterion per round.** A generalized sibling separation: do sisters whose
-  descendant compositions differ have more distant expression than sisters
-  whose compositions agree? Measure, for example, the rank correlation of
-  expression distance with the Jaccard or Bray-Curtis distance between
-  compositions. Agree the exact form with the author.
-- **Expression coverage per round.** Report the fraction of cells with a
-  variable reporter signal. Early rounds may carry nearly silent panels, which
-  makes every criterion uninformative there.
-- **Lineage memory per round.** Run the within-type-shuffle check per round,
-  using descendant compositions. Daughters inherit their mother's protein, so
-  memory is likely strongest in early rounds.
+- **Features and scaling** as in the pooled cosine run: global top-20,
+  cosine cell-state distance, one global leaf first-cousin SD (Track A; E1).
+- **Per layer:** the cached layerwise front and the per-round first-cousin
+  shuffle (`round_references`, already run for the pooled tree and the
+  cross-species partial forest).
+- **Three numbers per layer:**
+  - front distance d_LP (the existing canonical metric);
+  - travel advantage = 1 − natural travel / first-cousin shuffle mean;
+  - cell-state advantage, defined the same way on cell state.
 
-## E1. Per-round feature ranking
+Runs used:
+- `pooled_full_tree_v1/terminal_clamped_cosine_20261014` (3 C. elegans embryos);
+- `cross_species_layerwise_v1/terminal_anchored_cosine_20261014`, geometry
+  raw3d: C. elegans protein and RNA, and C. briggsae (AF16, 2 embryos) RNA.
 
-- For each round, rank features by the E0 criterion, or by a per-round
-  classifier that predicts descendant composition, and take the top k.
-- Compare each per-round set with the global top-20 and with random sets from
-  that round's highly variable pool. Report overlap with the global set and
-  stability under bootstrap.
-- **Decision gate.** Proceed to E2 only if per-round sets beat the global set
-  clearly on the criterion. Otherwise the global set stands (Occam).
+## What the existing metrics already show (2026-10-19)
 
-## E2. Fronts (robustness)
+Travel advantage over the first-cousin shuffle, layers 8 → 4:
 
-- Rebuild the layerwise sweep with a per-round state matrix.
-- **Scaling decision.** The pooled analysis scales the optimizer with one
-  global first-cousin SD shared by all rounds. Per-round features change the
-  state scale per round, so choose between that global scaling and per-round
-  scaling; the per-round cousin nulls in `round_references` can supply it.
-- Compare per-round metrics with the global-feature run, and include the
-  fate-only control per round.
-- **Cost.** Layerwise sweeps take seconds each; per-round references about a
-  minute.
+| Series | L8 | L7 | L6 | L5 | L4 |
+|---|---|---|---|---|---|
+| Pooled C. elegans | 0.22 | 0.12 | 0.09 | 0.15 | 0.23 |
+| Partial forest, C. elegans | 0.23 | 0.08 | 0.06 | 0.16 | 0.17 |
+| Partial forest, C. briggsae | 0.23 | 0.08 | 0.07 | 0.18 | 0.14 |
 
-## Implementation
+- Against the second-cousin shuffle the pooled pattern is the same:
+  0.41, 0.25, 0.22, 0.28, 0.43.
+- z_T (natural travel minus the first-cousin null mean, in null SDs; notation
+  from Track D) runs from −12.8 to −3.6 in pooled layers 8-4, so lineage beats
+  the shuffle in every layer.
+- Cell-state advantage is small and flat (0.02-0.06).
+- Layers 6-7 hold cells born at about 70-190 cells.
+- **Layers 1-3** hold 5-18 edges and have degenerate front distances. They are
+  plotted greyed out and carry no claims. (Revised 2026-11-04: layer 3 is
+  claimed; layers 1-2 are not drawn.)
+- **No uncertainty yet** on the advantages: this is E3.
 
-- Add a new module (proposed `full_tree_pareto/layer_features.py`) that
-  imports the pooled functions. Write
-  `full_tree_pareto/output/runs/layer_features_v1/<run_id>/`, with source
-  hashes, replay validation and tests.
+## E3. Uncertainty for the per-layer advantages
+
+New module `full_tree_pareto/layer_hourglass.py`; run
+`layer_features_v1/hourglass_<date>`. It reuses the cached contexts and
+`round_references` functions (`round_groups`, `round_blocks`) and solves
+nothing.
+
+- **Bootstrap unit: first-cousin groups within a layer.** For each group, the
+  natural cost and the exact shuffle mean (each child's mean cost over its
+  group's slots). Singleton groups count, with natural = shuffle mean.
+  Resample groups with replacement, 2,000 draws, fixed seed; advantage =
+  1 − Σ natural / Σ shuffle mean over the draw. Travel and cell state are
+  resampled together.
+- **Contrast (fixed before any interval was computed, but after the point
+  estimates had shown layers 6-7 lowest in both species):**
+  - mid = mean advantage of layers 6 and 7;
+  - flanks = layer 8 on one side and layers 4-5 on the other, each the mean of
+    its per-layer advantages;
+  - dip = mid − flank, computed for each side separately.
+- **What a pass means.** It shows the observed dip is larger than the
+  resampling noise. It is not a confirmatory test, because the layers were
+  chosen after looking, in both species. Only new embryos could confirm it.
+  The write-up says this plainly.
+- **Decision rule:** the dip is claimed only if the 95% interval of the dip
+  excludes zero on both sides, in pooled C. elegans travel. Otherwise the
+  hourglass framing is dropped and the claim shrinks to "lineage keeps cells
+  close in space in every layer; its cell-state advantage is small."
+- **Sensitivity**, reported but not gated:
+  - the second-cousin shuffle;
+  - the partial forest (C. elegans protein and RNA, C. briggsae RNA);
+  - the cell-state dip, run through the same contrast.
+- **Independence.** C. briggsae is an independent replicate. The C. elegans
+  partial forest reuses the pooled embryos, so it is a different panel on the
+  same embryos, not a replicate.
+- **Reproduction gate:** with no resampling, the per-layer advantages equal
+  the cached `round_references` metrics at 1e-12.
+
+**Status (2026-10-19): done, gate passed.** Run
+`layer_features_v1/hourglass_20261019` (analysis id `a4ca3d85…`):
+- Pooled C. elegans travel, first cousins: the dip is −0.115 [−0.150, −0.077]
+  against layer 8 and −0.082 [−0.126, −0.033] against layers 4–5.
+- Every travel sensitivity also excludes zero:
+  - the second-cousin shuffle;
+  - the partial forest (protein, RNA, C. briggsae);
+  - each tracked embryo on its own (3 C. elegans, 2 C. briggsae).
+
+  The one exception is C. elegans embryo 1 against layers 4–5, which touches
+  zero.
+- No cell-state dip excludes zero.
+- Travel per edge to a random mother is flat across layers (4.0-4.1), so
+  per-edge costs compare across layers. Against layer 8, cousins are farther
+  apart at layers 6-7 and the natural cost rises more; against layers 4-5,
+  layer 6 is the natural cost rising and layer 7 is partly cousins sitting
+  closer. So the dip is not explained by tighter cousin groups, except in part
+  for layer 7 against layers 4-5 (`LAYERWISE_HOURGLASS.md`, candidate G).
+- The per-embryo series were added during implementation, using the
+  per-embryo travel matrices stored in the cross-species run.
+
+## E4. Write-up and figure
+
+- **`full_tree_pareto/LAYERWISE_HOURGLASS.md`**, containing:
+  - the method paragraph;
+  - the E3 results;
+  - the claims table below;
+  - what is not claimed.
+
+  `LAYER_FEATURES.md` gets a closing note pointing to it.
+- **One candidate figure** in three panels:
+  - front distance by layer;
+  - travel and cell-state advantage by layer, both species, with intervals;
+  - the birth-stage axis with the Schnabel sorting window and the Large et al.
+    expression minimum marked.
+
+  Built under `publication/output/candidates/`; production waits for the
+  author.
+- Update the collaborator review page to the trimmed claims.
+
+### Claims (subject to E3)
+
+| Claim | Wording |
+|---|---|
+| Lineage beats cousin shuffles on travel in layers 3-8 | Stated (layer 3 added 2026-11-04) |
+| It beats them by the least in layers 6-7 | Stated descriptively from per-layer intervals; the E3 contrast goes in one Methods sentence (2026-10-23 review) |
+| Cell-state advantage is small and flat | Stated |
+| The window matches fate-based cell sorting (Schnabel et al. 2006: 50 to ~400 cells) | "Consistent with" |
+| It coincides with the expression hourglass waist (Large et al. 2025: 200 cells) | "Coincides with" |
+
+**Not claimed:**
+- the Spearman correlation with between-species JSD (7 points, both smooth in
+  time);
+- selection versus constraint, gene age (TAI), lethality and redundancy. These
+  go in one Discussion paragraph citing the literature;
+- anything about layers 1-2.
+
+**Status (2026-10-20): candidates built, choice pending.**
+- Write-up: `full_tree_pareto/LAYERWISE_HOURGLASS.md`.
+- Stage tables: `full_tree_pareto/layer_stages.py`, run
+  `layer_features_v1/stages_20261020`.
+- Five figure candidates (A-E) from `publication/sketches/hourglass.py`, in
+  `publication/output/sketches/layer_hourglass_20261020`.
+- The review page has been updated.
+- Rebased on main after Track D (2026-10-22). Both runs still validate, the
+  rebuilt candidates (`layer_hourglass_20261022`) are byte-identical, and
+  notation follows Track D: z_T for the travel position, d̃_LP for the
+  null-SD distance (background only, not claimed).
+- Compact set (2026-10-23, after discussion feedback): candidates F (full
+  tree only, layers 3-8 solid), G (which travel cost moves) and H (approximate
+  timeline against Fig. 5E), in `layer_hourglass_20261023`; compact review
+  page https://claude.ai/artifact/7hJxA3U7tP7TQJjaqiXBgj.
+- Collaborator review (2026-10-23), applied in `layer_hourglass_20261023b`
+  and page v2:
+  - panels plot cost relative to the shuffle, so all curves peak;
+  - layers 1-2 are dropped;
+  - error bars are labelled as bootstrap intervals;
+  - the dip contrast moves to one Methods sentence.
+
+  Details: `LAYERWISE_HOURGLASS.md`, "Presentation".
+- **Author decisions (2026-11-04):**
+  - claims cover layers 3-8;
+  - F goes to the main text and G to the supplement;
+  - H is kept in reserve.
+
+  Next: production figures, then E5.
+- **Production candidate (2026-11-04):** publication family `full-tree-layers`,
+  Figure 12 (F) and S5 (G), build `track_e_layers_20261104`.
+- **Author decision (2026-11-05):**
+  - F moves into Figure 6 of the revised layout. 6A stays (all eight layers,
+    to show why layers 1-2 are left out).
+  - 6B is now d_LP plus the fewest lineage edges rewired on the front
+    (1 − maximum similarity); 6C is relative travel and cell-state cost.
+  - The standalone Figure 12 is dropped; the family keeps S5 only.
+  - Figure 6 itself is built as figures-v2 draft 4, after Track E closes.
+
+  Details and the caption draft: `LAYERWISE_HOURGLASS.md`.
+
+  Releasing S5 changes `registry.py`, `contracts.py` and `adapters/full_tree.py`.
+  So the four released families report stale presentation sources, and their
+  presentation identity needs a refresh, as in Track D6d. Their rebuilt figures
+  are pixel-identical to production (`terminal-primary` cannot build in this
+  worktree; see its known cache-key error).
+
+## E5. Close
+
+Commit, open a PR and record decisions in `plans/README.md`. Track E ends here.
+
+**Status (2026-11-05): closed.** Decisions are recorded above and in
+`plans/README.md`; the PR merges the branch. Follow-up work belongs to the
+revised layout (figures-v2 draft 4: Figure 6B-C from this track's panels) and
+to a later release of S5, not to this track.
+
+**Parked unless a reviewer asks:**
+- fronts partitioned by division stage;
+- a third, spatial-arrangement criterion;
+- TAI per layer (Ma & Zheng 2023 phylostrata);
+- reopening Track A with the shared criterion-ranked set;
+- the mechanistic test from Schnabel et al.: each cell's distance to its fate
+  region at the premorphogenetic stage.
+
+## Implementation rules
+
 - **Do not edit these hash-pinned modules:**
   - `pooled_analysis.py`, `publication_analysis.py`, `cousin_references.py`,
-    `cross_species_analysis.py` and `round_references.py` in `full_tree_pareto/`;
+    `cross_species_analysis.py` and `round_references.py` in
+    `full_tree_pareto/`;
   - every terminal module listed in Track D;
-  - `representation_criteria.py`, whose own run is pinned to it. Import it; do
-    not change it.
-- Add any new solver or sampler to the guard in `publication/tests/support.py`.
+  - `representation_criteria.py`.
 
-**Decisions for the author:** the descendant-composition label and the
-criterion (E0); k, and whether per-round sets are allowed to differ in size;
-and global against per-round scaling (E2).
+  Import them; do not change them.
+- New modules write their own run folder, with source hashes, replay
+  validation and tests.
+- Add the bootstrap sampler to the guard in `publication/tests/support.py`.
+- The output folders are links into the main checkout; never write one run
+  folder from two sessions.

@@ -92,3 +92,36 @@ def lineage_preorder(names):
             walk(child)
     walk(load_json(ROOT / "data/cell_lineage.json"))
     return order
+
+
+def _verified_analysis(out):
+    """Read-only: check a layer_features_v1 run's recorded file hashes; returns its analysis folder."""
+    import json
+    from full_tree_pareto import layer_features as lf
+    analysis = Path(out) / "analysis"
+    record = json.loads((analysis / "provenance.json").read_text())
+    for name, expected in record["files"].items():
+        if lf.file_hash(analysis / name) != expected:
+            raise ValueError(f"Changed file in {out}: {name}")
+    return analysis, record
+
+
+def layer_hourglass(hourglass_run="hourglass_20261019", stages_run="stages_20261020"):
+    """Track E3/E4 inputs: per-layer advantages and dips, birth stages, Large et al. JSD, per-round d_LP."""
+    from full_tree_pareto import cross_species_analysis as fcs
+    from full_tree_pareto import layer_features as lf
+    from full_tree_pareto import pooled_analysis as pa
+    from full_tree_pareto import round_references as rr
+    hourglass, h_record = _verified_analysis(lf.run_path(hourglass_run))
+    stages, s_record = _verified_analysis(lf.run_path(stages_run))
+    pooled = rr.load(pa.DEFAULT_RUN, "pooled")["metrics"].assign(tree="pooled")
+    cross = rr.load(fcs.run_path(fcs.DEFAULT_RUN), "cross_species")["metrics"]
+    cross = cross[cross.geometry == "raw3d"].assign(tree="partial")
+    fronts = pd.concat([pooled, cross], ignore_index=True)[["tree", "config", "round", "edges", "d_LP", "degenerate",
+                                                           "natural_travel", "first_cousin_travel_mean",
+                                                           "full_random_travel_mean"]]
+    fronts["layer"] = 9 - fronts["round"]
+    return dict(layers=pd.read_csv(hourglass / "layers.csv"), contrasts=pd.read_csv(hourglass / "contrasts.csv"),
+                stages=pd.read_csv(stages / "layers.csv"), jsd=pd.read_csv(stages / "jsd_stages.csv"),
+                fronts=fronts,
+                ids=dict(hourglass=h_record["analysis_id"], stages=s_record["analysis_id"]))

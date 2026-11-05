@@ -122,3 +122,113 @@ def pooled(run=None):
     nulls = dict(nulls)
     nulls.update(cr.build(ctx, run, draws=settings.DRAWS, seed=settings.SEED, layout_only=True))
     return pooled_from_results(run, ctx, fronts, layers, nulls)
+
+
+LAYERS_FAMILY = "full-tree-layers"
+LAYER_RUNS = dict(hourglass="hourglass_20261019", stages="stages_20261020")
+FIRST_LAYER = 3  # author decision 2026-11-04: layers 3-8 are drawn and claimed; layers 1-2 are left out
+FLANKS = {"L8": (8,), "L4-5": (4, 5)}
+MID = (6, 7)
+
+
+def _checked_layer_run(module, run_id):
+    """File and recorded source hashes of one Track E run; the tables are not recomputed (the bootstrap draws)."""
+    from full_tree_pareto import layer_features as lf
+    analysis = lf.run_path(run_id) / "analysis"
+    if not (analysis / "provenance.json").is_file():
+        raise FileNotFoundError(f"No Track E cache at {analysis.parent}; create it with "
+                                f"`python -m {module.__name__} --run-id {run_id}`")
+    record = json.loads((analysis / "provenance.json").read_text())
+    if record["version"] != module.VERSION:
+        raise ValueError(f"Unsupported {module.__name__} cache: {record['version']}")
+    for name, expected in record["files"].items():
+        if lf.file_hash(analysis / name) != expected:
+            raise ValueError(f"Cache hash mismatch in {run_id}: {name}")
+    for name, expected in record["sources"].items():
+        if lf.file_hash(module.ROOT / name) != expected:
+            raise ValueError(f"Input/code changed since {run_id}: {name}; create a new numerical run")
+    return analysis, record
+
+
+def _per_edge(references, stages, tree, config):
+    rows = references[(references.config == config) & ~references.degenerate.astype(bool)].copy()
+    rows["layer"] = 9 - rows["round"]
+    rows = rows[rows.layer >= FIRST_LAYER].merge(stages[stages.tree == tree][["layer", "alive_median"]], on="layer")
+    return pd.DataFrame(dict(tree=tree, config=config, layer=rows.layer, edges=rows.edges, born=rows.alive_median,
+                             natural=rows.natural_travel / rows.edges,
+                             aunt=rows.first_cousin_travel_mean / rows.edges,
+                             random=rows.full_random_travel_mean / rows.edges)).sort_values("layer")
+
+
+def _changes(per_edge):
+    """Percent change in per-edge travel from each flank to each mid layer (flank layers averaged)."""
+    rows = []
+    for tree, costs in per_edge.groupby("tree", sort=False):
+        costs = costs.set_index("layer")
+        for flank, flank_layers in FLANKS.items():
+            base = costs.loc[list(flank_layers), ["natural", "aunt"]].mean()
+            for mid in MID:
+                rows.append(dict(tree=tree, contrast=f"L{mid} vs {flank}",
+                                 natural=100 * (costs.loc[mid, "natural"] / base["natural"] - 1),
+                                 aunt=100 * (costs.loc[mid, "aunt"] / base["aunt"] - 1)))
+    return pd.DataFrame(rows)
+
+
+def layers(runs=None):
+    """Track E inputs (Figure 6B-C of the revised layout, S5): hash-checked runs, reproduced against the cached
+    round references."""
+    from full_tree_pareto import layer_features as lf
+    from full_tree_pareto import layer_hourglass as lh
+    from full_tree_pareto import layer_stages as ls
+    from publication.contracts import FullTreeLayersInput
+
+    runs = dict(LAYER_RUNS, **(runs or {}))
+    hourglass, h_record = _checked_layer_run(lh, runs["hourglass"])
+    stages, s_record = _checked_layer_run(ls, runs["stages"])
+    saved = pd.read_csv(hourglass / "layers.csv")
+    trees, upstream = lh.load()
+    if upstream != h_record["upstream"]:
+        raise ValueError("Round references changed since the hourglass run")
+    reproduction = lh.check_reproduction(saved, trees)
+
+    stage_table = pd.read_csv(stages / "layers.csv")
+    pooled_refs = trees["pooled"]["references"]
+    partial_refs = trees["partial"]["references"]
+    partial_refs = partial_refs[partial_refs.geometry == lh.GEOMETRY]
+
+    rows = saved[(saved.series == "pooled_ce_protein") & (saved.family == "first_cousin")]
+    fronts = pooled_refs[pooled_refs.config == "ce_protein"].assign(layer=lambda f: 9 - f["round"])
+    table = (rows.merge(stage_table[stage_table.tree == "pooled"][["layer", "alive_median", "alive_q25", "alive_q75"]],
+                        on="layer")
+             .merge(fronts[["layer", "d_LP", "distinct_front_points", "max_edge_retention", "degenerate"]],
+                    on="layer"))
+    table = table[table.layer >= FIRST_LAYER].sort_values("layer")
+    if table.degenerate.astype(bool).any():
+        raise ValueError("A drawn layer has a degenerate front")
+    shown = pd.DataFrame(dict(
+        layer=table.layer, round=table["round"], edges=table.edges, groups=table.units,
+        born=table.alive_median, born_q25=table.alive_q25, born_q75=table.alive_q75,
+        front_distance=table.d_LP, front_points=table.distinct_front_points, fewest_rewired=1 - table.max_edge_retention,
+        travel=1 - table.travel_advantage, travel_low=1 - table.travel_high, travel_high=1 - table.travel_low,
+        state=1 - table.state_advantage, state_low=1 - table.state_high, state_high=1 - table.state_low)).reset_index(drop=True)
+    per_edge = pd.concat([_per_edge(pooled_refs, stage_table, "pooled", "ce_protein"),
+                          _per_edge(partial_refs, stage_table, "partial", "cb_rna")], ignore_index=True)
+
+    run = lf.RUN_ROOT
+    analysis_ids = dict(hourglass=h_record["analysis_id"], stages=s_record["analysis_id"])
+    left_out = saved[(saved.series == "pooled_ce_protein") & (saved.family == "first_cousin")
+                     & (saved.layer < FIRST_LAYER)].sort_values("layer")
+    settings = h_record["settings"]
+    return FullTreeLayersInput(
+        run=run, analysis_id=hashlib.sha256(json.dumps(analysis_ids, sort_keys=True).encode()).hexdigest(),
+        layers=shown, per_edge=per_edge, changes=_changes(per_edge),
+        caption=dict(first_layer=FIRST_LAYER, cells=int(shown.edges.sum()), leaves=int(shown.edges.iloc[-1]),
+                     left_out=[int(e) for e in left_out.edges], draws=int(settings["draws"]),
+                     level=float(settings["level"]), first_groups=int(shown.groups.iloc[0]),
+                     first_points=int(shown.front_points.iloc[0]), first_distance=float(shown.front_distance.iloc[0]),
+                     random=[float(per_edge[per_edge.tree == "pooled"].random.min() * 1e3),
+                             float(per_edge[per_edge.tree == "pooled"].random.max() * 1e3)]),
+        validation=dict(analysis_ids=analysis_ids, reproduction=reproduction,
+                        verified_source_hashes=len(h_record["sources"]) + len(s_record["sources"])),
+        input_files={str((path).relative_to(run)): sha256(path)
+                     for folder in (hourglass, stages) for path in sorted(folder.iterdir()) if path.is_file()})

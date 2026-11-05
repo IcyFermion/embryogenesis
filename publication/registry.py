@@ -16,7 +16,9 @@ from typing import Callable
 from publication import assembly, provenance, style, tables
 from publication.canonical_panels import canonical_records
 from publication.captions import cross_species as cs_captions
+from publication.captions import full_tree_layers as layer_captions
 from publication.figures import cross_species as cs_figures
+from publication.figures import full_tree_layers as layer_figures
 
 
 @dataclass(frozen=True)
@@ -59,7 +61,7 @@ class Family:
         return {spec.stem: spec.number for spec in self.figures} | dict(self.wrappers)
 
 
-def _build_specs(family, data, out):
+def _render_specs(family, data, out):
     """Single-graphic figures: render the panel, then caption, wrap and compile it."""
     artifacts, figures = [], {}
     for spec in family.figures:
@@ -69,7 +71,19 @@ def _build_specs(family, data, out):
         compiled = assembly.compile_wrapper(wrapper, label=spec.number)
         artifacts += [out / name for name in spec.files]
         figures[spec.stem] = dict(number=spec.number, layout=layout, compiled=compiled)
+    return artifacts, figures
+
+
+def _build_specs(family, data, out):
+    artifacts, figures = _render_specs(family, data, out)
     return dict(artifacts=artifacts, figures=figures, extra=dict(canonical_metrics=canonical_records(data)))
+
+
+def _build_layer_specs(family, data, out):
+    """Per-layer summaries have no canonical front records; the plotted values go in the manifest instead."""
+    artifacts, figures = _render_specs(family, data, out)
+    plotted = {name: json.loads(getattr(data, name).to_json(orient="records")) for name in ("layers", "changes")}
+    return dict(artifacts=artifacts, figures=figures, extra=dict(plotted=plotted, layer_validation=data.validation))
 
 
 def _build_terminal_primary(family, data, out):
@@ -218,6 +232,14 @@ FAMILIES = {family.key: family for family in (
                                partial(cs_figures.overlay_figure, title="Partial-forest fronts and canonical metrics",
                                        zoom_includes_closest=True),
                                cs_captions.full_tree_overlay))),
+    Family("full-tree-layers",
+           "Pooled full tree by layer (layers 3-8): which travel cost moves in the mid layers (Track E)",
+           "publication.adapters.full_tree:layers", _build_layer_specs,
+           production="publication/output/production",
+           status="candidate: supplement S5 (provisional number); the main-text panels are Figure 6B-C of the "
+                  "revised layout (publication.v2)",
+           figures=(FigureSpec("S5", "figS5_full_tree_layer_travel", "fig:full_tree_layer_travel_S5",
+                               layer_figures.travel_decomposition_figure, layer_captions.travel_decomposition),)),
 )}
 
 BUILD_SET = "build_set.json"
