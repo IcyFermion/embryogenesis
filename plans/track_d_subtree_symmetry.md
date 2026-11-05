@@ -1,6 +1,7 @@
 # Track D: left-right subtree symmetry
 
-**Status (2026-11-04): D6 released** (D6d), figures-v2 on draft 3 (D6e); the PR remains.
+**Status (2026-11-04): closed.** D6 was released (D6d) and merged to `main`
+(PR #7). figures-v2 is on draft 3 (D6e). D6f is at the end.
 
 **Status (2026-11-02): D6.** The author's group changed direction. Symmetry
 leaves the paper, and the subtree floor rises from 12 to 24 cells by a
@@ -2019,3 +2020,10 @@ branch is rebased onto this one.
 **Open.** D6f: push this branch and open the PR to `main` (held for the
 author), then close the track and remove the worktree. After the merge,
 `figures-v2` rebases onto `main` with nothing to resolve.
+
+## D6f: closed (2026-11-04)
+
+PR #7 merged to `main` (merge commit 07beae8). `figures-v2` is rebased onto
+`main`. The worktree is removed and the local branch deleted, as
+`plans/README.md` describes. `verify --production` is clean. This status
+update rides along with `figures-v2`.
