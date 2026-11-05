@@ -7,8 +7,8 @@ Supplementary Figures S1-S5 and Table 1 are the released production pages,
 with their released captions. Production must verify cleanly first.
 
 Every figure file is a captioned page (``Figure1.pdf`` ... ``FigureS5.pdf``,
-``Table1.pdf``, plus ``Table1.tex``); main figures without an agreed caption
-say "Caption to follow". ``graphics/`` holds the main figures' bare graphics
+``Table1.pdf``, plus ``Table1.tex``). Main-figure captions are agreed or, until
+the author approves them, drafts in the v1 style (``publication.v2.captions``). ``graphics/`` holds the main figures' bare graphics
 for LaTeX ``includegraphics``. ``review.pdf`` joins every page; ``captions.tex``,
 ``README.md`` and ``manifest.json`` complete the folder.
 """
@@ -114,14 +114,18 @@ def assemble(v2_build: Path, out: Path) -> dict:
 
     with nt.override(**NOTATION):
         agreed = {n: make() for n, make in captions.AGREED.items()}
-    main_captions = {n: agreed.get(n) for n in sorted([*MAIN, "5"], key=int)}
+        drafts = {n: make() for n, make in captions.DRAFT.items()}
+    main_captions = {n: agreed.get(n) or drafts.get(n) for n in sorted([*MAIN, "5"], key=int)}
     main_captions["5"] = caption_body((PRODUCTION / FIGURE5["wrapper"]).read_text())
+    status = {n: "agreed" if n in agreed else "released" if n == "5" else "draft" if n in drafts else "missing"
+              for n in main_captions}
+    if "missing" in status.values():
+        raise ValueError(f"No caption for main figures {[n for n, v in status.items() if v == 'missing']}")
     released = {n: caption_body((PRODUCTION / f"{stem}.tex").read_text()) for n, stem in SUPPLEMENT.items()}
     released["Table 1"] = caption_body((PRODUCTION / f"{TABLE1}.tex").read_text())
 
     for n, text in main_captions.items():  # one captioned page per main figure, like the released pages
         shutil.copy2(graphics / f"Figure{n}.pdf", work / f"graphic{n}.pdf")
-        text = text or r"{\itshape Caption to follow.}"
         tex = work / f"Figure{n}.tex"
         tex.write_text(REVIEW_PREAMBLE + f"\\setcounter{{figure}}{{{int(n) - 1}}}\n"
                        "\\begin{figure}[p]\n\\centering\n"
@@ -132,11 +136,11 @@ def assemble(v2_build: Path, out: Path) -> dict:
     subprocess.run(["pdfunite", *(str(out / name) for name in order), str(out / "review.pdf")], check=True)
 
     blocks = ["% Captions for the manuscript figure set (TeX caption bodies).",
-              "% Main figures: agreed captions; 'to follow' where none is agreed yet.",
+              "% Main figures: agreed captions, or drafts in the v1 style awaiting the author's review.",
               "% Figure 5 and the supplement: released captions, unchanged."]
     for n, text in main_captions.items():
-        status = "agreed" if n in agreed else ("released (production Figure 6)" if n == "5" else "to follow")
-        blocks.append(f"\n% Figure {n} ({status})\n{text or '% to follow'}")
+        label = "released (production Figure 6)" if n == "5" else status[n]
+        blocks.append(f"\n% Figure {n} ({label})\n{text}")
     for n, text in released.items():
         blocks.append(f"\n% {'Figure ' + n if n != 'Table 1' else n} (released)\n{text}")
     (out / "captions.tex").write_text("\n".join(blocks) + "\n")
@@ -150,7 +154,7 @@ def assemble(v2_build: Path, out: Path) -> dict:
         "Every figure file is a page with its caption; `review.pdf` joins them all. `graphics/` holds the "
         "main figures without captions, for `\\includegraphics`, and `captions.tex` holds every caption as TeX.", "",
         "| File | Figure | Source | Caption |", "|---|---|---|---|",
-        *(f"| Figure{n}.pdf | {n} | revised layout (v2) | {'agreed' if n in agreed else 'to follow'} |"
+        *(f"| Figure{n}.pdf | {n} | revised layout (v2) | {status[n]} |"
           if n != "5" else
           "| Figure5.pdf | 5 | released Figure 6 panels (cell types), not yet restyled | released, renumbered |"
           for n in main_captions),
@@ -161,6 +165,8 @@ def assemble(v2_build: Path, out: Path) -> dict:
         "d_LP*/d_CP* where the other figures write d_LP/d_CP.",
         "- Figure 5 is a placeholder until the cell-type figure is restyled; its caption is the released one.",
         "- Figure 7B is to follow.",
+        "- Captions of Figures " + ", ".join(n for n, v in status.items() if v == "draft")
+        + " are drafts in the v1 style, for the author's review (`publication/v2/captions.py`).",
         *(f"- Released caption of {n} {why}." for n, why in OLD_REFERENCES.items()), "",
         "## Released figures not placed in the revised layout", "",
         *(f"- Released Figure {n}: {what}." for n, what in NOT_PLACED.items()), "",
@@ -170,8 +176,7 @@ def assemble(v2_build: Path, out: Path) -> dict:
                     v2_build_record=sha256(v2_build / "build.json"),
                     production={k: dict(released_at=v["released_at"], presentation_id=v["presentation_id"])
                                 for k, v in families.items()},
-                    captions={("Figure " + n): ("agreed" if n in agreed else "released" if n == "5" else "to follow")
-                              for n in main_captions},
+                    captions={f"Figure {n}": v for n, v in status.items()},
                     files={str(p.relative_to(out)): sha256(p) for p in sorted(out.rglob("*")) if p.is_file()})
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest

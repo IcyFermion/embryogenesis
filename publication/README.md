@@ -86,7 +86,7 @@ modules and the validators (see the package READMEs).
 | `migration.py` | One-off archive and post-PR purge of figure material left in the back ends |
 | `registry.py`, `__main__.py`, `parity.py` | Families and CLI; candidate/production comparison |
 | `sketches/` | Exploratory figures for discussion (branch `figure-ideas`); outside the registry, never released; writes `output/sketches/<name>/` |
-| `v2/` | Revised manuscript layout (branch figures-v2), outside the registry. `python -m publication.v2 --output-dir DIR` builds draft pages; `--manuscript` builds the figures alone, cropped. `python -m publication.v2.manuscript --v2-build DIR --output-dir publication/output/manuscript/<name>` assembles the manuscript set (Figures 1-7, S1-S5, Table 1, `review.pdf`, `captions.tex`) from that build and a current production; `v2/captions.py` holds the agreed captions |
+| `v2/` | Revised manuscript layout (branch figures-v2), outside the registry. `python -m publication.v2 --output-dir DIR` builds draft pages; `--manuscript` builds the figures alone, cropped. `python -m publication.v2.manuscript --v2-build DIR --output-dir publication/output/manuscript/<name>` assembles the manuscript set (Figures 1-7, S1-S5, Table 1, `review.pdf`, `captions.tex`) from that build and a current production; `v2/captions.py` holds the main-figure captions (agreed, or drafts in the v1 style awaiting review) |
 | `notes/` | Reserve notes: one-page supplementary-style pages kept ready for reviewer questions (Note A: the ABplp/ABprp apoptotic-cell endpoint, Track D4c); outside the registry, statements checked against hash-checked runs; `python -m publication.notes --output-dir publication/output/notes/<name>` |
 
 ## Changing displayed notation
