@@ -200,7 +200,7 @@ def layers(runs=None):
     fronts = pooled_refs[pooled_refs.config == "ce_protein"].assign(layer=lambda f: 9 - f["round"])
     table = (rows.merge(stage_table[stage_table.tree == "pooled"][["layer", "alive_median", "alive_q25", "alive_q75"]],
                         on="layer")
-             .merge(fronts[["layer", "d_LP", "distinct_front_points", "retention_at_nearest", "degenerate"]],
+             .merge(fronts[["layer", "d_LP", "distinct_front_points", "max_edge_retention", "degenerate"]],
                     on="layer"))
     table = table[table.layer >= FIRST_LAYER].sort_values("layer")
     if table.degenerate.astype(bool).any():
@@ -208,7 +208,7 @@ def layers(runs=None):
     shown = pd.DataFrame(dict(
         layer=table.layer, round=table["round"], edges=table.edges, groups=table.units,
         born=table.alive_median, born_q25=table.alive_q25, born_q75=table.alive_q75,
-        front_distance=table.d_LP, front_points=table.distinct_front_points, rewired=1 - table.retention_at_nearest,
+        front_distance=table.d_LP, front_points=table.distinct_front_points, fewest_rewired=1 - table.max_edge_retention,
         travel=1 - table.travel_advantage, travel_low=1 - table.travel_high, travel_high=1 - table.travel_low,
         state=1 - table.state_advantage, state_low=1 - table.state_high, state_high=1 - table.state_low)).reset_index(drop=True)
     per_edge = pd.concat([_per_edge(pooled_refs, stage_table, "pooled", "ce_protein"),

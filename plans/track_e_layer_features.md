@@ -206,8 +206,8 @@ nothing.
 - **Author decision (2026-11-05):**
   - F moves into Figure 6 of the revised layout. 6A stays (all eight layers,
     to show why layers 1-2 are left out).
-  - 6B is now d_LP plus lineage edges rewired at P*; 6C is relative travel and
-    cell-state cost.
+  - 6B is now d_LP plus the fewest lineage edges rewired on the front
+    (1 − maximum similarity); 6C is relative travel and cell-state cost.
   - The standalone Figure 12 is dropped; the family keeps S5 only.
   - Figure 6 itself is built as figures-v2 draft 4, after Track E closes.
 

@@ -56,15 +56,15 @@ class LayerInputs(unittest.TestCase):
         self.assertTrue((t.travel_high < 1).all())
         self.assertEqual(set(t.nlargest(2, "travel").layer), {6, 7})
 
-    def test_rewired_share_is_read_from_the_round_references(self):
+    def test_fewest_rewired_is_one_minus_the_maximum_similarity(self):
         from full_tree_pareto import pooled_analysis as pa
         from full_tree_pareto import round_references as rr
         with no_experiments():
             metrics = rr.load(pa.DEFAULT_RUN, "pooled")["metrics"]
         metrics = metrics[metrics.config == "ce_protein"].assign(layer=lambda f: 9 - f["round"]).set_index("layer")
         t = self.data.layers.set_index("layer")
-        np.testing.assert_allclose(t.rewired, 1 - metrics.loc[t.index, "retention_at_nearest"], rtol=0, atol=1e-12)
-        self.assertEqual(t.rewired.idxmax(), 6)
+        np.testing.assert_allclose(t.fewest_rewired, 1 - metrics.loc[t.index, "max_edge_retention"], rtol=0, atol=1e-12)
+        self.assertEqual(t.fewest_rewired.idxmax(), 6)
 
     def test_decomposition_signs_match_the_caption(self):
         changes = self.data.changes.set_index(["tree", "contrast"])
@@ -81,7 +81,7 @@ class LayerInputs(unittest.TestCase):
 
     def test_figures_draw_the_input_values(self):
         t = self.data.layers
-        for compose, columns in ((compose_position, ("front_distance", "rewired")), (compose_cost, ("travel", "state"))):
+        for compose, columns in ((compose_position, ("front_distance", "fewest_rewired")), (compose_cost, ("travel", "state"))):
             fig, layout = compose(self.data)
             try:
                 points = {child.get_gid(): child.get_offsets() for ax in fig.axes for child in ax.get_children()

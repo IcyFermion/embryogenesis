@@ -172,11 +172,15 @@ Figure 12 would repeat it. Figure 6 keeps A (fronts of all eight layers;
 layers 1-2 stay, to show why they are left out of the layer comparison) and
 replaces the old B (lineage-similarity curves) and C (u and d_LP rows) with
 two panels on the birth-size axis, layers 3-8:
-- **6B, where the lineage sits:** d_LP, and the share of lineage edges
-  rewired at the closest front point P* (1 − edge retention at P*; old 6B's
-  quantity, one value per layer). Both peak at layer 6 (0.21; 0.82). The
-  rewired share is descriptive, with no interval and no claim, and it is not
-  independent of d_LP (same P*).
+- **6B, the lineage against its front:** d_LP, and the fewest lineage edges
+  any front assignment rewires (1 − maximum lineage similarity along the
+  front; old 6B's quantity, one value per layer, as the earlier comment
+  asked). Both peak at layer 6 (0.21; 0.70).
+  - The second row is descriptive, with no interval and no claim. It is
+    another view of the same front, not independent support: a lineage far
+    from its front also leaves the front's assignments less lineage-like.
+  - The share rewired at P* was tried first (2026-11-05). It was replaced
+    because it is read off the same point as d_LP.
 - **6C, lineage against the first-cousin shuffle:** the natural / shuffle
   cost for travel and cell state on one axis, with 95% bootstrap intervals.
 
@@ -193,9 +197,10 @@ Caption draft for Figure 6B-C (to be merged into the Figure 6 caption):
 "Layers 3-8, one point per layer at the median embryo size (cells alive)
 when its cells are born (cell table of Large et al. 2025). Layers 1-2 (5 and
 10 cells) are left out: their fronts have 2 and 6 distinct points (A).
-(B) Distance d_LP from the lineage to the layer's front, and the share of
-lineage edges rewired at the closest front point P*. Layer 3's front has
-only 5 distinct points and the lineage lies on one of them, so both are 0.
+(B) Distance d_LP from the lineage to the layer's front, and the fewest
+lineage edges rewired by any assignment on the front (1 − maximum lineage
+similarity). Layer 3's front has only 5 distinct points and the lineage lies
+on one of them, so both are 0.
 (C) Natural travel and cell-state cost divided by the mean cost of the exact
 first-cousin shuffle, which reassigns daughters among mothers that share a
 grandmother; 1 means no better than the shuffle. Error bars are 95% bootstrap

@@ -2,8 +2,10 @@
 
 Figure 6B-C (half width each, drawn here and placed by ``publication.v2``):
 one point per layer at the median embryo size when the layer's cells are
-born. B shows where the lineage sits against its front (front distance and the
-share of lineage edges rewired at the closest front point); C shows the
+born. B shows the lineage against its front: the front distance, and the
+fewest lineage edges any front assignment rewires (1 - maximum lineage
+similarity, the point M of Figure 3A). That is another view of the same front,
+not independent support. C shows the
 natural / first-cousin shuffle cost for travel and cell state. Figure S5
 (double column, a family figure): travel per edge to the own mother, an aunt
 and a random mother, and which of the first two moves in each mid-layer
@@ -59,14 +61,13 @@ def _relative_limits(t):
 
 
 def compose_position(data):
-    """Figure 6B: front distance and the share of lineage edges rewired at the closest front point."""
+    """Figure 6B: front distance and the fewest lineage edges rewired by any assignment on the front."""
     t = data.layers
     fig, axes = plt.subplots(2, 1, figsize=SUMMARY_SIZE, sharex=True)
     fig.subplots_adjust(left=.2, right=.96, top=.9, bottom=.14, hspace=.22)
-    closest = nt.math("closest_point")
     rows = ((axes[0], "front_distance", FRONT_COLOR, f"Distance to front,\n{nt.math('natural_front_distance')}",
              max(.3, np.ceil(t.front_distance.max() * 20) / 20 + .05)),
-            (axes[1], "rewired", REWIRED_COLOR, f"Lineage edges\nrewired at {closest}", 1.))
+            (axes[1], "fewest_rewired", REWIRED_COLOR, "Fewest lineage edges\nrewired on the front", 1.))
     for ax, column, color, label, top in rows:
         _size_axis(ax, label=ax is axes[-1])
         ax.plot(t.born, t[column], color=color, lw=1.2, zorder=3)

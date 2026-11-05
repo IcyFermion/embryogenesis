@@ -150,8 +150,8 @@ class FullTreeLayersInput:
     Layers are counted top-down (layer = 9 - contraction round); only layers
     from ``caption["first_layer"]`` on are present. ``layers`` (pooled
     C. elegans protein) has birth-size median and quartiles, the front
-    distance, the share of lineage edges rewired at the closest front point
-    and the natural / shuffle cost for travel and cell state with 95%
+    distance, the fewest lineage edges any front assignment rewires
+    (1 - maximum edge retention along the front) and the natural / shuffle cost for travel and cell state with 95%
     bootstrap bounds. ``per_edge`` has travel per edge to the own mother,
     an aunt (first-cousin mean) and a random mother (full-shuffle mean) for the
     pooled tree and the C. briggsae partial forest; ``changes`` has the percent
