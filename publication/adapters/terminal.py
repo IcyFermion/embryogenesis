@@ -82,7 +82,8 @@ def cross_species(run=tcs.DEFAULT_RUN) -> FrontComparisonInput:
 PRIMARY_FAMILY = "terminal-primary"
 PRIMARY_PROFILE = "pooled_tracking_v1"
 PRIMARY_RUN = "migration_candidate_20260920"
-PRIMARY_MIN_CELLS = 12
+PRIMARY_MIN_CELLS = 12  # floor of the cached subtree analysis (its manifests and validators)
+SUBTREE_FLOOR = 24  # subtrees shown in the paper: see _resolution (Track D6)
 PRIMARY_INTERVALS = 300
 
 
@@ -115,12 +116,13 @@ def _within_type(analysis: Path, context):
     return dict(fronts=fronts, summary=summary, aggregate=aggregate, endpoints=endpoints)
 
 
-def _subtree_map(context, analysis: Path, min_cells: int):
+def _subtree_map(context, analysis: Path, min_cells: int, floor: int):
     from publication.figures.terminal_subtree_map import collect_nodes, terminal_inorder
     from terminal_pareto import data_loader as dl
     from terminal_pareto import lineage_metrics as lm
     from terminal_pareto.subtree_analysis import build_type_map, load_validated_subtree_summary
     summary = load_validated_subtree_summary(analysis, min_cells, context)
+    summary = summary[summary.n >= floor].reset_index(drop=True)
     on_front = set(summary[summary["natural_on_front"].astype(bool)]["subtree"])
     by_name = summary.set_index("subtree")
     nodes, edges, *_ = collect_nodes(
@@ -149,37 +151,31 @@ def _s3(context, analysis: Path):
     return pd.read_csv(table), provenance["references"], provenance
 
 
-# Track D runs behind the mirrored-pair layer of Figure 5 (B numbers, C rows, caption notes).
-SYMMETRY_RUNS = dict(compare="compare_20261015", classification="robustness_20261015",
-                     deaths="apoptosis_20261019", control="apoptosis_subtrees_20261021")
-SYMMETRY_TABLES = dict(compare=("pair_tiers", "subtree_metrics", "pair_comparison"),
-                       classification=("classification",), deaths=("deaths", "subtree_metrics"),
-                       control=("observed", "decision"))
-SYMMETRY_METRICS = dict(u="u_L", d_lp="d_LP", d_sd="d_SD", z_travel="natural_travel_z", z_state="natural_state_z")
-SYMMETRY_ZERO = 1e-9  # the D4b tie tolerance: d_SD at or below it is on the front
+# Track D runs behind the subtree floor and the Figure 5 caption note (Track D6).
+TRACK_D_RUNS = dict(compare="compare_20261015", control="apoptosis_subtrees_20261021",
+                    single="apoptosis_single_20261022")
+TRACK_D_TABLES = dict(compare=("subtree_metrics",), control=("decision",), single=("single",))
+TRACK_D_LINKS = dict(compare_run="compare_20261015", apoptosis_run="apoptosis_20261019")
+RESOLVED_NULL_CELLS = 12  # a resolved subtree's first-cousin null shuffles at least this many cells (D5a)
+ZERO = 1e-9  # the D4b tie tolerance: d_SD at or below it is on the front
 
 
-def _symmetry(run: Path, analysis: Path, canonical: pd.DataFrame):
-    """Mirrored subtree pairs and the evidence their caption notes cite, from hash-checked Track D tables.
-
-    Reads stored tables only (no fronts are recomputed). Returns the display
-    rows, the cited evidence and the input files keyed relative to ``run``.
-    """
+def _track_d(run: Path, analysis: Path):
+    """Hash-checked Track D tables keyed (stage, name), and the input files keyed relative to ``run``."""
     from terminal_pareto import subtree_symmetry as ss
     tables, files = {}, []
-    for stage, run_id in SYMMETRY_RUNS.items():
+    for stage, run_id in TRACK_D_RUNS.items():
         folder = ss.run_path(run_id) / "analysis"
         record = json.loads((folder / "provenance.json").read_text())
         files.append(folder / "provenance.json")
-        for name in SYMMETRY_TABLES[stage]:
+        for name in TRACK_D_TABLES[stage]:
             path = folder / f"{name}.csv"
             if sha256(path) != record["table_hashes"][name]:
                 raise ValueError(f"{path} differs from its provenance record")
             tables[stage, name] = pd.read_csv(path)
             files.append(path)
-        linked = {k: record.get(f"{k}_run") for k in ("compare", "apoptosis") if f"{k}_run" in record}
-        expected = dict(compare=SYMMETRY_RUNS["compare"], apoptosis=SYMMETRY_RUNS["deaths"])
-        if any(v != expected[k] for k, v in linked.items()):
+        linked = {k: v for k, v in record.items() if k in TRACK_D_LINKS and v != TRACK_D_LINKS[k]}
+        if linked:
             raise ValueError(f"{run_id} was built from other Track D runs: {linked}")
         if stage == "compare":
             if Path(ss.ROOT / record["canonical_analysis"]).resolve() != analysis.resolve():
@@ -187,47 +183,49 @@ def _symmetry(run: Path, analysis: Path, canonical: pd.DataFrame):
             changed = [n for n, digest in record["canonical_hashes"].items() if sha256(analysis / n) != digest]
             if changed:
                 raise ValueError(f"Canonical files changed since {run_id}: {changed}")
-
-    metrics = tables["compare", "subtree_metrics"].query("travel == 'pooled'").set_index("subtree")
-    pct = tables["compare", "pair_comparison"].set_index(["subtree_x", "metric"]).reference_percentile
-    label = tables["classification", "classification"].set_index("subtree_x").label
-    pairs = tables["compare", "pair_tiers"].query("tier != 'excluded'")
-    rows = []
-    for p in pairs.itertuples():
-        row = dict(left=p.subtree_x, right=p.subtree_y, tier=p.tier, label=label[p.subtree_x],
-                   edges_left=int(metrics.at[p.subtree_x, "n"]), edges_right=int(metrics.at[p.subtree_y, "n"]))
-        for key, field in SYMMETRY_METRICS.items():
-            row[f"{key}_left"] = float(metrics.at[p.subtree_x, field])
-            row[f"{key}_right"] = float(metrics.at[p.subtree_y, field])
-            row[f"{key}_percentile"] = float(pct[p.subtree_x, field])
-        rows.append(row)
-    pairs = pd.DataFrame(rows)
-    shown = canonical.set_index("subtree")
-    for side in ("left", "right"):
-        for key, column in (("u", "u_lineage_lp"), ("d_lp", "d_lp")):
-            delta = np.abs(pairs[f"{key}_{side}"].to_numpy() - shown.loc[pairs[side], column].to_numpy())
-            if delta.max() > 1e-9:
-                raise ValueError(f"Track D {key} does not reproduce the canonical table ({delta.max():.2e})")
-
-    four = tables["deaths", "subtree_metrics"].query("cost == 'measured' and travel == 'pooled'")
-    four = four.set_index(["subtree", "variant"])
-    observed = tables["control", "observed"].set_index(["subtree", "variant"])
-    decision = tables["control", "decision"].set_index(["subtree", "variant"]).loc[("ABplp", "drop_deaths")]
-    deaths = tables["deaths", "deaths"].cell.drop_duplicates()
-    classes = tables["classification", "classification"].set_index("subtree_x")
-    evidence = dict(
-        abplpa_travel_span_sd=float(metrics.at["ABplpa", "travel_span_sd"]),
-        abplpa_deaths=int(four.at[("ABplpa", "as_is"), "n_deaths"]),
-        abplpa_without_death={v: four.at[("ABplpa", v), "status"] for v in ("drop_deaths", "birth_endpoint")},
-        msaa_reasons=classes.at["MSaa", "reasons"],
-        msaa_null_support_share=float(classes.at["MSaa", "min_null_support_share"]),
-        abplppp_deaths=sorted(c for c in deaths if c.startswith("ABplppp")),
-        birth_endpoint_on_front={s: bool(observed.at[(s, "birth_endpoint"), "d_SD"] <= SYMMETRY_ZERO)
-                                 for s in ("ABplp", "ABplpp", "ABplppp")},
-        abplp_control_draws=int(decision.n_ok),
-        abplp_control_on_front=int(round(decision.d_SD_p * (decision.n_ok + 1))) - 1)
     inputs = {os.path.relpath(path.resolve(), Path(run).resolve()): sha256(path) for path in files}
-    return dict(pairs=pairs, evidence=evidence), inputs
+    return tables, inputs
+
+
+def _resolution(tables, canonical: pd.DataFrame, floor: int = SUBTREE_FLOOR) -> dict:
+    """Check that ``floor`` is the size above which every subtree is resolved (Track D6 rule).
+
+    Resolved: the first-cousin null shuffles at least ``RESOLVED_NULL_CELLS``
+    cells and the front spans at least one null SD on both axes. Every subtree
+    at or above the floor must be resolved, and no subtree below it may be
+    larger than the largest unresolved one (so the floor drops nothing the
+    rule would keep).
+    """
+    from terminal_pareto import subtree_symmetry as ss
+    metrics = tables["compare", "subtree_metrics"].query("travel == 'pooled'").set_index("subtree")
+    if set(metrics.index) != set(canonical.subtree):
+        raise ValueError("Track D subtree table and canonical table cover different subtrees")
+    shown = canonical.set_index("subtree")
+    for key, column in (("u_L", "u_lineage_lp"), ("d_LP", "d_lp")):
+        delta = np.abs(metrics[key] - shown.loc[metrics.index, column]).max()
+        if delta > 1e-9:
+            raise ValueError(f"Track D {key} does not reproduce the canonical table ({delta:.2e})")
+    resolved = ((metrics.null_support >= RESOLVED_NULL_CELLS)
+                & (metrics[["travel_span_sd", "state_span_sd"]].min(axis=1) >= ss.TINY_SPAN_SD))
+    largest = metrics[~resolved].n.idxmax()
+    kept = metrics.n >= floor
+    if not resolved[kept].all() or (metrics.n[~kept] > metrics.at[largest, "n"]).any():
+        raise ValueError(f"A floor of {floor} cells no longer follows the resolution rule")
+    return dict(floor=floor, kept=int(kept.sum()), resolved=int(resolved.sum()),
+                largest_unresolved=(largest, int(metrics.at[largest, "n"])))
+
+
+def _note_evidence(tables, shown: pd.DataFrame) -> dict:
+    """What the Figure 5 caption note on ABplp cites (Track D4b-D4c)."""
+    single = tables["single", "single"].query("subtree == 'ABplp' and variant == 'birth_endpoint'")
+    alone = single[single.treatment == "only"]
+    control = tables["control", "decision"].set_index(["subtree", "variant"]).loc[("ABplp", "birth_endpoint")]
+    return dict(
+        farthest=shown.loc[shown.d_lp.idxmax(), "subtree"],
+        deaths=sorted(alone.death),
+        alone_on_front={r.death: r.status == "ok" and r.d_SD <= ZERO for r in alone.itertuples()},
+        control_draws=int(control.n_ok),
+        control_on_front=int(round(control.d_SD_p * (control.n_ok + 1))) - 1)
 
 
 def _global_display(result, context):
@@ -275,8 +273,12 @@ def primary(run_id: str = PRIMARY_RUN, *, output_root: Path | None = None):
     canonical = load_validated_canonical_metrics(analysis / "ce_subtree_canonical_metrics.csv",
                                                  min_cells=PRIMARY_MIN_CELLS, iteration=PRIMARY_INTERVALS,
                                                  context=context)
+    run = context.run_paths.root
+    track_d, track_d_inputs = _track_d(run, analysis)
+    resolution = _resolution(track_d, canonical)
+    canonical = canonical[canonical.n >= SUBTREE_FLOOR].reset_index(drop=True)
     canonical_display = canonical[canonical["endpoint_ok"].astype(bool) & canonical["u_monotone"].astype(bool)].copy()
-    summary, nodes, edges = _subtree_map(context, analysis, PRIMARY_MIN_CELLS)
+    summary, nodes, edges = _subtree_map(context, analysis, PRIMARY_MIN_CELLS, SUBTREE_FLOOR)
     retention, keypoints = cell_types.load_validated_cell_type_caches(analysis, PRIMARY_INTERVALS, context)
     within = _within_type(analysis, context)
     s3_frame, s3_references, s3_provenance = _s3(context, analysis)
@@ -285,21 +287,18 @@ def primary(run_id: str = PRIMARY_RUN, *, output_root: Path | None = None):
              "global_front_retention_by_cell_type.csv", "global_front_by_cell_type.csv",
              "within_type_fronts.csv", "within_type_summary.csv", "type_preserving_aggregate_front.csv",
              f"{S3_DIR}/cross_geometry_coordinates.csv", f"{S3_DIR}/provenance.json"]
-    run = context.run_paths.root
     inputs = {f"analysis/{name}": sha256(analysis / name) for name in files}
-    symmetry, symmetry_inputs = _symmetry(run, analysis, canonical_display)
-    inputs.update(symmetry_inputs)
+    inputs.update(track_d_inputs)
     return TerminalPrimaryInput(
         run=run, analysis_id=context.cache_key, edges=len(context.terminal_nodes),
-        subtrees=len(canonical), min_cells=PRIMARY_MIN_CELLS,
+        subtrees=len(canonical), min_cells=SUBTREE_FLOOR,
         global_twr=result.twr, global_nulls=nulls, global_display=display,
         canonical=canonical, canonical_display=canonical_display, subtree_summary=summary,
         subtree_nodes=nodes, subtree_edges=edges,
         cell_type_retention=cell_types.merge_small_retention(retention), cell_type_keypoints=_merge_small(keypoints),
         within_type=within, s3_projections=s3_frame, s3_references=s3_references,
-        symmetry=symmetry,
+        notes=_note_evidence(track_d, canonical_display),
         validation=dict(context_cache_key=context.cache_key, global_analysis=result.analysis_cache_key,
                         s3_projection_count=s3_provenance["projection_count"],
-                        canonical_rows=len(canonical), subtree_map_nodes=len(nodes),
-                        mirrored_pairs=len(symmetry["pairs"])),
+                        canonical_rows=len(canonical), subtree_map_nodes=len(nodes), resolution=resolution),
         input_files=inputs)

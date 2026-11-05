@@ -19,7 +19,6 @@ from matplotlib.transforms import Bbox
 
 from publication import notation as nt
 from publication import style as ps
-from publication.figures import terminal_symmetry
 
 
 def _points():
@@ -50,6 +49,29 @@ LP_COLOR = ps.SEMANTIC_COLORS["lineage_front_distance"]
 NP_COLOR = ps.SEMANTIC_COLORS["first_cousin_null"]
 TRAVEL_COLOR = ps.SEMANTIC_COLORS["travel"]
 STATE_COLOR = ps.SEMANTIC_COLORS["cell_state"]
+# Figure 5 caption note: mark and the readout it explains, keyed by subtree (Track D6).
+NOTES = {"ABplp": ("†", "d_lp")}
+ROW_INCH = .169  # Figure 5B row pitch, as in the 42-subtree layout
+
+
+def check_notes(evidence):
+    """Raise if the stored Track D results no longer support the Figure 5 caption note."""
+    claims = {
+        "ABplp lies farthest from its front": evidence["farthest"] == "ABplp",
+        "ABplp has three apoptotic cells": len(evidence["deaths"]) == 3,
+        "only ABplpppapp's birth endpoint puts ABplp on its front":
+            {d for d, on in evidence["alone_on_front"].items() if on} == {"ABplpppapp"},
+        "matched living cells: 0 of 1000 draws": (evidence["control_draws"], evidence["control_on_front"]) == (1000, 0),
+    }
+    failed = [claim for claim, ok in claims.items() if not ok]
+    if failed:
+        raise ValueError(f"Figure 5 caption note no longer holds: {failed}")
+
+
+def mark_value(ax, row, value, mark, xmax, *, fontsize=8):
+    """Note mark just right of a plotted readout."""
+    ax.text(value + .06 * xmax, row, mark, fontsize=fontsize, color="#222222", va="center", ha="left",
+            clip_on=False, zorder=4)
 
 
 def annotate_abplpp_pair(ax, data, u_col, distance_col, color):
@@ -606,12 +628,14 @@ def save_component_crops(fig, ax_definition, ax_major, ax_all,
         axis.set_visible(was_visible)
 
 
-def plot_primary_rows(metrics, out_dir, symmetry=None):
+def plot_primary_rows(metrics, out_dir, notes=None):
     """Separate the null comparison from a fully labelled subtree inventory.
 
-    With ``symmetry`` (Track D mirrored pairs), B numbers the paired subtrees and
-    marks the noted readouts, and C (``terminal_symmetry``) shows the pairs.
+    With ``notes`` (the evidence ``check_notes`` tests), B marks the readouts
+    the caption note explains.
     """
+    if notes:
+        check_notes(notes)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -677,16 +701,18 @@ def plot_primary_rows(metrics, out_dir, symmetry=None):
     if displayed.subtree.duplicated().any() or set(displayed.subtree) != set(metrics.subtree):
         raise ValueError("Figure 5 row groups must include every subtree exactly once")
     row_count = max(sum(len(frame)+2 for _, frame in column)-1 for column in sections)
-    tags = terminal_symmetry.row_tags(symmetry["pairs"]) if symmetry else {}
-    name_x = -.42 if tags else -.12
-    fig = plt.figure(figsize=(7.4, 4.5))
-    fig.text(.015, .985, "B", fontsize=12, weight="bold", va="top")
-    fig.text(.065, .985, f"All {len(metrics)} surveyed subtrees: natural lineage only",
+    marks = NOTES if notes else {}
+    # Fixed margins in inches: .52 below the axes, .92 above for the title and column heads.
+    axes_height = ROW_INCH * (row_count + .85)
+    height = axes_height + 1.44
+    fig = plt.figure(figsize=(7.4, height))
+    fig.text(.015, 1 - .07/height, "B", fontsize=12, weight="bold", va="top")
+    fig.text(.065, 1 - .07/height, f"All {len(metrics)} subtrees: natural lineage only",
              fontsize=10.5, weight="bold", va="top")
     dmax = max(.2, np.ceil(float(metrics.d_lp.max())*10)/10)
     for left, column in zip((.015, .345, .675), sections):
-        axes = [fig.add_axes([left+.105, .115, .077, .68]),
-                fig.add_axes([left+.213, .115, .087, .68])]
+        axes = [fig.add_axes([left+.105, .52/height, .077, axes_height/height]),
+                fig.add_axes([left+.213, .52/height, .087, axes_height/height])]
         for ax, xmax, ticks, title, color in (
             (axes[0], 1., [0., .5, 1.], nt.heading("canonical_position"), U_COLOR),
             (axes[1], dmax, [0., dmax/2, dmax], f"Distance, {nt.math('natural_front_distance')}", LP_COLOR),
@@ -713,38 +739,30 @@ def plot_primary_rows(metrics, out_dir, symmetry=None):
                          zorder=5)
             for row in frame.itertuples():
                 row_number += 1
-                axes[0].text(name_x, row_number, row.subtree,
+                axes[0].text(-.12, row_number, row.subtree,
                              transform=axes[0].get_yaxis_transform(), ha="right",
                              va="center", fontsize=8.5, color="#222222",
                              weight="bold" if row.subtree in MAJOR_SUBTREES else "normal")
-                for ax, value, color in (
-                    (axes[0], row.u_lineage_lp, U_COLOR),
-                    (axes[1], row.d_lp, LP_COLOR),
+                for ax, key, value, xmax, color in (
+                    (axes[0], "u", row.u_lineage_lp, 1., U_COLOR),
+                    (axes[1], "d_lp", row.d_lp, dmax, LP_COLOR),
                 ):
                     ax.hlines(row_number, 0, value, color=color, lw=.8, alpha=.45)
                     ax.scatter(value, row_number, color=color, s=19,
                                edgecolor="white", linewidth=.35, zorder=3)
-                tag = tags.get(row.subtree)
-                if tag:
-                    terminal_symmetry.tag_row(axes[0], row_number, tag)
-                    for ax, key, value, xmax in ((axes[0], "u", row.u_lineage_lp, 1.),
-                                                 (axes[1], "d_lp", row.d_lp, dmax)):
-                        if key in tag["metrics"]:
-                            terminal_symmetry.mark_value(ax, row_number, value, tag["mark"], xmax)
+                    mark, readout = marks.get(row.subtree, (None, None))
+                    if readout == key:
+                        mark_value(ax, row_number, value, mark, xmax)
             row_number += 2
-    fig.text(.02, .045,
-             f"${nt.symbol('canonical_position')}=0$: travel optimum; ${nt.symbol('canonical_position')}=1$: cell-state optimum.  Bold names also appear in A.",
+    fig.text(.02, .2/height,
+             f"${nt.symbol('canonical_position')}=0$: travel optimum; ${nt.symbol('canonical_position')}=1$: cell-state optimum.  Bold names also appear in A."
+             + ("  \u2020 refers to the caption." if marks else ""),
              fontsize=8, color="#444444")
-    if tags:
-        fig.text(.02, .012, "Numbered subtrees form the mirrored pairs in C (dot: blue left, orange right); "
-                 "\u2020 \u2021 \u00a7 refer to the caption.", fontsize=8, color="#444444")
     save(fig, "fig5B_ce_canonical_all_subtrees")
-    if symmetry:
-        plt.close(terminal_symmetry.plot_mirrored_pairs(symmetry, out_dir, dmax=dmax))
 
 
 def plot_summary(metrics, metric, component_names, out_dir,
-                 panel_letters=("A", "B", "C")):
+                 panel_letters=("A", "B", "C"), floor=12):
     """Render and split the primary d_LP or supplementary cousin-r summary."""
     if metric == "dlp":
         u_col, distance_col = "u_lineage_lp", "d_lp"
@@ -773,10 +791,10 @@ def plot_summary(metrics, metric, component_names, out_dir,
         ax_major.set_title("Major subtrees", loc="left", pad=5)
         add_panel_letter(ax_major, panel_letters[1], x=-0.22, y=1.13)
 
-        outlier_labels = ["ABala", "ABprppp", "ABplpa", "ABplpp(p)"]
+        outlier_labels = ["ABplp", "ABpl", "MSp"]
         scatter_records(ax_all, metrics, u_col, distance_col, metric,
                         label_names=outlier_labels, zoom=False)
-        ax_all.set_title("All subtrees (n ≥ 12 terminal cells)", loc="left", pad=5)
+        ax_all.set_title(f"All subtrees (n ≥ {floor} terminal cells)", loc="left", pad=5)
         add_panel_letter(ax_all, panel_letters[2], x=-0.09, y=1.11)
         shape_handles = [
             Line2D([0], [0], marker=REGION_MARKERS[region], ls="", ms=6.0,

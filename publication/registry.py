@@ -131,8 +131,6 @@ TERMINAL_PRIMARY_ASSETS = (
     "fig5A_ce_canonical_major_subtrees.png",
     "fig5B_ce_canonical_all_subtrees.pdf",
     "fig5B_ce_canonical_all_subtrees.png",
-    "fig5C_ce_mirrored_pairs.pdf",
-    "fig5C_ce_mirrored_pairs.png",
     "fig5_ce_canonical_summary.pdf",
     "fig5_ce_canonical_summary.tex",
     "fig6A_ce_retention_heatmap.pdf",
@@ -173,7 +171,8 @@ TERMINAL_WRAPPERS = (
 
 FAMILIES = {family.key: family for family in (
     Family("terminal-primary",
-           "Pooled 275-edge terminal analysis, 42 subtrees (cosine molecular distance); Figures 1-6, S1-S3, Table 1",
+           "Pooled 275-edge terminal analysis, 18 subtrees of at least 24 cells (cosine molecular distance); "
+           "Figures 1-6, S1-S3, Table 1",
            "publication.adapters.terminal:primary", _build_terminal_primary,
            production="publication/output/production",
            status="active: published 2026-09-23 (Figure 1 amendment pending co-author integration)",

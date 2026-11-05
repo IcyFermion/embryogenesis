@@ -94,7 +94,7 @@ class TerminalPrimaryInput:
     analysis_id: str  # pooled analysis-context cache key
     edges: int
     subtrees: int
-    min_cells: int
+    min_cells: int  # subtree floor of the displayed analysis (Figures 4-5, S1, Table 1)
     global_twr: dict  # cached global front record (Figures 2-3)
     global_nulls: dict  # null-SD clouds keyed 1/2/3/"full"
     global_display: dict  # endpoint display coordinates for the global front
@@ -108,7 +108,7 @@ class TerminalPrimaryInput:
     within_type: dict  # fronts, summary, aggregate, endpoints (Figure 6B-C)
     s3_projections: pd.DataFrame
     s3_references: dict
-    symmetry: dict = field(default_factory=dict)  # mirrored pairs + cited evidence (Figure 5B-C)
+    notes: dict = field(default_factory=dict)  # evidence the Figure 5 caption note cites
     validation: dict = field(default_factory=dict)
     input_files: dict = field(default_factory=dict)
 

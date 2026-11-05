@@ -36,3 +36,21 @@ A separate session with web search, given the dossier: lineage, fates,
 migrations, cell deaths and known peculiarities of these branches (Sulston et
 al. 1983; WormAtlas, WormBase). The goal is candidate explanations for the
 collaborators, each tied to specific edges in the dossier.
+
+## Overlap with Track D (2026-10-29)
+
+The literature pass on the mirrored pairs' fate-unmatched cells was handed
+here from Track D on 2026-10-22. The author moved it back to Track D
+(D5f in [track_d_subtree_symmetry.md](track_d_subtree_symmetry.md)), which
+also covers cell-level left-right differences in the embryo.
+
+Two outliers here are Track D causes, already traced to single cells:
+- **ABplpa** (cause B): the near-zero travel span is one swap of the dying
+  ABplpappap with RMEV (D3). The left-right asymmetry behind it (RMEV and a
+  death on the left, RIH, RIS and DB4 on the right) is the MS-induced one
+  (Hutter and Schnabel 1995; Moskowitz and Rothman 1996; D5f).
+- **ABplppp** (cause A): off its front only because of the endpoint of one
+  apoptotic cell, ABplpppapp (D4c).
+
+The research session should start from D5f's table for these two and add
+only what is specific to the outlier question.
