@@ -8,9 +8,11 @@ with their released captions. Production must verify cleanly first.
 
 Every figure file is a captioned page (``Figure1.pdf`` ... ``FigureS5.pdf``,
 ``Table1.pdf``, plus ``Table1.tex``). Main-figure captions are agreed or, until
-the author approves them, drafts in the v1 style (``publication.v2.captions``). ``graphics/`` holds the main figures' bare graphics
-for LaTeX ``includegraphics``. ``review.pdf`` joins every page; ``captions.tex``,
-``README.md`` and ``manifest.json`` complete the folder.
+the author approves them, drafts in the v1 style (``publication.v2.captions``).
+``graphics/`` holds the main figures' bare graphics for LaTeX ``includegraphics``.
+``review.tex`` is the single source of ``review.pdf`` (``tectonic review.tex`` in
+the folder recompiles it); the main figures' pages are split out of it.
+``captions.tex``, ``README.md`` and ``manifest.json`` complete the folder.
 """
 
 from __future__ import annotations
@@ -44,11 +46,15 @@ NOT_PLACED = {"7": "full-tree layerwise rounds and aggregate front (7A is redraw
 # Released captions that cite the released numbering.
 OLD_REFERENCES = {"S4": "cites Figure 7 and 7B (released full-tree figure; 7B is not placed)",
                   "Table 1": "cites Figure 5 (released canonical summary; its subtree rows are now Figure 4)"}
-REVIEW_PREAMBLE = r"""\documentclass[10pt]{article}
+REVIEW_PREAMBLE = r"""% Review copy of the manuscript figure set. Recompile in this folder: tectonic review.tex
+% (or pdflatex review.tex). Main-figure captions can be edited here; the supplement and
+% Table 1 are the released pages, edited in their production sources.
+\documentclass[10pt]{article}
 \usepackage[margin=0.55in]{geometry}
 \usepackage{graphicx}
 \usepackage{caption}
 \usepackage{amsmath}
+\usepackage{pdfpages}
 \captionsetup{font=small,labelfont=bf}
 \pagestyle{empty}
 \begin{document}
@@ -124,16 +130,17 @@ def assemble(v2_build: Path, out: Path) -> dict:
     released = {n: caption_body((PRODUCTION / f"{stem}.tex").read_text()) for n, stem in SUPPLEMENT.items()}
     released["Table 1"] = caption_body((PRODUCTION / f"{TABLE1}.tex").read_text())
 
-    for n, text in main_captions.items():  # one captioned page per main figure, like the released pages
-        shutil.copy2(graphics / f"Figure{n}.pdf", work / f"graphic{n}.pdf")
-        tex = work / f"Figure{n}.tex"
-        tex.write_text(REVIEW_PREAMBLE + f"\\setcounter{{figure}}{{{int(n) - 1}}}\n"
-                       "\\begin{figure}[p]\n\\centering\n"
-                       f"\\includegraphics[width=\\textwidth,height=.7\\textheight,keepaspectratio]{{graphic{n}.pdf}}\n"
-                       f"\\caption{{{text}}}\n\\end{{figure}}\n\\end{{document}}\n")
-        shutil.copy2(tectonic(tex), out / f"Figure{n}.pdf")
-    order = [f"Figure{n}.pdf" for n in main_captions] + [f"Figure{n}.pdf" for n in SUPPLEMENT] + ["Table1.pdf"]
-    subprocess.run(["pdfunite", *(str(out / name) for name in order), str(out / "review.pdf")], check=True)
+    blocks = [f"% Figure {n} ({status[n]})\n\\setcounter{{figure}}{{{int(n) - 1}}}\n\\begin{{figure}}[p]\n\\centering\n"
+              f"\\includegraphics[width=\\textwidth,height=.7\\textheight,keepaspectratio]{{graphics/Figure{n}.pdf}}\n"
+              f"\\caption{{{text}}}\n\\end{{figure}}\n\\clearpage\n" for n, text in main_captions.items()]
+    pages = [f"Figure{n}.pdf" for n in SUPPLEMENT] + ["Table1.pdf"]
+    blocks.append("% Supplement and Table 1: released pages\n"
+                  + "".join(f"\\includepdf[pages=-]{{{name}}}\n" for name in pages))
+    (out / "review.tex").write_text(REVIEW_PREAMBLE + "\n".join(blocks) + "\\end{document}\n")
+    tectonic(out / "review.tex")
+    for page, n in enumerate(main_captions, start=1):  # each main figure's captioned page, as in review.pdf
+        subprocess.run(["qpdf", str(out / "review.pdf"), "--pages", ".", str(page), "--", str(out / f"Figure{n}.pdf")],
+                       check=True)
 
     blocks = ["% Captions for the manuscript figure set (TeX caption bodies).",
               "% Main figures: agreed captions, or drafts in the v1 style awaiting the author's review.",
@@ -151,8 +158,9 @@ def assemble(v2_build: Path, out: Path) -> dict:
         "# Manuscript figure set (revised layout)", "",
         f"Built by `python -m publication.v2.manuscript` from `{v2_build.name}` (v2 manuscript-mode build) and "
         f"production released on {max(f['released_at'] for f in families.values())[:8]}. "
-        "Every figure file is a page with its caption; `review.pdf` joins them all. `graphics/` holds the "
-        "main figures without captions, for `\\includegraphics`, and `captions.tex` holds every caption as TeX.", "",
+        "Every figure file is a page with its caption; `review.pdf` joins them all and is compiled from "
+        "`review.tex` (`tectonic review.tex` here recompiles it). `graphics/` holds the main figures without "
+        "captions, for `\\includegraphics`, and `captions.tex` holds every caption as TeX.", "",
         "| File | Figure | Source | Caption |", "|---|---|---|---|",
         *(f"| Figure{n}.pdf | {n} | revised layout (v2) | {status[n]} |"
           if n != "5" else
