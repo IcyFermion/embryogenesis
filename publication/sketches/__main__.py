@@ -97,18 +97,29 @@ def cross_species_partitions(out):
     return entries
 
 
-def layer_hourglass(out):
-    """Track E4: per-layer lineage advantage and the mid-embryo travel dip (figure candidates)."""
-    from publication.sketches import data, hourglass
+def _hourglass_set(out, group, candidates):
+    from publication.sketches import data
     d = data.layer_hourglass()
     note = f" Runs: hourglass {d['ids']['hourglass'][:8]}, stages {d['ids']['stages'][:8]}."
-    return [dict(key=stem, group="Track E4: per-layer advantage", file=_save(build(d), out, stem), title=title,
-                 note=text + note) for stem, build, title, text in hourglass.CANDIDATES]
+    return [dict(key=stem, group=group, file=_save(build(d), out, stem), title=title, note=text + note)
+            for stem, build, title, text in candidates]
+
+
+def layer_hourglass(out):
+    """Track E4: per-layer lineage advantage and the mid-embryo travel dip (figure candidates)."""
+    from publication.sketches import hourglass
+    return _hourglass_set(out, "Track E4: per-layer advantage", hourglass.CANDIDATES)
+
+
+def layer_hourglass_compact(out):
+    """Track E4, compact set: full tree only, plus the approximate timeline against Large et al. Fig. 5E."""
+    from publication.sketches import hourglass
+    return _hourglass_set(out, "Track E4: compact set", hourglass.COMPACT)
 
 
 SKETCHES = {"full-tree-rounds": full_tree_rounds, "cross-species-rounds": cross_species_rounds,
             "cross-species-partitions": cross_species_partitions,
-            "layer-hourglass": layer_hourglass}
+            "layer-hourglass": layer_hourglass, "layer-hourglass-compact": layer_hourglass_compact}
 
 
 def main(argv=None):

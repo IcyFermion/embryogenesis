@@ -74,7 +74,8 @@ Travel advantage over the first-cousin shuffle, layers 8 → 4:
 - Cell-state advantage is small and flat (0.02-0.06).
 - Layers 6-7 hold cells born at about 70-190 cells.
 - **Layers 1-3** hold 5-18 edges and have degenerate front distances. They are
-  plotted greyed out and carry no claims.
+  plotted greyed out and carry no claims. (Revised 2026-11-04: layer 3 is
+  claimed; layers 1-2 are not drawn.)
 - **No uncertainty yet** on the advantages: this is E3.
 
 ## E3. Uncertainty for the per-layer advantages
@@ -126,10 +127,12 @@ nothing.
   The one exception is C. elegans embryo 1 against layers 4–5, which touches
   zero.
 - No cell-state dip excludes zero.
-- In the gap between natural and shuffled travel per edge, at layer 6 the
-  natural lineage's daughters end up farther from their mother's last
-  position while the shuffle cost barely changes; at layer 7 both fall. So the
-  dip is not only tighter cousin groups.
+- Travel per edge to a random mother is flat across layers (4.0-4.1), so
+  per-edge costs compare across layers. Against layer 8, cousins are farther
+  apart at layers 6-7 and the natural cost rises more; against layers 4-5,
+  layer 6 is the natural cost rising and layer 7 is partly cousins sitting
+  closer. So the dip is not explained by tighter cousin groups, except in part
+  for layer 7 against layers 4-5 (`LAYERWISE_HOURGLASS.md`, candidate G).
 - The per-embryo series were added during implementation, using the
   per-embryo travel matrices stored in the cross-species run.
 
@@ -156,8 +159,8 @@ nothing.
 
 | Claim | Wording |
 |---|---|
-| Lineage beats cousin shuffles on travel in layers 4-8 | Stated |
-| It beats them by the least in layers 6-7 | Stated if E3 passes, as "exceeds resampling noise"; layers chosen after looking |
+| Lineage beats cousin shuffles on travel in layers 3-8 | Stated (layer 3 added 2026-11-04) |
+| It beats them by the least in layers 6-7 | Stated descriptively from per-layer intervals; the E3 contrast goes in one Methods sentence (2026-10-23 review) |
 | Cell-state advantage is small and flat | Stated |
 | The window matches fate-based cell sorting (Schnabel et al. 2006: 50 to ~400 cells) | "Consistent with" |
 | It coincides with the expression hourglass waist (Large et al. 2025: 200 cells) | "Coincides with" |
@@ -167,7 +170,7 @@ nothing.
   time);
 - selection versus constraint, gene age (TAI), lethality and redundancy. These
   go in one Discussion paragraph citing the literature;
-- anything about layers 1-3.
+- anything about layers 1-2.
 
 **Status (2026-10-20): candidates built, choice pending.**
 - Write-up: `full_tree_pareto/LAYERWISE_HOURGLASS.md`.
@@ -180,6 +183,24 @@ nothing.
   rebuilt candidates (`layer_hourglass_20261022`) are byte-identical, and
   notation follows Track D: z_T for the travel position, d̃_LP for the
   null-SD distance (background only, not claimed).
+- Compact set (2026-10-23, after discussion feedback): candidates F (full
+  tree only, layers 3-8 solid), G (which travel cost moves) and H (approximate
+  timeline against Fig. 5E), in `layer_hourglass_20261023`; compact review
+  page https://claude.ai/artifact/7hJxA3U7tP7TQJjaqiXBgj.
+- Collaborator review (2026-10-23), applied in `layer_hourglass_20261023b`
+  and page v2:
+  - panels plot cost relative to the shuffle, so all curves peak;
+  - layers 1-2 are dropped;
+  - error bars are labelled as bootstrap intervals;
+  - the dip contrast moves to one Methods sentence.
+
+  Details: `LAYERWISE_HOURGLASS.md`, "Presentation".
+- **Author decisions (2026-11-04):**
+  - claims cover layers 3-8;
+  - F goes to the main text and G to the supplement;
+  - H is kept in reserve.
+
+  Next: production figures, then E5.
 
 ## E5. Close
 

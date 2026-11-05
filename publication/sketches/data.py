@@ -117,8 +117,11 @@ def layer_hourglass(hourglass_run="hourglass_20261019", stages_run="stages_20261
     pooled = rr.load(pa.DEFAULT_RUN, "pooled")["metrics"].assign(tree="pooled")
     cross = rr.load(fcs.run_path(fcs.DEFAULT_RUN), "cross_species")["metrics"]
     cross = cross[cross.geometry == "raw3d"].assign(tree="partial")
-    fronts = pd.concat([pooled, cross], ignore_index=True)[["tree", "config", "round", "edges", "d_LP", "degenerate"]]
+    fronts = pd.concat([pooled, cross], ignore_index=True)[["tree", "config", "round", "edges", "d_LP", "degenerate",
+                                                           "natural_travel", "first_cousin_travel_mean",
+                                                           "full_random_travel_mean"]]
     fronts["layer"] = 9 - fronts["round"]
     return dict(layers=pd.read_csv(hourglass / "layers.csv"), contrasts=pd.read_csv(hourglass / "contrasts.csv"),
-                stages=pd.read_csv(stages / "layers.csv"), jsd=pd.read_csv(stages / "jsd_stages.csv"), fronts=fronts,
+                stages=pd.read_csv(stages / "layers.csv"), jsd=pd.read_csv(stages / "jsd_stages.csv"),
+                fronts=fronts,
                 ids=dict(hourglass=h_record["analysis_id"], stages=s_record["analysis_id"]))

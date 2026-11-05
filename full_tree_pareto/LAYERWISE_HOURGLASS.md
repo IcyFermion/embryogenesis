@@ -77,13 +77,24 @@ Travel advantage over the first-cousin shuffle, with 95% intervals:
   against layers 4-5, whose interval reaches zero.
 - **Cell state.** The advantage is 0.02-0.06 in the pooled tree. No cell-state
   dip excludes zero in any series.
-- **What changes in the gap.** Natural travel per edge against the shuffle mean
-  (figure candidate E):
-  - at layer 6 the natural lineage's daughters end up farther from their
-    mother's last tracked position, while the shuffle cost barely changes;
-  - at layer 7 both fall.
+- **What changes in the gap** (figure candidates E and G; descriptive, no
+  intervals). The advantage falls when the natural cost moves toward the
+  shuffle cost: either cousins sit closer (the shuffle gets cheaper) or
+  daughters end up farther from their own mother (the natural cost rises).
+  - Travel to a random mother (full-random shuffle mean) is flat per edge,
+    4.0-4.1 in layers 3-8 (C. briggsae 8.2-9.1), so per-edge costs compare
+    across layers.
+  - Against layer 8, the shuffle cost per edge is 67% and 38% higher at
+    layers 6 and 7, so cousins are farther apart; the natural cost rises more
+    (95% and 56%).
+  - Against layers 4-5, layer 6's shuffle cost is unchanged (+1%) while the
+    natural cost rises 13%. At layer 7 both fall, the shuffle more (−17%
+    against −10%), so layer 7's gap to the early flank is partly cousins
+    sitting closer.
+  - C. briggsae repeats every contrast.
 
-  So the dip is not only cousins sitting closer together.
+  So the dip is not explained by cousins sitting closer together, except in
+  part for layer 7 against layers 4-5.
 - **Front distance.** d_LP peaks in the same layers: 0.21 at layer 6 in the
   pooled tree. The hump survives the E1 per-round feature sets
   (`layer_features_v1/e1_fronts_20261015`).
@@ -99,9 +110,9 @@ Birth stages (run `layer_features_v1/stages_20261020`):
 
 | Claim | Wording |
 |---|---|
-| Lineage beats cousin shuffles on travel in layers 4-8 | Stated (z_T from −12.8 to −3.6, pooled) |
-| It beats them by the least in layers 6-7 | Stated as larger than resampling noise; layers chosen after looking |
-| Cell-state advantage is small and flat | Stated |
+| Lineage beats cousin shuffles on travel in layers 3-8 | Stated (z_T from −12.8 to −3.0, pooled; layer 3 added 2026-11-04) |
+| It beats them by the least in layers 6-7 | Stated descriptively from the per-layer values and intervals (see "Presentation" below); the two contrasts appear once, in Methods, as a resampling check on layers chosen after looking |
+| Cell-state advantage is small and flat | Stated (relative cost 0.94-0.98 in layers 4-8; layer 3's interval, 0.58-1.00, is wide) |
 | The window matches fate-based cell sorting (Schnabel et al. 2006, 50 to ~400 cells) | "Consistent with" |
 | It coincides with the expression hourglass waist (Large et al. 2025, 200 cells) | "Coincides with" |
 
@@ -110,7 +121,9 @@ Not claimed:
   time);
 - selection versus constraint, gene age (TAI), lethality and redundancy. These
   are background for one Discussion paragraph;
-- anything about layers 1-3 (5-18 edges, degenerate fronts).
+- anything about layers 1-2 (5 and 10 edges). Layer 3 (18 edges in 6
+  first-cousin groups) is claimed from 2026-11-04; its front has only 5
+  distinct points, so its d_LP of 0 is shown but not interpreted.
 
 **Independence.** The C. briggsae embryos are independent, but their dip was
 seen before the layers were fixed. The C. elegans partial forest reuses the
@@ -130,4 +143,39 @@ builds five candidates in the production style:
   - E, the travel decomposition.
 
 They are shown on the review page (https://claude.ai/artifact/U6vJK9ZwvpQGpkQJd6psHQ).
-Production waits for the author's choice.
+
+Compact set (2026-10-23, after discussion feedback and a collaborator review
+the same day), from
+`python -m publication.sketches --output-dir publication/output/sketches/layer_hourglass_20261023b --only layer-hourglass-compact`
+(the version reviewed first is in `layer_hourglass_20261023`):
+- F, main text: C. elegans full tree only, layers 3-8; d_LP and the travel
+  and cell-state cost relative to the first-cousin shuffle (layer 3: 18
+  cells in 6 cousin groups; its front has 5 distinct points and d_LP = 0);
+- G, supplement: per-edge travel to the own mother, an aunt and a random
+  mother, and the percent change in each dip contrast;
+- H: approximate timeline against Large et al. Fig. 5E, with stages as
+  birth-time windows and layers as birth distributions.
+
+Compact review page: https://claude.ai/artifact/7hJxA3U7tP7TQJjaqiXBgj.
+
+**Author decision (2026-11-04):** F goes to the main text and G to the
+supplement; H is kept in reserve for a reviewer who asks about the timeline.
+Candidates A-E are not used.
+
+### Presentation (collaborator review, 2026-10-23)
+
+- **Orientation.** Panels b-c plot natural / first-cousin shuffle cost
+  (1 − advantage), so they peak in layers 6-7 like d_LP; 1 means no better
+  than the shuffle. 1/d_LP was ruled out because d_LP is 0 at layers 2-3. The
+  JSD in H keeps its own direction; only timing is compared.
+- **Error bars.** 95% bootstrap percentile intervals (2,000 resamples of
+  first-cousin groups within a layer), not SD or SEM. d_LP has none. In H,
+  horizontal bars and JSD boxes show spread (middle 50%), not uncertainty.
+- **Layers 1-2** are not drawn.
+- **Dip contrast.** Out of the figure and the main-text results. Without it,
+  readers judge the early side from bars alone, and layer 5's interval
+  overlaps layers 6-7 (layers 4 and 8 do not). So it stays as one Methods
+  sentence, in relative-cost terms (mid minus flank): +0.115 [0.077, 0.150]
+  against layer 8 and +0.082 [0.033, 0.126] against layers 4-5; the cell-state
+  contrasts' intervals include zero. The main-text wording leans on what the
+  bars show: layers 6-7 sit above layers 4 and 8, with layer 5 between.
