@@ -6,10 +6,11 @@ Main Figures 1-4, 6 and 7 come from a v2 build made with ``--manuscript``
 Supplementary Figures S1-S5 and Table 1 are the released production pages,
 with their released captions. Production must verify cleanly first.
 
-The output folder holds one PDF per figure (``Figure1.pdf`` ... ``Table1.pdf``,
-plus ``Table1.tex``), ``review.pdf`` (every main figure with its caption or a
-"caption to follow" line, then the supplement and Table 1), ``captions.tex``,
-``README.md`` and ``manifest.json``.
+Every figure file is a captioned page (``Figure1.pdf`` ... ``FigureS5.pdf``,
+``Table1.pdf``, plus ``Table1.tex``); main figures without an agreed caption
+say "Caption to follow". ``graphics/`` holds the main figures' bare graphics
+for LaTeX ``includegraphics``. ``review.pdf`` joins every page; ``captions.tex``,
+``README.md`` and ``manifest.json`` complete the folder.
 """
 
 from __future__ import annotations
@@ -99,14 +100,16 @@ def assemble(v2_build: Path, out: Path) -> dict:
         raise ValueError(f"Production is not current for: {sorted(stale)}; release a fresh build first")
     if out.exists() and any(out.iterdir()):
         raise ValueError(f"Output directory must be new or empty: {out}")
-    work = out / "_tex"
+    work, graphics = out / "_tex", out / "graphics"
     work.mkdir(parents=True)
+    graphics.mkdir()
 
-    files = {f"Figure{n}.pdf": v2_build / name for n, name in MAIN.items()}
-    files["Figure5.pdf"] = figure5(work)
-    files |= {f"Figure{n}.pdf": PRODUCTION / f"{stem}.pdf" for n, stem in SUPPLEMENT.items()}
-    files |= {"Table1.pdf": PRODUCTION / f"{TABLE1}.pdf", "Table1.tex": PRODUCTION / f"{TABLE1}.tex"}
-    for name, source in files.items():
+    bare = {f"Figure{n}.pdf": v2_build / name for n, name in MAIN.items()} | {"Figure5.pdf": figure5(work)}
+    for name, source in bare.items():
+        shutil.copy2(source, graphics / name)
+    released_pages = {f"Figure{n}.pdf": PRODUCTION / f"{stem}.pdf" for n, stem in SUPPLEMENT.items()}
+    released_pages |= {"Table1.pdf": PRODUCTION / f"{TABLE1}.pdf", "Table1.tex": PRODUCTION / f"{TABLE1}.tex"}
+    for name, source in released_pages.items():
         shutil.copy2(source, out / name)
 
     with nt.override(**NOTATION):
@@ -116,17 +119,17 @@ def assemble(v2_build: Path, out: Path) -> dict:
     released = {n: caption_body((PRODUCTION / f"{stem}.tex").read_text()) for n, stem in SUPPLEMENT.items()}
     released["Table 1"] = caption_body((PRODUCTION / f"{TABLE1}.tex").read_text())
 
-    pages = []
-    for n, text in main_captions.items():
-        shutil.copy2(out / f"Figure{n}.pdf", work / f"Figure{n}.pdf")
+    for n, text in main_captions.items():  # one captioned page per main figure, like the released pages
+        shutil.copy2(graphics / f"Figure{n}.pdf", work / f"graphic{n}.pdf")
         text = text or r"{\itshape Caption to follow.}"
-        pages.append(f"\\setcounter{{figure}}{{{int(n) - 1}}}\n\\begin{{figure}}[p]\n\\centering\n"
-                     f"\\includegraphics[width=\\textwidth,height=.7\\textheight,keepaspectratio]{{Figure{n}.pdf}}\n"
-                     f"\\caption{{{text}}}\n\\end{{figure}}\n\\clearpage\n")
-    (work / "main_figures.tex").write_text(REVIEW_PREAMBLE + "".join(pages) + "\\end{document}\n")
-    main_pdf = tectonic(work / "main_figures.tex")
-    supplement = [out / f"Figure{n}.pdf" for n in SUPPLEMENT] + [out / "Table1.pdf"]
-    subprocess.run(["pdfunite", str(main_pdf), *map(str, supplement), str(out / "review.pdf")], check=True)
+        tex = work / f"Figure{n}.tex"
+        tex.write_text(REVIEW_PREAMBLE + f"\\setcounter{{figure}}{{{int(n) - 1}}}\n"
+                       "\\begin{figure}[p]\n\\centering\n"
+                       f"\\includegraphics[width=\\textwidth,height=.7\\textheight,keepaspectratio]{{graphic{n}.pdf}}\n"
+                       f"\\caption{{{text}}}\n\\end{{figure}}\n\\end{{document}}\n")
+        shutil.copy2(tectonic(tex), out / f"Figure{n}.pdf")
+    order = [f"Figure{n}.pdf" for n in main_captions] + [f"Figure{n}.pdf" for n in SUPPLEMENT] + ["Table1.pdf"]
+    subprocess.run(["pdfunite", *(str(out / name) for name in order), str(out / "review.pdf")], check=True)
 
     blocks = ["% Captions for the manuscript figure set (TeX caption bodies).",
               "% Main figures: agreed captions; 'to follow' where none is agreed yet.",
@@ -144,7 +147,8 @@ def assemble(v2_build: Path, out: Path) -> dict:
         "# Manuscript figure set (revised layout)", "",
         f"Built by `python -m publication.v2.manuscript` from `{v2_build.name}` (v2 manuscript-mode build) and "
         f"production released on {max(f['released_at'] for f in families.values())[:8]}. "
-        "`review.pdf` has every main figure with its caption, then the supplement and Table 1.", "",
+        "Every figure file is a page with its caption; `review.pdf` joins them all. `graphics/` holds the "
+        "main figures without captions, for `\\includegraphics`, and `captions.tex` holds every caption as TeX.", "",
         "| File | Figure | Source | Caption |", "|---|---|---|---|",
         *(f"| Figure{n}.pdf | {n} | revised layout (v2) | {'agreed' if n in agreed else 'to follow'} |"
           if n != "5" else
@@ -168,7 +172,7 @@ def assemble(v2_build: Path, out: Path) -> dict:
                                 for k, v in families.items()},
                     captions={("Figure " + n): ("agreed" if n in agreed else "released" if n == "5" else "to follow")
                               for n in main_captions},
-                    files={p.name: sha256(p) for p in sorted(out.iterdir()) if p.is_file()})
+                    files={str(p.relative_to(out)): sha256(p) for p in sorted(out.rglob("*")) if p.is_file()})
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest
 
