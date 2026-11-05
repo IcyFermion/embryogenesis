@@ -30,7 +30,7 @@ Everything under `output/` is Git-ignored; keep an external backup.
 | `terminal-cross-species` | 8, 9 | `.../cross_species_terminal_v1/pooled_comparison_20260930` | released |
 | `full-tree-pooled` | 7, provisional S4 | `full_tree_pareto/output/runs/pooled_full_tree_v1/terminal_clamped_cosine_20261014` | released 2026-10-15 (cosine); the Euclidean release from `terminal_clamped_20260927` is archived |
 | `full-tree-cross-species` | 10, 11 | `.../cross_species_layerwise_v1/terminal_anchored_cosine_20261014` | released 2026-10-15 (cosine); the Euclidean release from `terminal_anchored_20260930` is archived |
-| `full-tree-layers` | S5 (provisional number); its panels also draw Figure 6B-C of the revised layout (`publication.v2`) | `full_tree_pareto/output/runs/layer_features_v1/` runs `hourglass_20261019` and `stages_20261020` (Track E), checked against the two round-reference caches | candidate, not released |
+| `full-tree-layers` | S5; its panels also draw Figure 6B-C of the revised layout (`publication.v2`) | `full_tree_pareto/output/runs/layer_features_v1/` runs `hourglass_20261019` and `stages_20261020` (Track E), checked against the two round-reference caches | released 2026-11-05 (the other four families were refreshed in the same release, figures unchanged) |
 
 `python -m publication list` prints this from `registry.py`, which also holds
 wrapper stems, printed numbers and each family's owned production assets
@@ -86,6 +86,7 @@ modules and the validators (see the package READMEs).
 | `migration.py` | One-off archive and post-PR purge of figure material left in the back ends |
 | `registry.py`, `__main__.py`, `parity.py` | Families and CLI; candidate/production comparison |
 | `sketches/` | Exploratory figures for discussion (branch `figure-ideas`); outside the registry, never released; writes `output/sketches/<name>/` |
+| `v2/` | Revised manuscript layout (branch figures-v2), outside the registry. `python -m publication.v2 --output-dir DIR` builds draft pages; `--manuscript` builds the figures alone, cropped. `python -m publication.v2.manuscript --v2-build DIR --output-dir publication/output/manuscript/<name>` assembles the manuscript set (Figures 1-7, S1-S5, Table 1, `review.pdf`, `captions.tex`) from that build and a current production; `v2/captions.py` holds the agreed captions |
 | `notes/` | Reserve notes: one-page supplementary-style pages kept ready for reviewer questions (Note A: the ABplp/ABprp apoptotic-cell endpoint, Track D4c); outside the registry, statements checked against hash-checked runs; `python -m publication.notes --output-dir publication/output/notes/<name>` |
 
 ## Changing displayed notation

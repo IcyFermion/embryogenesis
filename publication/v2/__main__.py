@@ -38,6 +38,13 @@ PREAMBLE = r"""\documentclass[10pt]{article}
 \newcommand{\panel}[2]{\par\noindent{\textbf{\large\sffamily #1}}\par\vspace{-1.5ex}\noindent\hspace{5mm}#2\par\medskip}
 \begin{document}
 """
+# Manuscript mode: the figure alone, cropped to its content, at the draft pages' text width (8.5in - 2 x 0.55in).
+MANUSCRIPT_PREAMBLE = r"""\documentclass[varwidth=7.4in,border=4pt]{standalone}
+\usepackage{graphicx}
+\usepackage{tikz}
+\newcommand{\panel}[2]{\par\noindent{\textbf{\large\sffamily #1}}\par\vspace{-1.5ex}\noindent\hspace{5mm}#2\par\medskip}
+\begin{document}
+"""
 
 
 def save(fig, out, stem):
@@ -47,17 +54,19 @@ def save(fig, out, stem):
     return f"{stem}.pdf"
 
 
-def page(out, stem, title, body, note="Draft layout; caption to follow."):
+def page(out, stem, title, body, note="Draft layout; caption to follow.", manuscript=False):
+    """A draft page with its title and note or, in ``manuscript`` mode, the figure alone, cropped to its content."""
     tex = out / f"{stem}.tex"
-    tex.write_text(PREAMBLE + f"\\noindent{{\\sffamily\\bfseries {title}}}\\hfill{{\\sffamily\\small\\color{{gray}}{note}}}"
-                   "\\par\\bigskip\n" + body + "\n\\end{document}\n")
+    head = "" if manuscript else (f"\\noindent{{\\sffamily\\bfseries {title}}}"
+                                  f"\\hfill{{\\sffamily\\small\\color{{gray}}{note}}}\\par\\bigskip\n")
+    tex.write_text((MANUSCRIPT_PREAMBLE if manuscript else PREAMBLE) + head + body + "\n\\end{document}\n")
     result = subprocess.run(["tectonic", tex.name], cwd=out, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if result.returncode:
         raise RuntimeError(f"{tex.name} failed to compile:\n{result.stdout[-3000:]}")
     return f"{stem}.pdf"
 
 
-def figure6(out):
+def figure6(out, manuscript=False):
     """Figure 6 page; callable alone (the other figures need the terminal analysis context)."""
     # Figure 6: full tree by layer. A: every layer's front (layers 1-2 show why the summaries start at layer 3).
     # B-C: Track E's per-layer summaries on the birth-size axis (author decision 2026-11-05).
@@ -68,10 +77,11 @@ def figure6(out):
     return page(out, "fig6_full_tree_layers", "Figure 6",
         f"\\panel{{A}}{{\\includegraphics[width=.95\\textwidth]{{{a}}}}}\n"
         f"\\noindent\\begin{{minipage}}[t]{{.5\\textwidth}}\\panel{{B}}{{\\includegraphics[width=.9\\textwidth]{{{b}}}}}\\end{{minipage}}"
-        f"\\begin{{minipage}}[t]{{.5\\textwidth}}\\panel{{C}}{{\\includegraphics[width=.9\\textwidth]{{{c}}}}}\\end{{minipage}}")
+        f"\\begin{{minipage}}[t]{{.5\\textwidth}}\\panel{{C}}{{\\includegraphics[width=.9\\textwidth]{{{c}}}}}\\end{{minipage}}",
+        manuscript=manuscript)
 
 
-def build(out: Path):
+def build(out: Path, manuscript=False):
     out.mkdir(parents=True, exist_ok=True)
     panels.configure()
     for name, source in EXTERNAL.items():
@@ -87,7 +97,7 @@ def build(out: Path):
                                  lineage_label="C. elegans lineage"), out, "fig2A_terminal_front")
     figures["fig2"] = page(out, "fig2_terminal_pareto", "Figure 2",
         f"\\panel{{A}}{{\\includegraphics[width=.78\\textwidth]{{{a}}}}}\n"
-        "\\panel{B}{\\resizebox{.9\\textwidth}{!}{\\input{fig2B_null_models.tex}}}")
+        "\\panel{B}{\\resizebox{.9\\textwidth}{!}{\\input{fig2B_null_models.tex}}}", manuscript=manuscript)
 
     # Figure 3: lineage similarity along the front (A) and lineage rewiring at T, M, S (B-D).
     fig, ax = plt.subplots(figsize=(3.6, 2.7))
@@ -104,15 +114,15 @@ def build(out: Path):
         data.edge_changes(t, weight).to_csv(out / f"fig3_edge_changes_{name.split()[0].lower()}_{weight}.csv", index=False)
     figures["fig3"] = page(out, "fig3_lineage_similarity", "Figure 3",
         f"\\panel{{A}}{{\\includegraphics[width=.5\\textwidth]{{{a}}}}}\n"
-        f"\\noindent\\includegraphics[width=\\textwidth]{{{b}}}")
+        f"\\noindent\\includegraphics[width=\\textwidth]{{{b}}}", manuscript=manuscript)
 
     # Figure 4: one panel, the subtree rows with fate pies and the ABplp note (Track D6 floor of 24 cells).
     a = save(panels.subtree_rows(t.data.canonical_display, t.data.subtree_nodes, notes=t.data.notes), out,
              "fig4_subtree_rows")
     figures["fig4"] = page(out, "fig4_subtrees", "Figure 4",
-        f"\\noindent\\includegraphics[width=.95\\textwidth]{{{a}}}")
+        f"\\noindent\\includegraphics[width=.95\\textwidth]{{{a}}}", manuscript=manuscript)
 
-    figures["fig6"] = figure6(out)
+    figures["fig6"] = figure6(out, manuscript=manuscript)
 
     # Figure 7: C. briggsae terminal front (A); B to follow.
     cs = data.briggsae()
@@ -124,14 +134,15 @@ def build(out: Path):
                                  label_positions=BRIGGSAE_LABELS),
              out, "fig7A_briggsae_front")
     figures["fig7"] = page(out, "fig7_briggsae", "Figure 7",
-        f"\\panel{{A}}{{\\includegraphics[width=.78\\textwidth]{{{a}}}}}\n\\panel{{B}}{{\\sffamily\\small To follow.}}")
+        f"\\panel{{A}}{{\\includegraphics[width=.78\\textwidth]{{{a}}}}}\n\\panel{{B}}{{\\sffamily\\small To follow.}}",
+        manuscript=manuscript)
 
     # Figure 1: schematics. Placeholder assembly of the two authors' files; D was v2 draft 1's Figure 4A.
     figures["fig1"] = page(out, "fig1_overview", "Figure 1",
         "\\noindent\\includegraphics[width=\\textwidth]{Fig1_overview.pdf}\\par\\bigskip\n"
         "\\panel{D}{\\includegraphics[width=.62\\textwidth]{FigX_distances_schematic.pdf}}",
-        note="Authors' files, unchanged: B-C still read \\emph{expression}.")
-    record = dict(figures=figures, notation=NOTATION,
+        note="Authors' files, unchanged: B-C still read \\emph{expression}.", manuscript=manuscript)
+    record = dict(figures=figures, notation=NOTATION, manuscript=manuscript,
                   external={name: sha256(out / name) for name in EXTERNAL},
                   files={p.name: sha256(p) for p in sorted(out.iterdir()) if p.suffix in (".pdf", ".png", ".csv")})
     (out / "build.json").write_text(json.dumps(record, indent=2) + "\n")
@@ -141,9 +152,11 @@ def build(out: Path):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--manuscript", action="store_true",
+                        help="figures alone, cropped, without the draft title and note (publication.v2.manuscript)")
     args = parser.parse_args(argv)
     with nt.override(**NOTATION):
-        record = build(args.output_dir)
+        record = build(args.output_dir, manuscript=args.manuscript)
     print(json.dumps(record["figures"], indent=2))
 
 

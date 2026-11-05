@@ -195,6 +195,8 @@ cached round references at 1e-12; it does not rerun the bootstrap. The
 revised layout (`publication.v2`, branch figures-v2) places them. The family
 `full-tree-layers` now holds only supplement S5 (G):
 `python -m publication build --family full-tree-layers --output-dir publication/output/candidates/NAME`.
+S5 was released on 2026-11-05 (build `candidates/release_20261105`), and the
+manuscript figure set of the revised layout includes it.
 
 **Figure 6 caption (agreed with the author, 2026-11-05).** The title is
 descriptive, like the released captions. C. briggsae is left to the main text,
