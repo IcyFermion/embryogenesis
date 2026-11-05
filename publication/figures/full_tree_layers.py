@@ -62,7 +62,7 @@ def compose_position(data):
     """Figure 6B: front distance and the share of lineage edges rewired at the closest front point."""
     t = data.layers
     fig, axes = plt.subplots(2, 1, figsize=SUMMARY_SIZE, sharex=True)
-    fig.subplots_adjust(left=.2, right=.96, top=.9, bottom=.14, hspace=.12)
+    fig.subplots_adjust(left=.2, right=.96, top=.9, bottom=.14, hspace=.22)
     closest = nt.math("closest_point")
     rows = ((axes[0], "front_distance", FRONT_COLOR, f"Distance to front,\n{nt.math('natural_front_distance')}",
              max(.3, np.ceil(t.front_distance.max() * 20) / 20 + .05)),
