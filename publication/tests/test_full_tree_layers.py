@@ -88,7 +88,8 @@ class LayerInputs(unittest.TestCase):
                           if (child.get_gid() or "").startswith("layer:")}
                 self.assertEqual(set(points), {f"layer:{c}" for c in columns})
                 for column in columns:
-                    np.testing.assert_allclose(points[f"layer:{column}"][:, 1], t[column], atol=1e-12)
+                    scale = 100 if column == "fewest_rewired" else 1  # drawn as a percentage
+                    np.testing.assert_allclose(points[f"layer:{column}"][:, 1], t[column] * scale, atol=1e-10)
                 self.assertEqual(layout["layers"], [3, 4, 5, 6, 7, 8])
             finally:
                 plt.close(fig)

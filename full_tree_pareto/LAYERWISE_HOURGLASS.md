@@ -172,10 +172,13 @@ Figure 12 would repeat it. Figure 6 keeps A (fronts of all eight layers;
 layers 1-2 stay, to show why they are left out of the layer comparison) and
 replaces the old B (lineage-similarity curves) and C (u and d_LP rows) with
 two panels on the birth-size axis, layers 3-8:
-- **6B, the lineage against its front:** d_LP, and the fewest lineage edges
-  any front assignment rewires (1 − maximum lineage similarity along the
-  front; old 6B's quantity, one value per layer, as the earlier comment
-  asked). Both peak at layer 6 (0.21; 0.70).
+- **6B, the lineage against its front:** the distance d_LP from the lineage
+  to the front, and the lowest percentage of edges that differ between the
+  lineage and any assignment on the front (100% − maximum lineage similarity
+  along the front; old 6B's quantity, one value per layer, as the earlier
+  comment asked). Both peak at layer 6 (0.21; 70%). Axis labels: "Distance
+  from lineage to front, d_LP" and "Lowest % of edges differing, front vs
+  lineage" (author, 2026-11-05).
   - The second row is descriptive, with no interval and no claim. It is
     another view of the same front, not independent support: a lineage far
     from its front also leaves the front's assignments less lineage-like.
@@ -193,19 +196,61 @@ revised layout (`publication.v2`, branch figures-v2) places them. The family
 `full-tree-layers` now holds only supplement S5 (G):
 `python -m publication build --family full-tree-layers --output-dir publication/output/candidates/NAME`.
 
-Caption draft for Figure 6B-C (to be merged into the Figure 6 caption):
-"Layers 3-8, one point per layer at the median embryo size (cells alive)
-when its cells are born (cell table of Large et al. 2025). Layers 1-2 (5 and
-10 cells) are left out: their fronts have 2 and 6 distinct points (A).
-(B) Distance d_LP from the lineage to the layer's front, and the fewest
-lineage edges rewired by any assignment on the front (1 − maximum lineage
-similarity). Layer 3's front has only 5 distinct points and the lineage lies
-on one of them, so both are 0.
-(C) Natural travel and cell-state cost divided by the mean cost of the exact
-first-cousin shuffle, which reassigns daughters among mothers that share a
-grandmother; 1 means no better than the shuffle. Error bars are 95% bootstrap
-percentile intervals from 2,000 resamples of first-cousin groups within each
-layer (layer 3: 6 groups); B has no intervals."
+**Figure 6 caption (agreed with the author, 2026-11-05).** The title is
+descriptive, like the released captions. C. briggsae is left to the main text,
+with a pointer to S5.
+
+> **Figure 6 | Full-tree trade-offs by layer.** The tracked *C. elegans*
+> lineage starts at the 4-cell stage (ABa, ABp, EMS and P2) and ends at 491
+> measured leaves (three embryos). Its 974 mother–daughter edges are split
+> into eight layers, built bottom-up from the leaves: the leaves form layer
+> 8, and each layer above holds the mothers whose daughters have all been
+> placed below. A cell's layer is therefore set by its distance from the
+> leaves, counted in generations along its longest branch. Layer 1 holds
+> five daughters of the 4-cell-stage cells (ABal, ABar, ABpl, ABpr and MS);
+> E and P3 sit lower because their branches are shorter. Within each layer,
+> the daughters are reassigned to their mothers' slots with every other
+> layer fixed (Methods).
+> **(A)** Each layer's Pareto front (black) and the natural lineage (red
+> cross), in that layer's endpoint coordinates: travel optimum at (0, 1),
+> cell-state optimum at (1, 0). The clouds permute daughters that share a
+> grandmother (first-cousin shuffle), a great-grandmother (second-cousin) or
+> a great-great-grandmother (third-cousin) among their mothers' slots. The
+> insets permute all of the layer's daughters (full-random shuffle) on
+> separately scaled axes. Each cloud shows 600 of 2,000 draws. The fronts of
+> layers 1 and 2 (5 and 10 cells) have only 2 and 6 distinct points, so B
+> and C start at layer 3.
+> **(B, C)** One point per layer, at the median number of cells alive when
+> the layer's cells are born (cell table of Large et al. 2025); the top axis
+> names the layer. **(B)** Top: distance d_LP from the lineage to its
+> layer's front. Bottom: the lowest percentage of edges that differ from the
+> lineage, across all assignments on the front (100% − maximum lineage
+> similarity). Layer 3's front has only 5 distinct points and contains the
+> lineage, so both values are 0 there. **(C)** Natural travel and
+> cell-state cost divided by the exact mean cost of the first-cousin
+> shuffle; 1 means no better than the shuffle. Error bars are 95% bootstrap
+> percentile intervals from 2,000 resamples of first-cousin groups within
+> each layer (6 groups in layer 3). B has no intervals.
+
+The first-cousin shuffle permutes daughters that share a grandmother. Their
+mothers are therefore sisters, and each daughter goes to her own mother or
+an aunt. An earlier draft said "mothers that share a grandmother", which was
+wrong.
+
+**For Methods** (kept out of the caption):
+- **Weight sweep.** Each layer's front comes from 301 weights
+  w = 0, 1/300, ..., 1. For each weight, the layer's reassignment is solved
+  exactly, minimizing w × travel + (1 − w) × cell state after the global
+  first-cousin SD scaling. The non-dominated solutions form the front, so a
+  front has at most 301 points (layer 8 has 200 distinct points, layer 3
+  has 5). This is the same setting as the released Figure 7.
+- **Dip contrast**, as one sentence: "Because layers 6–7 were singled out
+  after the per-layer estimates had been seen, we checked only that their
+  difference from the flanking layers exceeds resampling noise. In the same
+  bootstrap, the mean relative travel cost of layers 6–7 exceeded that of
+  layer 8 by 0.115 (95% interval 0.077–0.150) and that of layers 4–5 by
+  0.082 (0.033–0.126). The same differences in cell state were −0.002 and
+  0.000, with intervals that include zero."
 
 ### Presentation (collaborator review, 2026-10-23)
 
