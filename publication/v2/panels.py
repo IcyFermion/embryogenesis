@@ -406,37 +406,6 @@ def subtree_rows(canonical, nodes, *, notes=None, width=7.4, row_inch=.241):
     return fig
 
 
-def layer_rows(metrics, *, size=(3.6, 3.0)):
-    """Figure 6C: position u and distance d_LP for each layer (layer 1 = top)."""
-    metrics = metrics.sort_values("layer")
-    entries = [(f"Layer {int(r.layer)} \u00b7 {int(r.edges)}", r.canonical_position, r.natural_front_distance, int(r.layer))
-               for r in metrics.itertuples()]
-    fig = plt.figure(figsize=size)
-    dmax = max(.2, np.ceil(float(metrics.natural_front_distance.max()) * 10) / 10)
-    metric_columns(fig, .02, .06, .78, [("", entries)], row_count=len(entries) + 1, dmax=dmax,
-                   label_width=.2, column_width=.3, gap=.08)
-    return fig
-
-
-def layer_similarity(by_layer, *, size=(3.6, 3.0)):
-    """Figure 6B: lineage similarity along each layer's front, layer 1 (top) to layer 8 (bottom)."""
-    fig, ax = plt.subplots(figsize=size)
-    keys = sorted(by_layer)
-    colors = style.color_ramp(SIMILARITY_COLOR, len(keys), lightness=(.75, 0.))
-    for color, layer in zip(colors, keys):
-        curve, metric = by_layer[layer].select("raw3d", "ce_protein")
-        ax.plot(curve.D1, curve.edge_retention, color=color, lw=1.3, label=f"Layer {layer}")
-        top = curve.iloc[int(metric.maximum_index)]
-        ax.scatter(top.D1, top.edge_retention, s=16, color=color, edgecolor="#222222", lw=.5, zorder=4)
-    ax.set_xlabel(AXIS[0])
-    ax.set_ylabel(similarity_label())
-    ax.set_ylim(0, 1.05)
-    ax.legend(fontsize=6.5, ncol=4, frameon=False, loc="upper center", bbox_to_anchor=(.5, -.24),
-              handlelength=1.2, columnspacing=.8)
-    fig.tight_layout()
-    return fig
-
-
 def layer_grid(by_layer, *, columns=4):
     """Figure 6A: each layer's front with cousin clouds and full-random inset (no similarity coloring)."""
     keys = sorted(by_layer)

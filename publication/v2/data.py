@@ -2,8 +2,8 @@
 
 Every loader goes through an existing validated adapter or add-on cache:
 the primary terminal analysis (plus its cached per-weight assignments), the
-per-round references of the pooled full tree, and the 187-edge cross-species
-terminal comparison.
+per-round references of the pooled full tree, the Track E per-layer runs, and
+the 187-edge cross-species terminal comparison.
 """
 
 from __future__ import annotations
@@ -77,13 +77,17 @@ def edge_changes(t: Terminal, weight: int) -> pd.DataFrame:
 
 
 def layers():
-    """Pooled full tree by layer (layer 1 = top-most round): per-round inputs, skipped rounds, metrics."""
+    """Pooled full tree by layer (layer 1 = top-most round): per-round inputs for Figure 6A."""
     from publication.sketches.data import pooled_rounds
-    rounds, skipped, metrics = pooled_rounds()
+    rounds, _, _ = pooled_rounds()
     last = max(rounds)
-    by_layer = {last + 1 - r: d for r, d in rounds.items()}
-    metrics = metrics.assign(layer=last + 1 - metrics["round"])
-    return by_layer, metrics
+    return {last + 1 - r: d for r, d in rounds.items()}
+
+
+def layer_summary():
+    """Track E per-layer summaries for Figure 6B-C (layers 3-8), through the validated adapter."""
+    from publication.adapters import full_tree as adapter
+    return adapter.layers()
 
 
 def briggsae():

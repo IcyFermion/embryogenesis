@@ -16,6 +16,7 @@ import subprocess
 import matplotlib.pyplot as plt
 
 from publication import notation as nt
+from publication.figures import full_tree_layers
 from publication.provenance import sha256
 from publication.v2 import data, panels
 
@@ -54,6 +55,20 @@ def page(out, stem, title, body, note="Draft layout; caption to follow."):
     if result.returncode:
         raise RuntimeError(f"{tex.name} failed to compile:\n{result.stdout[-3000:]}")
     return f"{stem}.pdf"
+
+
+def figure6(out):
+    """Figure 6 page; callable alone (the other figures need the terminal analysis context)."""
+    # Figure 6: full tree by layer. A: every layer's front (layers 1-2 show why the summaries start at layer 3).
+    # B-C: Track E's per-layer summaries on the birth-size axis (author decision 2026-11-05).
+    summary = data.layer_summary()
+    a = save(panels.layer_grid(data.layers()), out, "fig6A_layer_fronts")
+    b = save(full_tree_layers.compose_position(summary)[0], out, "fig6B_layer_position")
+    c = save(full_tree_layers.compose_cost(summary)[0], out, "fig6C_layer_cost")
+    return page(out, "fig6_full_tree_layers", "Figure 6",
+        f"\\panel{{A}}{{\\includegraphics[width=.95\\textwidth]{{{a}}}}}\n"
+        f"\\noindent\\begin{{minipage}}[t]{{.5\\textwidth}}\\panel{{B}}{{\\includegraphics[width=.9\\textwidth]{{{b}}}}}\\end{{minipage}}"
+        f"\\begin{{minipage}}[t]{{.5\\textwidth}}\\panel{{C}}{{\\includegraphics[width=.9\\textwidth]{{{c}}}}}\\end{{minipage}}")
 
 
 def build(out: Path):
@@ -97,15 +112,7 @@ def build(out: Path):
     figures["fig4"] = page(out, "fig4_subtrees", "Figure 4",
         f"\\noindent\\includegraphics[width=.95\\textwidth]{{{a}}}")
 
-    # Figure 6: full tree by layer.
-    by_layer, layer_metrics = data.layers()
-    a = save(panels.layer_grid(by_layer), out, "fig6A_layer_fronts")
-    b = save(panels.layer_similarity(by_layer), out, "fig6B_layer_similarity")
-    c = save(panels.layer_rows(layer_metrics), out, "fig6C_layer_metrics")
-    figures["fig6"] = page(out, "fig6_full_tree_layers", "Figure 6",
-        f"\\panel{{A}}{{\\includegraphics[width=.95\\textwidth]{{{a}}}}}\n"
-        f"\\noindent\\begin{{minipage}}[t]{{.5\\textwidth}}\\panel{{B}}{{\\includegraphics[width=.9\\textwidth]{{{b}}}}}\\end{{minipage}}"
-        f"\\begin{{minipage}}[t]{{.5\\textwidth}}\\panel{{C}}{{\\includegraphics[width=.9\\textwidth]{{{c}}}}}\\end{{minipage}}")
+    figures["fig6"] = figure6(out)
 
     # Figure 7: C. briggsae terminal front (A); B to follow.
     cs = data.briggsae()
