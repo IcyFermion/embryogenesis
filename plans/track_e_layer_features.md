@@ -201,10 +201,32 @@ nothing.
   - H is kept in reserve.
 
   Next: production figures, then E5.
+- **Production candidate (2026-11-04):** publication family `full-tree-layers`,
+  Figure 12 (F) and S5 (G), build `track_e_layers_20261104`.
+- **Author decision (2026-11-05):**
+  - F moves into Figure 6 of the revised layout. 6A stays (all eight layers,
+    to show why layers 1-2 are left out).
+  - 6B is now d_LP plus lineage edges rewired at P*; 6C is relative travel and
+    cell-state cost.
+  - The standalone Figure 12 is dropped; the family keeps S5 only.
+  - Figure 6 itself is built as figures-v2 draft 4, after Track E closes.
+
+  Details and the caption draft: `LAYERWISE_HOURGLASS.md`.
+
+  Releasing S5 changes `registry.py`, `contracts.py` and `adapters/full_tree.py`.
+  So the four released families report stale presentation sources, and their
+  presentation identity needs a refresh, as in Track D6d. Their rebuilt figures
+  are pixel-identical to production (`terminal-primary` cannot build in this
+  worktree; see its known cache-key error).
 
 ## E5. Close
 
 Commit, open a PR and record decisions in `plans/README.md`. Track E ends here.
+
+**Status (2026-11-05): closed.** Decisions are recorded above and in
+`plans/README.md`; the PR merges the branch. Follow-up work belongs to the
+revised layout (figures-v2 draft 4: Figure 6B-C from this track's panels) and
+to a later release of S5, not to this track.
 
 **Parked unless a reviewer asks:**
 - fronts partitioned by division stage;

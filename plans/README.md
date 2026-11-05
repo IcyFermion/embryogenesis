@@ -25,7 +25,7 @@ meant to start in its own session from its brief.
 | B. Figure redesign | 1, 2, 3, 4 | [track_b_figure_redesign.md](track_b_figure_redesign.md) | nothing; B3 waits for the name | `figure-ideas` |
 | C. Outlier subtrees | 5 | [track_c_outlier_subtrees.md](track_c_outlier_subtrees.md) | B1 edge-change tooling | `figure-ideas` (dossier), then a research session |
 | D. Subtree symmetry | Left-right counterparts (ABplpa/ABprpa, MSaa/MSpa); since 2026-10-19 also apoptotic cells (D4); since 2026-10-27 readouts robust in tight subtrees (D5); since 2026-10-29 the mirrored pairs' literature pass (D5f, moved from C) | [track_d_subtree_symmetry.md](track_d_subtree_symmetry.md) | nothing; shares tooling with C | `subtree-symmetry`, reopened 2026-10-27 for D5 (D0–D4c merged 2026-10-22, PR #6: Figure 5B–C, reserve Note A) |
-| E. Per-layer fronts (was: layer-specific features) | Per-layer travel and cell-state advantage in the full tree; the mid-embryo dip | [track_e_layer_features.md](track_e_layer_features.md) | Track A conventions | `layer-features` |
+| E. Per-layer fronts (was: layer-specific features) | Per-layer travel and cell-state advantage in the full tree; the mid-embryo dip | [track_e_layer_features.md](track_e_layer_features.md) | Track A conventions | done 2026-11-05 (claims for layers 3-8; main-text panels become revised Figure 6B-C; S5 supplement; timeline H in reserve) |
 
 Order: start A first, because it can change how much weight the geometric
 metrics carry in every figure. Run B in parallel. Start C after B1.

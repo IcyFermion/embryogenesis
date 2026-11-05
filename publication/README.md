@@ -30,6 +30,7 @@ Everything under `output/` is Git-ignored; keep an external backup.
 | `terminal-cross-species` | 8, 9 | `.../cross_species_terminal_v1/pooled_comparison_20260930` | released |
 | `full-tree-pooled` | 7, provisional S4 | `full_tree_pareto/output/runs/pooled_full_tree_v1/terminal_clamped_cosine_20261014` | released 2026-10-15 (cosine); the Euclidean release from `terminal_clamped_20260927` is archived |
 | `full-tree-cross-species` | 10, 11 | `.../cross_species_layerwise_v1/terminal_anchored_cosine_20261014` | released 2026-10-15 (cosine); the Euclidean release from `terminal_anchored_20260930` is archived |
+| `full-tree-layers` | S5 (provisional number); its panels also draw Figure 6B-C of the revised layout (`publication.v2`) | `full_tree_pareto/output/runs/layer_features_v1/` runs `hourglass_20261019` and `stages_20261020` (Track E), checked against the two round-reference caches | candidate, not released |
 
 `python -m publication list` prints this from `registry.py`, which also holds
 wrapper stems, printed numbers and each family's owned production assets
@@ -75,8 +76,8 @@ modules and the validators (see the package READMEs).
 | `contracts.py` | Validated inputs per scope: `FrontComparisonInput`, `TerminalPrimaryInput`, `FullTreePooledInput` |
 | `adapters/terminal.py`, `adapters/full_tree.py` | Only modules that import back ends; load caches after validation, prepare display coordinates |
 | `artists.py`, `canonical_panels.py` | Shared front artists, P* replay checks, named-row metric panels |
-| `figures/` | `cross_species.py` (8-11), `terminal*.py` (1-6, S1-S3), `full_tree.py` (7, S4) |
-| `captions/` | `cross_species.py`, `terminal.py`, `full_tree.py` |
+| `figures/` | `cross_species.py` (8-11), `terminal*.py` (1-6, S1-S3), `full_tree.py` (7, S4), `full_tree_layers.py` (S5; revised Figure 6B-C) |
+| `captions/` | `cross_species.py`, `terminal.py`, `full_tree.py`, `full_tree_layers.py` |
 | `tables.py` | Table 1 |
 | `assets/fig3A_ce_null_models.tex` | Figure 3A TikZ schematic |
 | `assembly.py` | Wrapper preamble, numbering, compilation; page, label and TeX-warning checks |
