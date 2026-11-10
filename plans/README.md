@@ -21,10 +21,10 @@ meant to start in its own session from its brief.
 
 | Track | Items | Brief | Depends on | Branch |
 |---|---|---|---|---|
-| A. Feature calibration | 6, then the distance-metric check | [track_a_feature_calibration.md](track_a_feature_calibration.md) | nothing | done, merged 2026-10-15 (PR #4) |
-| B. Figure redesign | 1, 2, 3, 4 | [track_b_figure_redesign.md](track_b_figure_redesign.md) | nothing; B3 waits for the name | `figure-ideas` |
+| A. Feature calibration | 6, then the distance-metric check; since 2026-11-08 the main-text feature figure (A3, Figure 2) | [track_a_feature_calibration.md](track_a_feature_calibration.md) | nothing | done, merged 2026-10-15 (PR #4); A3 on `figures-v2` |
+| B. Figure redesign | 1, 2, 3, 4; since 2026-11-08 the third feedback round on the revised layout (B5: new numbering, C. briggsae 8B-C, Figure 5 order and r, backlog, palette) | [track_b_figure_redesign.md](track_b_figure_redesign.md) | nothing; B3 waits for the name | `figure-ideas`; B5 on `figures-v2` |
 | C. Outlier subtrees | 5 | [track_c_outlier_subtrees.md](track_c_outlier_subtrees.md) | B1 edge-change tooling | `figure-ideas` (dossier), then a research session |
-| D. Subtree symmetry | Left-right counterparts (ABplpa/ABprpa, MSaa/MSpa); since 2026-10-19 also apoptotic cells (D4); since 2026-10-27 readouts robust in tight subtrees (D5); since 2026-11-02 the 24-cell subtree floor, with symmetry dropped from the paper (D6) | [track_d_subtree_symmetry.md](track_d_subtree_symmetry.md) | nothing; shares tooling with C | done, merged 2026-11-04 (PR #7: 24-cell floor, mirrored-pair layer retired; D0–D4c were PR #6) |
+| D. Subtree symmetry | Left-right counterparts (ABplpa/ABprpa, MSaa/MSpa); since 2026-10-19 also apoptotic cells (D4); since 2026-10-27 readouts robust in tight subtrees (D5); since 2026-11-02 the 24-cell subtree floor, with symmetry dropped from the paper (D6); since 2026-11-08 the terminal cohort check (D7: cells that end embryogenesis undivided) | [track_d_subtree_symmetry.md](track_d_subtree_symmetry.md) | nothing; shares tooling with C | merged 2026-11-04 (PR #7: 24-cell floor, mirrored-pair layer retired; D0–D4c were PR #6); D7 decided 2026-11-09 (275-edge cohort kept; 321-edge check in the backlog) |
 | E. Per-layer fronts (was: layer-specific features) | Per-layer travel and cell-state advantage in the full tree; the mid-embryo dip | [track_e_layer_features.md](track_e_layer_features.md) | Track A conventions | done 2026-11-05 (claims for layers 3-8; main-text panels become revised Figure 6B-C; S5 supplement; timeline H in reserve) |
 
 Order: start A first, because it can change how much weight the geometric

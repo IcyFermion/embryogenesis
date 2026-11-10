@@ -1,14 +1,18 @@
 """Captions of the revised layout's main figures, as TeX caption bodies (title sentence first).
 
-``AGREED`` holds captions the author has approved. Figure 6 was agreed on
-2026-11-05 (record: ``full_tree_pareto/LAYERWISE_HOURGLASS.md``). ``DRAFT`` holds
-captions written in the style of the v1 baseline (2026-11-05), for review:
+Numbering of 2026-11-08: Figure 2 (cell-state features) is new; the former
+Figures 2-7 are now 3-8. ``AGREED`` holds captions the author has approved:
+Figure 7 (full tree by layer; agreed 2026-11-05 as Figure 6, record:
+``full_tree_pareto/LAYERWISE_HOURGLASS.md``). ``DRAFT`` holds captions written in
+the style of the v1 baseline, for review:
 - Figure 1 takes A-C from the manuscript draft and D from the released
   endpoint-coordinates amendment.
-- Figures 2 and 4 adapt the released Figures 2-3A and 5.
-- Figure 7 takes its facts from released Figure 8.
-- Figure 3 is new.
-Counts are those of the released analyses; Figure 3's values were checked against the cached global sweep.
+- Figures 3 and 5 adapt the released Figures 2-3A and 5 (5 adds r from the
+  released S1, which it replaces).
+- Figure 8A takes its facts from released Figure 8; 8B-C are new.
+- Figures 2 and 4 are new; Figure 2 takes its facts from Track A
+  (``terminal_pareto/METHODS_cell_state_representation.md``).
+Counts are those of the released analyses; Figure 4's values were checked against the cached global sweep.
 """
 
 from __future__ import annotations
@@ -16,7 +20,7 @@ from __future__ import annotations
 from publication import notation as nt
 
 
-def figure6() -> str:
+def figure7() -> str:
     d = nt.tex("natural_front_distance")
     return rf"""\textbf{{Full-tree trade-offs by layer.}}
 The tracked \emph{{C.\@ elegans}} lineage starts at the 4-cell stage (ABa, ABp, EMS and P2) and ends at 491
@@ -74,6 +78,25 @@ and selected assignments unchanged."""
 
 
 def figure2() -> str:
+    return r"""\textbf{Choosing the reporter proteins of the cell-state cost.}
+Cell-state distance is the cosine distance between protein-reporter profiles (z-scored intensities) of a parent slot
+and a child, over 20 of the 210 reporters. The 20 are chosen by terminal fate alone, never by travel or by the
+Pareto front. All panels use the 275-cell \emph{C.\@ elegans} terminal cohort.
+\textbf{(A)} The 20 reporters with the largest coefficients in an L2-regularized multinomial logistic regression that
+classifies terminal cells into fate classes; bar color gives the class of each reporter's largest coefficient.
+Inset: importance of all 210 reporters by rank.
+\textbf{(B)} Cosine distance between terminal sisters of the same fine cell type (35 pairs) and of different fine
+types (63 pairs; WormBase cell descriptions), with the top-20 and with all 210 reporters. \(d\) is Cohen's \(d\) of
+the difference, the sibling separation.
+\textbf{(C)} Sibling separation with 95\% bootstrap intervals (2,000 resamples of sister pairs) for the top-20, the
+more variable half of the panel (HV pool, 105 reporters) and all 210 reporters, against 200 random 20-reporter sets
+drawn from the HV pool (violin; dot, median).
+\textbf{(D)} Mean cosine distance between all pairs of cohort cells by lineage path length, the number of divisions
+separating two cells through their last common ancestor (sisters 2, first cousins 4; lengths pooled in twos), for
+the top-20, all 210 reporters and 200 random 20-reporter sets from the HV pool (band, 5--95\%)."""
+
+
+def figure3() -> str:
     return r"""\textbf{The pooled terminal lineage lies near the travel--cell-state Pareto front.}
 \textbf{(A)} The analysis uses the 275 natural terminal parent--child edges shared by three stage-matched
 \emph{C.\@ elegans} tracking embryos. Travel is the equal mean of the three edge-distance matrices after division by
@@ -90,11 +113,11 @@ share a grandparent (first-cousin shuffle), a great-grandparent (second-cousin) 
 full-random shuffle permutes all terminal cells. Terminal identities, positions and molecular states remain fixed."""
 
 
-def figure3() -> str:
+def figure4() -> str:
     m = _symbols()
     return rf"""\textbf{{Lineage similarity and rewiring along the pooled terminal Pareto front.}}
 Lineage similarity is the fraction of the 275 natural terminal parent--child edges that an assignment keeps.
-\textbf{{(A)}} Lineage similarity along the pooled front of Figure~2A, against travel distance in the same endpoint
+\textbf{{(A)}} Lineage similarity along the pooled front of Figure~3A, against travel distance in the same endpoint
 coordinates. The red cross marks the natural lineage (similarity 1). Squares mark the travel optimum
 {m['travel_optimum']} and the cell-state optimum {m['cell_state_optimum']}; the circle marks the maximum-similarity
 assignment M. \textbf{{(B--D)}} The natural lineage (top, founder lineages labelled) and one row each for
@@ -105,15 +128,21 @@ similarity is 0.71 at {m['travel_optimum']}, 0.83 at M and 0.19 at {m['cell_stat
 275 terminal cells change parent."""
 
 
-def figure4() -> str:
+def figure5() -> str:
     m = _symbols()
-    return rf"""\textbf{{Canonical position and endpoint-normalized proximity for the pooled subtree fronts.}}
+    r = nt.tex("cousin_relative")
+    return rf"""\textbf{{Canonical position and distances to the front for the pooled subtree fronts.}}
 Each of the 18 subtrees with at least 24 of the 275 natural terminal edges appears once, the smallest size above
 which every subtree's first-cousin null and front are resolved (Methods). Rows are grouped into the root and AB branch
-and the ABa, ABp and P1 branches. Canonical metrics and the attained closest assignment {m['closest_point']} are defined
-in Figure~1D; each subtree uses its own two single-objective endpoint spans. Pies report the terminal fate
-composition of each subtree. Gray dots show canonical position {m['canonical_position']} and purple dots
-natural-lineage distance {m['natural_front_distance']}, each on a stem from zero; column scales are shared across
+and the ABa, ABp and P1 branches. Left-right counterparts sit in adjacent rows joined by a bracket: ABpl and ABpr,
+ABplp and ABprp, MSa and MSp, and ABalp and ABara, which correspond by fate rather than by lineage position. Canonical
+metrics and the attained closest assignment {m['closest_point']} are defined in Figure~1D; each subtree uses its own
+two single-objective endpoint spans. Pies report the terminal fate composition of each subtree. Gray dots show
+canonical position {m['canonical_position']}, pink dots natural-lineage distance {m['natural_front_distance']} and
+purple dots the cousin-relative distance {r}, each on a stem from zero. {r} measures, with both costs in units of
+their first-cousin-null standard deviations, the distance from the natural lineage to its nearest sampled front
+assignment divided by the distance from the first-cousin null mean {m['null_mean']} to that same assignment; the
+dashed line, {r}~=~1, marks a lineage no closer to the front than its null mean. Column scales are shared across
 groups. A zero distance places the natural lineage on its sampled front. These shape-normalized coordinates are not
 absolute performance comparisons between subtrees; nested subtrees are not independent biological replicates.
 \(\dagger\)~ABplp lies farthest from its front because of where the track of one apoptotic cell, ABplpppapp, ends: with
@@ -122,20 +151,29 @@ other two apoptotic cells, or to three living cells matched on depth and birth t
 off."""
 
 
-def figure7() -> str:
+def figure8() -> str:
     return r"""\textbf{Terminal trade-offs in \emph{C.\@ briggsae}.}
-\textbf{(A)} The natural \emph{C.\@ briggsae} AF16 lineage against its Pareto front, laid out as in Figure~2A. The
+\textbf{(A)} The natural \emph{C.\@ briggsae} AF16 lineage against its Pareto front, laid out as in Figure~3A. The
 analysis uses the 187 natural terminal parent--child edges matched between \emph{C.\@ elegans} and
 \emph{C.\@ briggsae}. Travel is the equal mean of per-embryo pairwise displacements in two AF16 embryos (3D tracking),
 each divided by its fixed natural-lineage total on the 196-edge \emph{C.\@ briggsae} reference before restriction to
 the matched cohort. Cell-state cost is cosine dissimilarity across the 20 shared RNA transcription factors. The black
 curve connects 301 weighted assignment solutions in the front's own endpoint coordinates, with the travel optimum at
 \((0,1)\) and the cell-state optimum at \((1,0)\); the red cross marks the natural lineage, and the cousin shuffles and
-full-random inset are defined as in Figure~2. Figure~2A uses all 275 \emph{C.\@ elegans} edges and protein cell
+full-random inset are defined as in Figure~3. Figure~3A uses all 275 \emph{C.\@ elegans} edges and protein cell
 state, so the two panels compare trade-off shapes, not absolute costs. All \emph{C.\@ briggsae} 3D tracking is subject
 to the limitations of traditional embryo-tracking techniques, particularly for z-axis measurements.
-\textbf{(B)} To follow."""
+\textbf{(B)} Lineage similarity along the front of A against travel distance, as in Figure~4A: the fraction of
+the 187 natural terminal edges that each assignment keeps. Squares mark the travel and cell-state optima and the
+circle the maximum-similarity assignment M (similarity 0.74; 0.50 at the travel optimum and 0.21 at the cell-state
+optimum).
+\textbf{(C)} The \emph{C.\@ briggsae} lineage by layer, as in Figure~7B, for the partial forest of the matched
+cells: the 187 matched terminal cells and their ancestors, with layers numbered as in the \emph{C.\@ elegans} full
+tree (layer 8 holds the leaves). Each layer's daughters are reassigned to their mothers' slots with the other layers
+fixed, using AF16 3D travel and \emph{C.\@ briggsae} RNA cell state. Points sit at the median number of cells alive
+when the matched \emph{C.\@ elegans} cells are born (Large et al.\ 2025). Layer 3 holds 2 cells and has no
+resolved front, so C starts at layer 4. The distance axis is shared with Figure~7B."""
 
 
-AGREED = {"6": figure6}
-DRAFT = {"1": figure1, "2": figure2, "3": figure3, "4": figure4, "7": figure7}
+AGREED = {"7": figure7}
+DRAFT = {"1": figure1, "2": figure2, "3": figure3, "4": figure4, "5": figure5, "8": figure8}

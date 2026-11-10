@@ -263,3 +263,31 @@ use Euclidean. Compare both metrics on the terminal cohorts first (cheap),
 then decide whether the full-tree analyses must be rerun with cosine. That is a
 scientific change: new run identities for the pooled full tree and the partial
 forest, and new Figures 7, 10, 11 and S4 (plus the round sketches).
+
+## A3. Main-text figure of the cell-state features (2026-11-08)
+
+Author and supervisor: a new main figure shows briefly how the reporters are
+selected and that they make sense, by separating concordant from discordant
+terminal sisters and by tracking lineage distance. Placed as Figure 2 of the
+revised layout (author's choice; Track B, B5). No new analysis: everything
+reads the recorded runs `representation_criteria_v1/criteria_metric_20261014`
+and the published ranking.
+
+- A: classifier importance of the top-20 (bars coloured by the fate class of
+  each reporter's largest coefficient) and all 210 by rank (inset).
+- B: cosine distance of same-type (35) and different-type (63) terminal sisters
+  with the top-20 and all 210 reporters; Cohen's d recomputed and checked
+  against `criteria.csv` (1e-12).
+- C: sibling separation with intervals for the top-20, HV pool and whole
+  panel against the 200 recorded random 20-sets from the HV pool.
+- D: mean cosine distance of all cohort pairs by lineage path length (lengths
+  pooled in twos: odd lengths join cells of different depth and zigzag),
+  top-20, whole panel and 200 seeded random 20-sets from the HV pool
+  (descriptive; drawn at build time). The top-20 follows the random median:
+  distance rises with lineage distance for any reporter set.
+- E (dropped 2026-11-09, author): same-type pairs against the within-type
+  permutation null (rho 0.36 against 0.16). The measure stays in Methods; the
+  picture was not convincing.
+
+Loader `publication/v2/data.feature_selection`; drawing
+`publication/v2/panels.feature_figure`; caption draft `captions.figure2`.

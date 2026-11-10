@@ -30,7 +30,7 @@ Everything under `output/` is Git-ignored; keep an external backup.
 | `terminal-cross-species` | 8, 9 | `.../cross_species_terminal_v1/pooled_comparison_20260930` | released |
 | `full-tree-pooled` | 7, provisional S4 | `full_tree_pareto/output/runs/pooled_full_tree_v1/terminal_clamped_cosine_20261014` | released 2026-10-15 (cosine); the Euclidean release from `terminal_clamped_20260927` is archived |
 | `full-tree-cross-species` | 10, 11 | `.../cross_species_layerwise_v1/terminal_anchored_cosine_20261014` | released 2026-10-15 (cosine); the Euclidean release from `terminal_anchored_20260930` is archived |
-| `full-tree-layers` | S5; its panels also draw Figure 6B-C of the revised layout (`publication.v2`) | `full_tree_pareto/output/runs/layer_features_v1/` runs `hourglass_20261019` and `stages_20261020` (Track E), checked against the two round-reference caches | released 2026-11-05 (the other four families were refreshed in the same release, figures unchanged) |
+| `full-tree-layers` | S5; Figure 7B-C of the revised layout (`publication.v2`) follow its panels, redrawn there with `palette.py` | `full_tree_pareto/output/runs/layer_features_v1/` runs `hourglass_20261019` and `stages_20261020` (Track E), checked against the two round-reference caches | released 2026-11-05 (the other four families were refreshed in the same release, figures unchanged) |
 
 `python -m publication list` prints this from `registry.py`, which also holds
 wrapper stems, printed numbers and each family's owned production assets
@@ -86,7 +86,8 @@ modules and the validators (see the package READMEs).
 | `migration.py` | One-off archive and post-PR purge of figure material left in the back ends |
 | `registry.py`, `__main__.py`, `parity.py` | Families and CLI; candidate/production comparison |
 | `sketches/` | Exploratory figures for discussion (branch `figure-ideas`); outside the registry, never released; writes `output/sketches/<name>/` |
-| `v2/` | Revised manuscript layout (branch figures-v2), outside the registry. `python -m publication.v2 --output-dir DIR` builds draft pages; `--manuscript` builds the figures alone, cropped. `python -m publication.v2.manuscript --v2-build DIR --output-dir publication/output/manuscript/<name>` assembles the manuscript set (Figures 1-7, S1-S5, Table 1, `review.pdf`, `captions.tex`) from that build and a current production; `v2/captions.py` holds the main-figure captions (agreed, or drafts in the v1 style awaiting review) |
+| `v2/` | Revised manuscript layout (branch figures-v2), outside the registry. `python -m publication.v2 --output-dir DIR` builds draft pages; `--manuscript` builds the figures alone, cropped. `python -m publication.v2.manuscript --v2-build DIR --output-dir publication/output/manuscript/<name>` assembles the manuscript set (Figures 1-8, S1 = released S3, Table 1, `review.pdf`, `captions.tex`, and released S2/S4/S5 in `backlog/`) from that build and a current production; `v2/captions.py` holds the main-figure captions (agreed, or drafts in the v1 style awaiting review). Numbering of 2026-11-08: Figure 2 (cell-state features) is new, the former 2-7 are 3-8 |
+| `palette.py` | One colour per concept for the revised layout (measures, null shuffles, fate classes, feature-figure categories, neutrals) and the palette sheet; every `v2` panel draws from it. Not a build module: `style.py` keeps the released families' colours (equal values today) |
 | `notes/` | Reserve notes: one-page supplementary-style pages kept ready for reviewer questions (Note A: the ABplp/ABprp apoptotic-cell endpoint, Track D4c); outside the registry, statements checked against hash-checked runs; `python -m publication.notes --output-dir publication/output/notes/<name>` |
 
 ## Changing displayed notation
