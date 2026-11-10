@@ -106,3 +106,15 @@ Items and what was done:
   most at layer 6 (d_LP 0.23 against 0.075), and the weaker *C. briggsae*
   tracking, especially in z, makes that difference hard to claim. Figure 8
   stays *C. briggsae* alone.
+
+**Release set (author request, 2026-11-09).** The manuscript set is now laid
+out like `publication/output/production`: every figure and table has a
+standalone captioned LaTeX wrapper (`figN_<stem>.tex`, with `\label`) next to
+its compiled page and the graphics it includes. Main figures include the v2
+manuscript-mode figure as `<stem>_panel.pdf`, at most 70% of the text height
+so the caption fits. Figure 6 and S1 are the released wrappers, renumbered
+(S1's files renamed `figS1_*`); the backlog keeps released wrappers unchanged.
+`captions.tex` and `graphics/` are gone (each caption lives in its wrapper);
+`review.tex` only joins the compiled pages. Set:
+`publication/output/manuscript/v2_release_20261109`, from build
+`candidates/v2_release_20261109`.

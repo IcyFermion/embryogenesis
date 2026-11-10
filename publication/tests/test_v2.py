@@ -33,6 +33,25 @@ class V2Tests(unittest.TestCase):
         order = [n for names in SUBTREE_ORDER.values() for n in names]
         self.assertEqual(len(order), len(set(order)))
 
+    def test_release_set_renumbers_released_wrappers(self):
+        from publication.v2.manuscript import renumber
+        tex = ("\\begin{document}\n\\renewcommand{\\thefigure}{S3}\n\\begin{figure}[p]\n"
+               "\\includegraphics[width=\\textwidth]{figS3_four_geometries.pdf}\n"
+               "\\includegraphics{figS3A_panel.pdf}\\input{figS30_other.tex}\n\\end{figure}\n")
+        new, names = renumber(tex, "figS3_ce_tracking_robustness", "figS1_ce_tracking_robustness", "S1")
+        self.assertIn("\\renewcommand{\\thefigure}{S1}\n", new)
+        self.assertNotIn("{S3}", new)
+        self.assertEqual(names, {"figS3_four_geometries.pdf": "figS1_four_geometries.pdf",
+                                 "figS3A_panel.pdf": "figS1A_panel.pdf", "figS30_other.tex": "figS30_other.tex"})
+        self.assertIn("{figS1_four_geometries.pdf}", new)
+        # A figure that keeps its number keeps its files.
+        tex = "\\setcounter{figure}{5}\n\\includegraphics{fig6A_ce_retention_heatmap.pdf}\n"
+        new, names = renumber(tex, "fig6_ce_cell_types", "fig6_ce_cell_types", "6")
+        self.assertIn("\\setcounter{figure}{5}\n", new)
+        self.assertEqual(names, {"fig6A_ce_retention_heatmap.pdf": "fig6A_ce_retention_heatmap.pdf"})
+        with self.assertRaises(ValueError):
+            renumber("\\includegraphics{figS3_x.pdf}\n", "figS3_a", "figS1_a", "S1")
+
 
 if __name__ == "__main__":
     unittest.main()

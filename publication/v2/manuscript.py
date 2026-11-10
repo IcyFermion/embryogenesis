@@ -1,19 +1,27 @@
-"""Assemble the manuscript figure set: ``python -m publication.v2.manuscript --v2-build DIR --output-dir DIR``.
+"""Assemble the manuscript release set: ``python -m publication.v2.manuscript --v2-build DIR --output-dir DIR``.
 
-Numbering of 2026-11-08. Main Figures 1-5, 7 and 8 come from a v2 build made
-with ``--manuscript`` (figures alone, cropped). Figure 6 holds the released
-cell-type panels (production Figure 6) until they are restyled. The supplement
-is released S3, renumbered S1; released S1 is retired (its r is in Figure 5) and
-released S2, S4 and S5 are kept in ``backlog/`` with their captions, outside
-``review.pdf``. Table 1 is the released page. Production must verify cleanly first.
+The release set is laid out like ``publication/output/production`` (author request, 2026-11-09).
+Each figure and table has a standalone LaTeX wrapper, ``figN_<stem>.tex``, that holds its caption
+and label. Next to it sit the compiled captioned page (``figN_<stem>.pdf``) and the graphics it
+includes.
 
-Every figure file is a captioned page (``Figure1.pdf`` ... ``FigureS1.pdf``,
-``Table1.pdf``, plus ``Table1.tex``). Main-figure captions are agreed or, until
-the author approves them, drafts in the v1 style (``publication.v2.captions``).
-``graphics/`` holds the main figures' bare graphics for LaTeX ``includegraphics``.
-``review.tex`` is the single source of ``review.pdf`` (``tectonic review.tex`` in
-the folder recompiles it); the main figures' pages are split out of it.
-``captions.tex``, ``README.md`` and ``manifest.json`` complete the folder.
+Numbering of 2026-11-08:
+
+- Figures 1-5, 7 and 8 come from a v2 build made with ``--manuscript`` (figures alone, cropped).
+  Each wrapper includes that figure as ``figN_<stem>_panel.pdf``, as released Figures 4 and 8-11
+  include theirs. Captions are agreed or, until the author approves them, drafts in the v1 style
+  (``publication.v2.captions``).
+- Figure 6 is the released cell-type figure (wrapper, panels and caption) until it is restyled.
+- The supplement is released S3, renumbered S1 (wrapper and graphic renamed ``figS1_*``).
+- Table 1 is the released table.
+- Released S1 is retired (its r is in Figure 5). Released S2, S4 and S5 are copied unchanged, with
+  their wrappers and graphics, into ``backlog/``.
+
+Every wrapper is compiled here. Each must give one page, print its own number (read from the
+``.aux``) and raise no TeX warning other than the tolerated float overflow (``publication.assembly``).
+``review.tex`` joins the compiled pages into ``review.pdf``. To change a caption, edit the figure's
+``.tex``, recompile it, then recompile ``review.tex``. ``README.md`` and ``manifest.json`` (with
+file hashes) complete the folder. Production must verify cleanly first.
 """
 
 from __future__ import annotations
@@ -21,26 +29,28 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 
 import numpy as np
 
+from publication import assembly
 from publication import notation as nt
 from publication.provenance import ROOT, sha256
 from publication.release import PRODUCTION, verify_production
 from publication.v2 import captions
-from publication.v2.__main__ import MANUSCRIPT_PREAMBLE, NOTATION
+from publication.v2.__main__ import NOTATION
 
-MAIN = {"1": "fig1_overview.pdf", "2": "fig2_cell_state_features.pdf", "3": "fig3_terminal_pareto.pdf",
-        "4": "fig4_lineage_similarity.pdf", "5": "fig5_subtrees.pdf", "7": "fig7_full_tree_layers.pdf",
-        "8": "fig8_briggsae.pdf"}
-# Cell types until restyled: the released cell-type figure (production Figure 6), panels and caption.
-CELL_TYPES = dict(number="6", wrapper="fig6_ce_cell_types.tex", panels=("fig6A_ce_retention_heatmap.pdf",
-                                                                       "fig6B_ce_within_type_fronts.pdf",
-                                                                       "fig6C_ce_type_restricted_aggregate.pdf"))
-# Supplement of the manuscript set (new number -> released stem); author decisions of 2026-11-08.
-SUPPLEMENT = {"S1": "figS3_ce_tracking_robustness"}
+VERSION = "manuscript-release-1"
+# Main figures of the revised layout: number -> stem of the v2 manuscript-mode build.
+MAIN = {"1": "fig1_overview", "2": "fig2_cell_state_features", "3": "fig3_terminal_pareto",
+        "4": "fig4_lineage_similarity", "5": "fig5_subtrees", "7": "fig7_full_tree_layers", "8": "fig8_briggsae"}
+# Released figures placed in the set: number -> (released stem, stem in the set). Figure 6 holds the
+# released cell-type figure until it is restyled; S1 is released S3 (author decisions of 2026-11-08).
+ADOPTED = {"6": ("fig6_ce_cell_types", "fig6_ce_cell_types"),
+           "S1": ("figS3_ce_tracking_robustness", "figS1_ce_tracking_robustness")}
+SUPPLEMENT = ("S1",)
 BACKLOG = {"S2": "figS2_ce_cell_type_cost_gain", "S4": "figs_ce_full_tree_heuristics",
            "S5": "figS5_full_tree_layer_travel"}
 RETIRED = {"S1": ("figS1_ce_canonical_summary_cousin_r", "r is a column of Figure 5; panel A repeated Figure 1D")}
@@ -53,17 +63,15 @@ NOT_PLACED = {"7": "full-tree layerwise rounds and aggregate front (7A is redraw
               "11": "partial-forest cross-species overlays"}
 # Released captions that cite the released numbering.
 OLD_REFERENCES = {}
-REVIEW_PREAMBLE = r"""% Review copy of the manuscript figure set. Recompile in this folder: tectonic review.tex
-% (or pdflatex review.tex). Main-figure captions can be edited here; the supplement and
-% Table 1 are the released pages, edited in their production sources.
-\documentclass[10pt]{article}
-\usepackage[margin=0.55in]{geometry}
-\usepackage{graphicx}
-\usepackage{caption}
-\usepackage{amsmath}
+# The main figure fills the text width and at most 70% of the text height, so its caption fits on the page.
+GRAPHIC_SIZE = r"width=\textwidth,height=.7\textheight,keepaspectratio"
+INCLUDED = re.compile(r"\\(?:includegraphics(?:\[[^\]]*\])?|input)\{([^}]+)\}")
+NUMBERING = re.compile(r"\\setcounter\{figure\}\{\d+\}\n|\\renewcommand\{\\thefigure\}\{[^}]*\}\n")
+LABEL = re.compile(r"\\label\{([^}]+)\}")
+REVIEW = r"""% Review copy: every page of the release set, in order. Recompile here: tectonic review.tex
+% Captions live in each figure's .tex; recompile that file first, then this one.
+\documentclass{article}
 \usepackage{pdfpages}
-\captionsetup{font=small,labelfont=bf}
-\pagestyle{empty}
 \begin{document}
 """
 
@@ -79,21 +87,97 @@ def caption_body(tex: str) -> str:
     raise ValueError("Unbalanced caption")
 
 
-def tectonic(tex: Path) -> Path:
-    result = subprocess.run(["tectonic", tex.name], cwd=tex.parent, text=True, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
+def page_count(pdf: Path) -> int:
+    if shutil.which("qpdf"):
+        return int(subprocess.check_output(["qpdf", "--show-npages", str(pdf)], text=True))
+    if shutil.which("pdfinfo"):
+        info = subprocess.check_output(["pdfinfo", str(pdf)], text=True)
+        return int(next(line.split(":")[1] for line in info.splitlines() if line.startswith("Pages:")))
+    raise RuntimeError("qpdf or pdfinfo is required to count pages")
+
+
+def preview(pdf: Path) -> Path | None:
+    """A 300 dpi PNG of a one-page graphic, when poppler is installed (the released sets carry them)."""
+    if not shutil.which("pdftoppm"):
+        return None
+    subprocess.run(["pdftoppm", "-png", "-r", "300", "-singlefile", str(pdf), str(pdf.with_suffix(""))], check=True)
+    return pdf.with_suffix(".png")
+
+
+def compile_page(tex: Path, *, number: str, label: str) -> dict:
+    """Compile a wrapper with tectonic and check it as a release does: one page, its own number, no TeX warning
+    other than the tolerated float overflow. The printed number is read from the label in the ``.aux``."""
+    result = subprocess.run(["tectonic", "--keep-logs", "--keep-intermediates", tex.name], cwd=tex.parent, text=True,
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if result.returncode:
         raise RuntimeError(f"{tex.name} failed to compile:\n{result.stdout[-3000:]}")
-    return tex.with_suffix(".pdf")
+    aux = tex.with_suffix(".aux").read_text(errors="replace")
+    printed = re.search(r"\\newlabel\{" + re.escape(label) + r"\}\{\{([^}]*)\}", aux)
+    if not printed or printed.group(1) != number:
+        raise ValueError(f"{tex.name}: prints {printed.group(1) if printed else 'no label'}, expected {number}")
+    pages = page_count(tex.with_suffix(".pdf"))
+    if pages != 1:
+        raise ValueError(f"{tex.name}: {pages} pages, expected 1")
+    log = tex.with_suffix(".log").read_text(errors="replace") + result.stdout
+    warnings = sorted({line.strip() for line in log.splitlines() if assembly.TEX_WARNINGS.search(line)})
+    unexpected = [w for w in warnings if not any(ok in w for ok in assembly.TOLERATED_WARNINGS)]
+    if unexpected:
+        raise ValueError(f"{tex.name}: TeX warnings: {unexpected}")
+    for side in tex.parent.glob(f"{tex.stem}.*"):  # intermediates; the set keeps .tex and .pdf
+        if side.suffix not in (".tex", ".pdf"):
+            side.unlink()
+    return dict(number=number, label=label, pages=pages, warnings=warnings)
 
 
-def cell_types(work: Path) -> Path:
-    for name in CELL_TYPES["panels"]:
-        shutil.copy2(PRODUCTION / name, work / name)
-    body = "\\\\[1mm]\n".join(f"\\includegraphics[width=.95\\textwidth]{{{name}}}" for name in CELL_TYPES["panels"])
-    tex = work / "cell_types.tex"
-    tex.write_text(MANUSCRIPT_PREAMBLE + "\\noindent\\centering\n" + body + "\n\\end{document}\n")
-    return tectonic(tex)
+def copy_released(name: str, target: Path) -> list[Path]:
+    """A released graphic and, if production has one, its PNG preview."""
+    copied = [shutil.copy2(PRODUCTION / name, target)]
+    png = (PRODUCTION / name).with_suffix(".png")
+    if png.suffix != Path(name).suffix and png.exists():
+        copied.append(shutil.copy2(png, Path(target).with_suffix(".png")))
+    return [Path(p) for p in copied]
+
+
+def main_figure(v2_build: Path, out: Path, number: str, stem: str, caption: str, status: str) -> dict:
+    graphic = f"{stem}_panel.pdf"
+    shutil.copy2(v2_build / f"{stem}.pdf", out / graphic)
+    preview(out / graphic)
+    label = "fig:" + stem.split("_", 1)[1]
+    note = ("agreed with the author" if status == "agreed" else
+            "draft in the v1 style, awaiting the author's review")
+    body = (f"% Caption: {note}; source publication/v2/captions.py.\n"
+            f"% Graphic: {stem}.pdf of the v2 manuscript-mode build {v2_build.name}.\n"
+            "\\begin{figure}[p]\n\\centering\n"
+            f"\\includegraphics[{GRAPHIC_SIZE}]{{{graphic}}}\n"
+            f"\\caption{{{caption}}}\n\\label{{{label}}}\n\\end{{figure}}")
+    tex = assembly.write_wrapper(out, stem, number=number, body=body)
+    return dict(stem=stem, source=f"v2 build ({stem}.pdf)", caption=status, **compile_page(tex, number=number,
+                                                                                            label=label))
+
+
+def renumber(tex: str, released: str, stem: str, number: str) -> tuple[str, dict]:
+    """A released wrapper under a new number, its included files renamed to the new prefix
+    (``figS3_*``, ``figS3A_*`` -> ``figS1_*``, ``figS1A_*``). Returns the TeX and the renames."""
+    old, new = released.split("_", 1)[0], stem.split("_", 1)[0]
+    prefix = re.compile(re.escape(old) + r"(?=[A-Z]?_)")
+    names = {name: prefix.sub(new, name, count=1) for name in INCLUDED.findall(tex)}
+    tex = INCLUDED.sub(lambda m: m.group(0).replace(m.group(1), names[m.group(1)]), tex)
+    note = f"% Released caption of production {released}, unchanged; numbered {number} here.\n"
+    tex, count = NUMBERING.subn(lambda _: assembly.numbering(number) + note, tex)
+    if count != 1:
+        raise ValueError(f"{released}: expected one numbering line, found {count}")
+    return tex, names
+
+
+def adopt(out: Path, number: str, released: str, stem: str) -> dict:
+    """A released figure under its new number: wrapper, caption and graphics, renamed with the new prefix."""
+    tex, names = renumber((PRODUCTION / f"{released}.tex").read_text(), released, stem, number)
+    for name, new in names.items():
+        copy_released(name, out / new)
+    label = LABEL.search(tex).group(1)
+    (out / f"{stem}.tex").write_text(tex)
+    return dict(stem=stem, source=f"released {released}", caption="released",
+                **compile_page(out / f"{stem}.tex", number=number, label=label))
 
 
 def git_state() -> dict:
@@ -128,88 +212,70 @@ def assemble(v2_build: Path, out: Path) -> dict:
         raise ValueError(f"Production is not current for: {sorted(stale)}; release a fresh build first")
     if out.exists() and any(out.iterdir()):
         raise ValueError(f"Output directory must be new or empty: {out}")
-    work, graphics = out / "_tex", out / "graphics"
-    work.mkdir(parents=True)
-    graphics.mkdir()
-
-    cell = CELL_TYPES["number"]
-    bare = {f"Figure{n}.pdf": v2_build / name for n, name in MAIN.items()} | {f"Figure{cell}.pdf": cell_types(work)}
-    for name, source in bare.items():
-        shutil.copy2(source, graphics / name)
-    released_pages = {f"Figure{n}.pdf": PRODUCTION / f"{stem}.pdf" for n, stem in SUPPLEMENT.items()}
-    released_pages |= {"Table1.pdf": PRODUCTION / f"{TABLE1}.pdf", "Table1.tex": PRODUCTION / f"{TABLE1}.tex"}
-    for name, source in released_pages.items():
-        shutil.copy2(source, out / name)
-    (out / "backlog").mkdir()
-    for n, stem in BACKLOG.items():  # kept in reserve, under their released numbers
-        shutil.copy2(PRODUCTION / f"{stem}.pdf", out / "backlog" / f"Figure{n}_released.pdf")
+    out.mkdir(parents=True, exist_ok=True)
 
     with nt.override(**NOTATION):
         agreed = {n: make() for n, make in captions.AGREED.items()}
         drafts = {n: make() for n, make in captions.DRAFT.items()}
-    main_captions = {n: agreed.get(n) or drafts.get(n) for n in sorted([*MAIN, cell], key=int)}
-    main_captions[cell] = caption_body((PRODUCTION / CELL_TYPES["wrapper"]).read_text())
-    status = {n: "agreed" if n in agreed else "released" if n == cell else "draft" if n in drafts else "missing"
-              for n in main_captions}
-    if "missing" in status.values():
-        raise ValueError(f"No caption for main figures {[n for n, v in status.items() if v == 'missing']}")
-    released = {n: caption_body((PRODUCTION / f"{stem}.tex").read_text()) for n, stem in SUPPLEMENT.items()}
-    released["Table 1"] = caption_body((PRODUCTION / f"{TABLE1}.tex").read_text())
-    backlog = {n: caption_body((PRODUCTION / f"{stem}.tex").read_text()) for n, stem in BACKLOG.items()}
+    missing = [n for n in MAIN if n not in agreed and n not in drafts]
+    if missing:
+        raise ValueError(f"No caption for main figures {missing}")
+    figures = {}
+    for n in sorted([*MAIN, *ADOPTED], key=lambda k: (k.startswith("S"), int(k.lstrip("S")))):
+        if n in MAIN:
+            figures[n] = main_figure(v2_build, out, n, MAIN[n], agreed.get(n) or drafts[n],
+                                     "agreed" if n in agreed else "draft")
+        else:
+            figures[n] = adopt(out, n, *ADOPTED[n])
+    for suffix in (".tex", ".pdf"):  # Table 1: the released page, unchanged
+        shutil.copy2(PRODUCTION / f"{TABLE1}{suffix}", out / f"{TABLE1}{suffix}")
+    backlog = out / "backlog"
+    backlog.mkdir()
+    for stem in BACKLOG.values():  # kept in reserve, under their released numbers
+        tex = (PRODUCTION / f"{stem}.tex").read_text()
+        for suffix in (".tex", ".pdf"):
+            shutil.copy2(PRODUCTION / f"{stem}{suffix}", backlog / f"{stem}{suffix}")
+        for name in INCLUDED.findall(tex):
+            copy_released(name, backlog / name)
 
-    blocks = [f"% Figure {n} ({status[n]})\n\\setcounter{{figure}}{{{int(n) - 1}}}\n\\begin{{figure}}[p]\n\\centering\n"
-              f"\\includegraphics[width=\\textwidth,height=.7\\textheight,keepaspectratio]{{graphics/Figure{n}.pdf}}\n"
-              f"\\caption{{{text}}}\n\\end{{figure}}\n\\clearpage\n" for n, text in main_captions.items()]
-    pages = [f"Figure{n}.pdf" for n in SUPPLEMENT] + ["Table1.pdf"]
-    blocks.append("% Supplement and Table 1: released pages\n"
-                  + "".join(f"\\includepdf[pages=-]{{{name}}}\n" for name in pages))
-    (out / "review.tex").write_text(REVIEW_PREAMBLE + "\n".join(blocks) + "\\end{document}\n")
-    tectonic(out / "review.tex")
-    for page, n in enumerate(main_captions, start=1):  # each main figure's captioned page, as in review.pdf
-        subprocess.run(["qpdf", str(out / "review.pdf"), "--pages", ".", str(page), "--", str(out / f"Figure{n}.pdf")],
-                       check=True)
+    pages = [f"{figures[n]['stem']}.pdf" for n in figures] + [f"{TABLE1}.pdf"]
+    (out / "review.tex").write_text(REVIEW + "".join(f"\\includepdf[pages=-]{{{p}}}\n" for p in pages)
+                                    + "\\end{document}\n")
+    result = subprocess.run(["tectonic", "review.tex"], cwd=out, text=True, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT)
+    if result.returncode or page_count(out / "review.pdf") != len(pages):
+        raise RuntimeError(f"review.tex failed:\n{result.stdout[-3000:]}")
 
-    blocks = ["% Captions for the manuscript figure set (TeX caption bodies).",
-              "% Main figures: agreed captions, or drafts in the v1 style awaiting the author's review.",
-              f"% Figure {cell} and the supplement: released captions, unchanged (S1 is released S3).",
-              "% Backlog (released S2, S4, S5) follows at the end, under the released numbers."]
-    for n, text in main_captions.items():
-        label = "released (production Figure 6)" if n == cell else status[n]
-        blocks.append(f"\n% Figure {n} ({label})\n{text}")
-    for n, text in released.items():
-        source = f", released {SUPPLEMENT[n].split('_')[0][3:]}" if n in SUPPLEMENT else ""
-        blocks.append(f"\n% {'Figure ' + n if n != 'Table 1' else n} (released{source})\n{text}")
-    for n, text in backlog.items():
-        blocks.append(f"\n% Backlog: released Figure {n}\n{text}")
-    (out / "captions.tex").write_text("\n".join(blocks) + "\n")
-
-    shutil.rmtree(work)
     families = json.loads((PRODUCTION / "release_manifest.json").read_text())["families"]
+    overflow = [n for n, f in figures.items() if f["warnings"]]
     readme = [
-        "# Manuscript figure set (revised layout)", "",
+        "# Manuscript release set (revised layout)", "",
         f"Built by `python -m publication.v2.manuscript` from `{v2_build.name}` (v2 manuscript-mode build) and "
-        f"production released on {max(f['released_at'] for f in families.values())[:8]}. "
-        "Every figure file is a page with its caption; `review.pdf` joins them all and is compiled from "
-        "`review.tex` (`tectonic review.tex` here recompiles it). `graphics/` holds the main figures without "
-        "captions, for `\\includegraphics`, and `captions.tex` holds every caption as TeX.", "",
-        "| File | Figure | Source | Caption |", "|---|---|---|---|",
-        *(f"| Figure{n}.pdf | {n} | revised layout (v2) | {status[n]} |"
-          if n != cell else
-          f"| Figure{cell}.pdf | {cell} | released Figure 6 panels (cell types), not yet restyled | released, renumbered |"
-          for n in main_captions),
-        *(f"| Figure{n}.pdf | {n} | released `{stem}` | released, renumbered |" for n, stem in SUPPLEMENT.items()),
-        f"| Table1.pdf, Table1.tex | Table 1 | released `{TABLE1}` | released |", "",
+        f"production released on {max(f['released_at'] for f in families.values())[:8]}. Laid out like "
+        "`publication/output/production`: every figure and table has a standalone LaTeX wrapper (`.tex`) with its "
+        "caption and label, the compiled captioned page (`.pdf`) and the graphics it includes. The main figures of "
+        "the revised layout include their graphic as `<stem>_panel.pdf`. To change a caption, edit the `.tex` and "
+        "run `tectonic <stem>.tex` here. `review.pdf` joins every page (`tectonic review.tex` rebuilds it).", "",
+        "| Wrapper | Figure | Label | Source | Caption |", "|---|---|---|---|---|",
+        *(f"| `{f['stem']}.tex` | {n} | `{f['label']}` | {f['source']} | {f['caption']} |" for n, f in figures.items()),
+        f"| `{TABLE1}.tex` | Table 1 | `tab:ce_subtree_statistics` | released `{TABLE1}` | released |", "",
+        "Every wrapper compiled here to one page that prints its own number"
+        + (f"; figures {', '.join(overflow)} report a tolerated float overflow." if overflow else
+           ", with no TeX warning."),
+        "PNG previews of the main figures are written only where poppler (`pdftoppm`) is installed.", "",
         "## Notes for the main text", "",
         *notes(record), "",
         "## Open items", "",
         "- Figure 1 is the authors' schematic file, unchanged: panels B-C still read \"expression\", and 1D writes "
         "d_LP*/d_CP* where the other figures write d_LP/d_CP.",
-        f"- Figure {cell} is a placeholder until the cell-type figure is restyled; its caption is the released one.",
-        "- Captions of Figures " + ", ".join(n for n, v in status.items() if v == "draft")
+        "- Figure 6 is a placeholder until the cell-type figure is restyled; its caption is the released one.",
+        "- Captions of Figures " + ", ".join(n for n, f in figures.items() if f["caption"] == "draft")
         + " are drafts in the v1 style, for the author's review (`publication/v2/captions.py`).",
+        "- Table 1 is the released table: its column header and caption still say maximum edge retention, which "
+        "the figures now call lineage similarity.",
         *(f"- Released caption of {n} {why}." for n, why in OLD_REFERENCES.items()), "",
         "## Backlog (kept in reserve, not in review.pdf)", "",
-        *(f"- `backlog/Figure{n}_released.pdf`: released `{stem}`; caption at the end of `captions.tex`."
+        *(f"- `backlog/{stem}.tex`: released Figure {n}, under its released number, with its graphics."
           for n, stem in BACKLOG.items()),
         "- Terminal cohort sensitivity (Track D, D7; author kept the 275-edge cohort on 2026-11-09): 46 cells end "
         "embryogenesis undivided but are internal in the reference lineage (10 E nuclei, which is why Figure 4 "
@@ -223,11 +289,12 @@ def assemble(v2_build: Path, out: Path) -> dict:
         *(f"- Released Figure {n}: {what}." for n, what in NOT_PLACED.items()), "",
     ]
     (out / "README.md").write_text("\n".join(readme))
-    manifest = dict(version="manuscript-set-2", git=git_state(), v2_build=str(v2_build),
+    manifest = dict(version=VERSION, git=git_state(), v2_build=str(v2_build),
                     v2_build_record=sha256(v2_build / "build.json"),
                     production={k: dict(released_at=v["released_at"], presentation_id=v["presentation_id"])
                                 for k, v in families.items()},
-                    captions={f"Figure {n}": v for n, v in status.items()},
+                    figures=figures, table1=dict(stem=TABLE1, source=f"released {TABLE1}"),
+                    backlog=BACKLOG, retired={n: stem for n, (stem, _) in RETIRED.items()},
                     files={str(p.relative_to(out)): sha256(p) for p in sorted(out.rglob("*")) if p.is_file()})
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest
@@ -239,7 +306,9 @@ def main(argv=None):
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args(argv)
     manifest = assemble(args.v2_build, args.output_dir)
-    print(json.dumps(dict(captions=manifest["captions"], files=len(manifest["files"])), indent=2))
+    summary = {n: dict(stem=f["stem"], caption=f["caption"], warnings=len(f["warnings"]))
+               for n, f in manifest["figures"].items()}
+    print(json.dumps(dict(figures=summary, files=len(manifest["files"])), indent=2))
 
 
 if __name__ == "__main__":
