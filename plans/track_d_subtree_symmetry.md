@@ -1,5 +1,7 @@
 # Track D: left-right subtree symmetry
 
+**Status (2026-11-09): closed again.** D7 (terminal cohort sensitivity) is decided: the published 275-edge cohort stays; the 321-edge run is kept in the backlog.
+
 **Status (2026-11-04): closed.** D6 was released (D6d) and merged to `main`
 (PR #7). figures-v2 is on draft 3 (D6e). D6f is at the end.
 
@@ -2027,3 +2029,53 @@ PR #7 merged to `main` (merge commit 07beae8). `figures-v2` is rebased onto
 `main`. The worktree is removed and the local branch deleted, as
 `plans/README.md` describes. `verify --production` is clean. This status
 update rides along with `figures-v2`.
+
+## D7. Terminal cohort: cells that end embryogenesis undivided (2026-11-08)
+
+**Question (author).** Figure 4's lineage tree shows only two E cells. Is the
+lineage representation wrong?
+
+**Finding.** The tree is drawn correctly; the cohort rule is the cause. A
+cell enters the terminal cohort only if it is a leaf of
+`data/cell_lineage.json`, and it and its parent are tracked in all three
+embryos at the cutoffs and have protein data. The reference tree continues
+past embryogenesis. Of the 491 deepest usable cells (the full-tree leaves),
+275 are reference leaves; 170 divide later in the tracked embryos (left out
+by design); 46 divide only after tracking ends: 10 E nuclei (L1 divisions),
+11 each in ABar, ABpl and ABpr (post-embryonic blast lineages) and 3 in MS.
+At the cutoffs E has 16 cells; only Ealpa and Earpa are reference leaves.
+The older notebooks had an `include_embryonic_terminals` list
+(`data/embryonic_terminals.txt`, 36 blast cells, no E cells); the published
+pipeline never used it.
+
+**Decision (author, 2026-11-08).** Sensitivity check first, no figure
+changes until it is read.
+
+**Check.** `terminal_pareto/cohort_sensitivity.py`, run
+`cohort_sensitivity_v1/embryonic_terminals_20261108`: adds the 46 cells
+(their reference children appear in no tracking file) and reruns the
+published global sweep (pooled 3D travel normalized by the cohort's natural
+totals, top-20 protein cosine, exact first-cousin scaling, 301 weights). The
+gate rebuilds the primary 275-edge matrices and P0 metrics (≤ 6e-16).
+
+| | 275 edges (published) | 321 edges (+46) |
+|---|---|---|
+| u | 0.243 | 0.204 |
+| d_LP | 0.015 | 0.031 |
+| d_CP | 0.136 | 0.141 |
+| maximum lineage similarity | 0.83 | 0.75 |
+| natural travel z / state z | −9.1 / −4.8 | −9.9 / −5.1 |
+| d_LP in null SD | 1.11 | 3.22 |
+| E cells | 2 | 12 |
+
+The lineage stays far better than its first-cousin null on both costs, and
+d_CP barely moves, but d_LP doubles and the null-SD distance triples. Two more
+subtrees would cross the 24-cell floor (ABpla 27, ABarp 26); E (12) would
+not.
+
+**Decision (author, 2026-11-09).** Keep the published 275-edge cohort. The
+321-edge run stays in the backlog (listed in the manuscript set's README) in
+case a reader or reviewer raises it. Methods should state that a terminal
+cell is a leaf of the reference lineage observed by the stage cutoff. If it
+is ever raised, the next step is to find which of the 46 cells move the
+lineage off the front (by founder group).
