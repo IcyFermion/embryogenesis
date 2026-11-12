@@ -10,14 +10,50 @@
 > `publication/output/archive/legacy_20261004/` at the same relative paths. Commands named below that drew or released figures are retired;
 > see the package README for current commands.
 
-Updated 2026-10-04.
+Updated 2026-11-12: the manuscript's figures are now the revised layout's
+manuscript set (next section); production holds the released families.
 
 All figures, captions and Table 1 are built and released by the shared
 presentation package; see [publication/README.md](publication/README.md).
 Production is `publication/output/production/` (released 2026-10-04 with
 `d_CP`/`C` notation and one universal style). Older paths below are historical.
 
-## Next session: start here (recorded 2026-10-04)
+## Next session: start here (recorded 2026-11-12)
+
+**The manuscript's figures are the revised layout's manuscript set** at
+`publication/output/manuscript/current` (Track B, B7; official since
+2026-11-12). It points to `v2_release_20261112`, assembled from build
+`candidates/v2_release_20261112` at commit ab5f09d; `history.json` beside it
+lists promotions. Numbering of 2026-11-10: 1 schematics, 2 terminal front,
+3 lineage similarity, 4 subtrees, 5 cell types (released placeholder),
+6 full tree by layer, 7 *C. briggsae* front; S1 travel pooled across embryos
+(released S3), S2 cell-state features; Table 1; `backlog/` holds released S2,
+S4, S5, 8-11 and the v2 page 7B-C (all *C. briggsae* vs *C. elegans*
+comparisons). Review page: https://claude.ai/artifact/GcnxZDEjPod2cw6t55KcA9
+(private).
+
+- **Check:** `python -m publication.v2.manuscript --verify` (official set;
+  files against the manifest, then sources, Figure 1 files and production).
+- **Change a figure or caption:** edit `publication/v2/` (captions in
+  `publication/v2/captions.py`), commit, build with `python -m publication.v2
+  --manuscript`, assemble with `python -m publication.v2.manuscript`, then
+  `--promote` the new set (commands in `publication/README.md`). Do not edit
+  wrappers inside a set; that fails verification.
+- **Production** (`publication/output/production/`, five released families,
+  v1 numbering) is the released source of Figure 5, S1, Table 1 and the
+  backlog pages. Change those through a family build and release, then
+  assemble a new set.
+- **Text:** written in the authors' Overleaf document. How figures and
+  captions sync with it is open (author, 2026-11-12). The Git-ignored
+  `paper/` holds a local `paperv2.tex` and Figure 1's source files
+  (`paper/FIGS/`, read by the v2 build).
+- **Open:** captions of Figures 1-4, 7 and S2 are drafts awaiting the
+  author's review (Figure 6 agreed); Figure 5 waits for a restyle; Figure 1
+  is the authors' file (panels B-C read "expression", 1D writes d_LP*);
+  Table 1 still says maximum edge retention, whose new name (Track B, B3) is
+  pending; sibling-separation p-values for S2 are in the Track A backlog (A4).
+
+## Earlier start point (recorded 2026-10-04, historical)
 
 Production state: all four families released and verified
 (`python -m publication verify --production`, nothing stale), last released

@@ -12,11 +12,13 @@ Migration plan and progress:
 
 | Path | Contents |
 |---|---|
-| `publication/output/production/` | **Manuscript figures**: every family side by side, `release_manifest.json` (a section per family plus release history) and each family's `*.presentation_manifest.json` |
+| `publication/output/manuscript/current` | **Manuscript figures** (official since 2026-11-12): symlink to the promoted set of the revised layout (`v2/`), one captioned wrapper per figure and table with its page and graphics, `review.pdf`, `backlog/`, `manifest.json`; `history.json` beside it lists promotions |
+| `publication/output/production/` | **Released figure families** (v1 numbering): every family side by side, `release_manifest.json` (a section per family plus release history) and each family's `*.presentation_manifest.json`. The manuscript set reuses Figure 5, S1, Table 1 and its backlog pages from here |
 | `publication/output/candidates/<name>/` | Builds for review (`build --all` writes one folder per family plus `build_set.json`) |
 | `publication/output/archive/releases/<stamp>/` | Previous production states, hash-checked, written by every release |
 | `publication/output/archive/migrated_20261004/` | Figure material moved out of the back ends (old production folders, run `figures/`, `publication/`, `layout_history/`, render logs) |
 | `publication/output/archive/legacy_20261004/` | Former `output/legacy/` figure history: old production release archives, the original embryo-1 figures, diagnostic plots |
+| `publication/output/archive/v2_superseded_20261112/` | Superseded drafts, builds and manuscript sets of the revised layout (README, `files.json` with hashes) |
 | `publication/output/baseline_20261002/` | Pre-refactor backup tar and hash lists |
 | `terminal_pareto/output/runs/*/*/analysis/`, `full_tree_pareto/output/runs/*/*/analysis/` | Numerical inputs (unchanged; read through adapters) |
 
@@ -30,7 +32,7 @@ Everything under `output/` is Git-ignored; keep an external backup.
 | `terminal-cross-species` | 8, 9 | `.../cross_species_terminal_v1/pooled_comparison_20260930` | released |
 | `full-tree-pooled` | 7, provisional S4 | `full_tree_pareto/output/runs/pooled_full_tree_v1/terminal_clamped_cosine_20261014` | released 2026-10-15 (cosine); the Euclidean release from `terminal_clamped_20260927` is archived |
 | `full-tree-cross-species` | 10, 11 | `.../cross_species_layerwise_v1/terminal_anchored_cosine_20261014` | released 2026-10-15 (cosine); the Euclidean release from `terminal_anchored_20260930` is archived |
-| `full-tree-layers` | S5 (provisional number); its panels also draw Figure 6B-C of the revised layout (`publication.v2`) | `full_tree_pareto/output/runs/layer_features_v1/` runs `hourglass_20261019` and `stages_20261020` (Track E), checked against the two round-reference caches | candidate, not released |
+| `full-tree-layers` | S5; Figure 6B-C of the revised layout (`publication.v2`) follow its panels, redrawn there with `palette.py` | `full_tree_pareto/output/runs/layer_features_v1/` runs `hourglass_20261019` and `stages_20261020` (Track E), checked against the two round-reference caches | released 2026-11-05 (the other four families were refreshed in the same release, figures unchanged) |
 
 `python -m publication list` prints this from `registry.py`, which also holds
 wrapper stems, printed numbers and each family's owned production assets
@@ -53,6 +55,21 @@ python -m publication verify --production
 python -m publication.parity --candidate BUILD --reference publication/output/production
 python -m unittest discover -s publication/tests -t .
 ```
+
+The manuscript set (revised layout) is built, assembled and promoted outside
+the registry:
+
+```bash
+python -m publication.v2 --manuscript --output-dir publication/output/candidates/v2_release_YYYYMMDD
+python -m publication.v2.manuscript --v2-build publication/output/candidates/v2_release_YYYYMMDD \
+    --output-dir publication/output/manuscript/v2_release_YYYYMMDD
+python -m publication.v2.manuscript --promote publication/output/manuscript/v2_release_YYYYMMDD
+python -m publication.v2.manuscript --verify            # the official set (current)
+```
+
+Commit first: `--promote` refuses a set assembled from uncommitted code, a
+stale set and one whose files changed. Assembly refuses a stale v2 build and
+a production that is not current.
 
 Builds are cache-only: adapters call the back ends' validators/loaders
 (replay, never solve; tests block solvers, null generation and RNG) and
@@ -86,6 +103,8 @@ modules and the validators (see the package READMEs).
 | `migration.py` | One-off archive and post-PR purge of figure material left in the back ends |
 | `registry.py`, `__main__.py`, `parity.py` | Families and CLI; candidate/production comparison |
 | `sketches/` | Exploratory figures for discussion (branch `figure-ideas`); outside the registry, never released; writes `output/sketches/<name>/` |
+| `v2/` | Revised manuscript layout, the manuscript's figures since 2026-11-12, outside the registry. `python -m publication.v2 --output-dir DIR` builds draft pages; `--manuscript` builds the figures alone, cropped. `python -m publication.v2.manuscript --v2-build DIR --output-dir publication/output/manuscript/<name>` assembles the manuscript release set from that build and a current production, laid out like `output/production` (2026-11-09): one captioned LaTeX wrapper per figure or table (`figN_<stem>.tex`) with its compiled page and graphics. It holds Figures 1-7, S1 (released S3), S2 (cell-state features), Table 1, `review.pdf` joining all pages, and in `backlog/` released S2/S4/S5, released Figures 8-11 and the v2 page 7B-C (the cross-species comparisons). Each wrapper is checked as a release checks it: one page, its own number, no TeX warning except the tolerated overflow. Official since 2026-11-12: `output/manuscript/current` points to the promoted set; the build and the set record presentation-source hashes (`__main__.presentation_sources`), `--verify` checks a set's files and currency and `--promote` repoints `current`. `v2/captions.py` holds the main-figure captions (agreed, or drafts in the v1 style awaiting review). Numbering of 2026-11-10: 1 schematics, 2 terminal front, 3 lineage similarity, 4 subtrees, 5 cell types, 6 full tree by layer, 7 C. briggsae front; S2 cell-state features |
+| `palette.py` | One colour per concept for the revised layout (measures, null shuffles, fate classes, feature-figure categories, neutrals) and the palette sheet; every `v2` panel draws from it. Not a build module: `style.py` keeps the released families' colours (equal values today) |
 | `notes/` | Reserve notes: one-page supplementary-style pages kept ready for reviewer questions (Note A: the ABplp/ABprp apoptotic-cell endpoint, Track D4c); outside the registry, statements checked against hash-checked runs; `python -m publication.notes --output-dir publication/output/notes/<name>` |
 
 ## Changing displayed notation

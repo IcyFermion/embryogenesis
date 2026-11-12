@@ -236,7 +236,7 @@ FAMILIES = {family.key: family for family in (
            "Pooled full tree by layer (layers 3-8): which travel cost moves in the mid layers (Track E)",
            "publication.adapters.full_tree:layers", _build_layer_specs,
            production="publication/output/production",
-           status="candidate: supplement S5 (provisional number); the main-text panels are Figure 6B-C of the "
+           status="active: supplement S5 released 2026-11-05 (Track E); its panels also draw Figure 6B-C of the "
                   "revised layout (publication.v2)",
            figures=(FigureSpec("S5", "figS5_full_tree_layer_travel", "fig:full_tree_layer_travel_S5",
                                layer_figures.travel_decomposition_figure, layer_captions.travel_decomposition),)),

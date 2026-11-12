@@ -263,3 +263,90 @@ use Euclidean. Compare both metrics on the terminal cohorts first (cheap),
 then decide whether the full-tree analyses must be rerun with cosine. That is a
 scientific change: new run identities for the pooled full tree and the partial
 forest, and new Figures 7, 10, 11 and S4 (plus the round sketches).
+
+## A3. Main-text figure of the cell-state features (2026-11-08)
+
+Author and supervisor: a new main figure shows briefly how the reporters are
+selected and that they make sense, by separating concordant from discordant
+terminal sisters and by tracking lineage distance. Placed as Figure 2 of the
+revised layout (author's choice; Track B, B5). No new analysis: everything
+reads the recorded runs `representation_criteria_v1/criteria_metric_20261014`
+and the published ranking.
+
+- A: classifier importance of the top-20 (bars coloured by the fate class of
+  each reporter's largest coefficient) and all 210 by rank (inset).
+- B: cosine distance of same-type (35) and different-type (63) terminal sisters
+  with the top-20 and all 210 reporters; Cohen's d recomputed and checked
+  against `criteria.csv` (1e-12).
+- C: sibling separation with intervals for the top-20, HV pool and whole
+  panel against the 200 recorded random 20-sets from the HV pool.
+- D: mean cosine distance of all cohort pairs by lineage path length (lengths
+  pooled in twos: odd lengths join cells of different depth and zigzag),
+  top-20, whole panel and 200 seeded random 20-sets from the HV pool
+  (descriptive; drawn at build time). The top-20 follows the random median:
+  distance rises with lineage distance for any reporter set.
+- E (dropped 2026-11-09, author): same-type pairs against the within-type
+  permutation null (rho 0.36 against 0.16). The measure stays in Methods; the
+  picture was not convincing.
+
+Loader `publication/v2/data.feature_selection`; drawing
+`publication/v2/panels.feature_figure`; caption draft `captions.figure_s2`.
+
+**2026-11-10 (author): moved to the supplement as Figure S2.** It pairs with
+S1 (released S3, travel pooled across embryos): one supplementary figure on
+the travel-distance methodology, one on the cell-state distance. Panels and
+caption unchanged; the main figures are 1-7 again (Track B, B6).
+
+## A4. Significance of sibling separation (backlog, 2026-11-11)
+
+**Backlog (author, 2026-11-11): reconsider when iterating on the manuscript
+text.** Figure S2C reports sibling separation as Cohen's d with bootstrap
+intervals and no p-value. The question is which test to add, if any.
+
+Two Methods details come first, whatever test is chosen:
+
+- `representation_criteria.cohen_d` pools the SDs as the plain average of the two
+  variances, √((s₁² + s₂²)/2). The textbook form weights each group by
+  n − 1. With 35 and 63 pairs the weighted form gives slightly smaller values
+  (top-20 0.68 vs 0.70, HV pool 0.57 vs 0.58, whole panel 0.34 vs 0.35). The
+  ranking does not change. Methods must say which form is used; keep the
+  recorded one and state it.
+- Same-type cosine distances are right-skewed (top-20: mean 0.137, SD
+  0.183), so a rank test suits them better than a t-test.
+
+Exploratory numbers from a scratch script, not kept in the repo; redo them in
+an add-on module if this is picked up. The data are the 35 same-type and 63
+different-type fine-type sister pairs, protein, cosine distance. Tests are
+one-sided (different-type farther apart). The plain permutation test uses
+100,000 label shuffles; the within-founder test uses 10,000.
+
+| Reporter set | d | AUC | Mann-Whitney p | permutation p (d) | within-founder permutation p (d) |
+|---|---|---|---|---|---|
+| top-20 | 0.70 | 0.76 | 1.2e-5 | 0.0009 | 0.021 |
+| HV pool | 0.58 | 0.69 | 0.001 | 0.004 | 0.11 |
+| whole panel | 0.35 | 0.60 | 0.05 | 0.05 | 0.36 |
+
+AUC is the Mann-Whitney effect size: the chance that a random different-type
+pair is farther apart than a random same-type pair, with 0.5 meaning no
+separation.
+
+- **Founder confound.** 57 of the 63 different-type pairs are in AB, while
+  24 of the 35 same-type pairs are in MS, C or D. The plain tests therefore
+  partly measure AB against mesoderm. Shuffling labels within founders
+  removes this, and only the top-20 stays below 0.05. The rank-based version
+  of this stratified test is the van Elteren test.
+- **What a p-value can claim.** It shows that a set separates fates at all.
+  It does not show that the top-20 beats the alternatives:
+  - Top-20 against the HV pool, paired bootstrap over the same pairs: ΔAUC
+    0.07 (95% CI −0.04 to 0.18), p ≈ 0.19.
+  - Top-20 against the 200 recorded random 20-sets: 27 reach its d
+    (empirical p 0.14) and 9 reach its AUC (p 0.05). 118 random sets are
+    significant on the plain Mann-Whitney test.
+  - The classifier was trained on Schema D labels of these terminal cells,
+    so the top-20's edge is partly in-sample.
+- **Proposal, if picked up.** Keep d in S2C. Add the within-founder
+  permutation p of each set to the caption and describe the test in Methods
+  (or switch the effect size to AUC). The defensible sentence is: "the
+  top-20 separates discordant from concordant sisters within founder
+  lineages (p = 0.02), as well as the HV pool does." The current S2 caption
+  makes no ranking claim, so nothing needs retracting.

@@ -1,0 +1,44 @@
+% Figure 2B (revised): nested cousin-shuffle null models.
+% Elbow edges as in the Figure 1A schematic. The shared ancestor that defines
+% each shuffle is filled with that shuffle's colour (grandparent: first cousin;
+% great-grandparent: second cousin; great-great-grandparent: third cousin), and
+% the bracket text uses the same colour. Terminals are white.
+\begin{tikzpicture}[
+  x=1cm,y=1cm,
+  lineage/.style={draw=black!80,line width=0.6pt},
+  nodebox/.style={rectangle,draw=black!80,fill=white,minimum size=2.6mm,inner sep=0pt,line width=0.55pt},
+  terminal/.style={circle,draw=black!80,fill=white,minimum size=3.0mm,inner sep=0pt,line width=0.55pt},
+  every node/.style={font=\sffamily},
+]
+\definecolor{firstCol}{HTML}{B18F00}
+\definecolor{secondCol}{HTML}{A6611A}
+\definecolor{thirdCol}{HTML}{7B4F2C}
+
+% Node heights: terminals, parents, grandparents, great-grandparents, root.
+\def\yt{0.0}\def\yp{0.7}\def\yg{1.4}\def\ya{2.1}\def\yr{2.8}
+
+% elbow{parent x}{parent y}{left child x}{right child x}{child y}
+\newcommand{\elbow}[5]{%
+  \draw[lineage] (#3,#2)--(#4,#2) (#3,#2)--(#3,#5) (#4,#2)--(#4,#5);}
+
+\elbow{8}{\yr}{4}{12}{\ya}
+\foreach \a/\l/\r in {4/2/6,12/10/14}{\elbow{\a}{\ya}{\l}{\r}{\yg}}
+\foreach \g/\l/\r in {2/1/3,6/5/7,10/9/11,14/13/15}{\elbow{\g}{\yg}{\l}{\r}{\yp}}
+\foreach \p in {1,3,5,7,9,11,13,15}{\elbow{\p}{\yp}{\p-0.5}{\p+0.5}{\yt}}
+
+\node[nodebox,fill=thirdCol] at (8,\yr) {};
+\foreach \a in {4,12} \node[nodebox,fill=secondCol] at (\a,\ya) {};
+\foreach \g in {2,6,10,14} \node[nodebox,fill=firstCol] at (\g,\yg) {};
+\foreach \p in {1,3,5,7,9,11,13,15} \node[nodebox] at (\p,\yp) {};
+\foreach \t in {0.5,1.5,...,15.5} \node[terminal] at (\t,\yt) {};
+
+% Shuffle domains: one example group per level, under the terminals it spans.
+\newcommand{\domain}[4]{%
+  \draw[#3,line width=1.0pt] (#1,#4-0.09)--(#1,#4+0.09) (#1,#4)--(#2,#4) (#2,#4-0.09)--(#2,#4+0.09);}
+\domain{0.3}{3.7}{firstCol}{-0.5}
+\node[font=\sffamily\small,text=firstCol,fill=white,inner sep=1.6pt] at (2.0,-0.5) {First-cousin shuffle};
+\domain{0.3}{7.7}{secondCol}{-0.95}
+\node[font=\sffamily\small,text=secondCol,fill=white,inner sep=1.6pt] at (4.0,-0.95) {Second-cousin shuffle};
+\domain{0.3}{15.7}{thirdCol}{-1.4}
+\node[font=\sffamily\small,text=thirdCol,fill=white,inner sep=1.6pt] at (8.0,-1.4) {Third-cousin shuffle};
+\end{tikzpicture}

@@ -2,9 +2,10 @@
 
 Figure 6B-C (half width each, drawn here and placed by ``publication.v2``):
 one point per layer at the median embryo size when the layer's cells are
-born. B shows the lineage against its front: the front distance, and the
-fewest lineage edges any front assignment rewires (1 - maximum lineage
-similarity, the point M of Figure 3A). That is another view of the same front,
+born. B shows the lineage against its front: the distance from the lineage
+to the front, and the lowest percentage of edges that differ between the
+lineage and any assignment on the front (100% - maximum lineage similarity,
+the point M of Figure 3A). That is another view of the same front,
 not independent support. C shows the
 natural / first-cousin shuffle cost for travel and cell state. Figure S5
 (double column, a family figure): travel per edge to the own mother, an aunt
@@ -61,17 +62,18 @@ def _relative_limits(t):
 
 
 def compose_position(data):
-    """Figure 6B: front distance and the fewest lineage edges rewired by any assignment on the front."""
+    """Figure 6B: distance from the lineage to its front, and the lowest % of edges differing between them."""
     t = data.layers
     fig, axes = plt.subplots(2, 1, figsize=SUMMARY_SIZE, sharex=True)
     fig.subplots_adjust(left=.2, right=.96, top=.9, bottom=.14, hspace=.22)
-    rows = ((axes[0], "front_distance", FRONT_COLOR, f"Distance to front,\n{nt.math('natural_front_distance')}",
+    rows = ((axes[0], "front_distance", 1, FRONT_COLOR,
+             f"Distance from lineage\nto front, {nt.math('natural_front_distance')}",
              max(.3, np.ceil(t.front_distance.max() * 20) / 20 + .05)),
-            (axes[1], "fewest_rewired", REWIRED_COLOR, "Fewest lineage edges\nrewired on the front", 1.))
-    for ax, column, color, label, top in rows:
+            (axes[1], "fewest_rewired", 100, REWIRED_COLOR, "Lowest % of edges\ndiffering, front\nvs lineage", 100))
+    for ax, column, scale, color, label, top in rows:
         _size_axis(ax, label=ax is axes[-1])
-        ax.plot(t.born, t[column], color=color, lw=1.2, zorder=3)
-        ax.scatter(t.born, t[column], s=18, color=color, zorder=4, clip_on=False, gid=f"layer:{column}")
+        ax.plot(t.born, t[column] * scale, color=color, lw=1.2, zorder=3)
+        ax.scatter(t.born, t[column] * scale, s=18, color=color, zorder=4, clip_on=False, gid=f"layer:{column}")
         ax.set_ylim(0, top)
         ax.set_ylabel(label)
     _layer_axis(axes[0], t.born, t.layer)
