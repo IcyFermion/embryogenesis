@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from publication import notation as nt
-from publication import palette
+from publication import palette, provenance
 from publication.provenance import sha256
 from publication.v2 import data, panels
 
@@ -137,6 +137,15 @@ def briggsae_counterparts(out, curve, metric, manuscript=False):
         note="Kept in reserve: C. briggsae against C. elegans.", manuscript=manuscript)
 
 
+def presentation_sources() -> dict[str, str]:
+    """Hashes of the publication sources the revised layout renders from: the v2 build, its captions and the manuscript
+    set, with every publication module they import (``publication.release`` is hashed, not followed). The build
+    records them; ``publication.v2.manuscript`` refuses a build, and reports a set as stale, when they changed."""
+    files = provenance.module_closure(["publication.v2.__main__", "publication.v2.captions", "publication.v2.manuscript"],
+                                      files_only=("publication.release",))
+    return {str(p.relative_to(ROOT)): sha256(p) for p in sorted({*files, *ASSETS.rglob("*")}) if p.is_file()}
+
+
 def figure_order(name):
     """Main figures by number, then supplementary figures (``fig7`` before ``figS2``)."""
     number = name[3:]
@@ -199,7 +208,7 @@ def build(out: Path, manuscript=False):
                   backlog=dict(fig7BC=backlog), notation=NOTATION,
                   manuscript=manuscript, palette=palette_sheet, palette_groups=palette.GROUPS,
                   main_text_notes=dict(tracking_front_distance=data.tracking_front_distances(t)),
-                  external={name: sha256(out / name) for name in EXTERNAL},
+                  external={name: sha256(out / name) for name in EXTERNAL}, sources=presentation_sources(),
                   files={p.name: sha256(p) for p in sorted(out.iterdir()) if p.suffix in (".pdf", ".png", ".csv")})
     (out / "build.json").write_text(json.dumps(record, indent=2) + "\n")
     return record

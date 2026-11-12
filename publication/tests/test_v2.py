@@ -53,6 +53,58 @@ class V2Tests(unittest.TestCase):
         from publication.v2.__main__ import figure_order
         self.assertEqual(sorted(["figS2", "fig7", "fig1"], key=figure_order), ["fig1", "fig7", "figS2"])
 
+    def test_presentation_sources_cover_build_captions_and_set(self):
+        from publication.v2.__main__ import presentation_sources
+        sources = presentation_sources()
+        for name in ("__main__.py", "panels.py", "data.py", "captions.py", "manuscript.py", "assets/null_models.tex"):
+            self.assertIn(f"publication/v2/{name}", sources)
+        self.assertIn("publication/palette.py", sources)
+        self.assertNotIn("publication/tests/test_v2.py", sources)
+
+    def test_set_verification_rejects_missing_extra_and_modified_files(self):
+        import tempfile
+        from pathlib import Path
+        from publication.provenance import sha256
+        from publication.v2.manuscript import check_files
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "backlog").mkdir()
+            (root / "fig1.tex").write_text("a")
+            (root / "backlog/fig8.tex").write_text("b")
+            (root / "manifest.json").write_text("{}")
+            files = {name: sha256(root / name) for name in ("fig1.tex", "backlog/fig8.tex")}
+            check_files(root, files)
+            (root / "fig1.tex").write_text("edited")
+            with self.assertRaisesRegex(ValueError, "modified"):
+                check_files(root, files)
+            (root / "fig1.tex").write_text("a")
+            (root / "fig1.aux").write_text("")
+            with self.assertRaisesRegex(ValueError, "unexpected"):
+                check_files(root, files)
+            (root / "fig1.aux").unlink()
+            (root / "backlog/fig8.tex").unlink()
+            with self.assertRaisesRegex(ValueError, "missing"):
+                check_files(root, files)
+
+    def test_promotion_repoints_current_and_keeps_history(self):
+        import json
+        import os
+        import tempfile
+        from pathlib import Path
+        from publication.v2.manuscript import point_current
+        with tempfile.TemporaryDirectory() as tmp:
+            sets = Path(tmp)
+            for name in ("set_a", "set_b"):
+                (sets / name).mkdir()
+            point_current(sets, sets / "set_a", dict(commit="a"))
+            entry = point_current(sets, sets / "set_b", dict(commit="b"))
+            self.assertEqual(os.readlink(sets / "current"), "set_b")
+            self.assertEqual(entry["previous"], "set_a")
+            history = json.loads((sets / "history.json").read_text())
+            self.assertEqual([h["set"] for h in history], ["set_a", "set_b"])
+            with self.assertRaises(ValueError):
+                point_current(sets / "set_a", sets / "set_b", {})
+
     def test_release_set_renumbers_released_wrappers(self):
         from publication.v2.manuscript import renumber
         tex = ("\\begin{document}\n\\renewcommand{\\thefigure}{S3}\n\\begin{figure}[p]\n"

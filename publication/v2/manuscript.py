@@ -21,15 +21,28 @@ Numbering of 2026-11-10:
 
 Every wrapper is compiled here. Each must give one page, print its own number (read from the
 ``.aux``) and raise no TeX warning other than the tolerated float overflow (``publication.assembly``).
-``review.tex`` joins the compiled pages into ``review.pdf``. To change a caption, edit the figure's
-``.tex``, recompile it, then recompile ``review.tex``. ``README.md`` and ``manifest.json`` (with
-file hashes) complete the folder. Production must verify cleanly first.
+``review.tex`` joins the compiled pages into ``review.pdf``. ``README.md`` and ``manifest.json`` (file
+hashes, the presentation sources and external files the v2 build recorded, the production it reused)
+complete the folder. Production must verify cleanly and the v2 build must be current first.
+
+The official set (author, 2026-11-12) is the one ``publication/output/manuscript/current`` points to::
+
+    python -m publication.v2.manuscript --verify [SET]     # files against the manifest, then currency
+    python -m publication.v2.manuscript --promote SET      # verify, then point ``current`` at SET
+
+``--verify`` fails on a missing, extra or modified file. It reports a set as stale when presentation
+sources, Figure 1's external files or production changed since assembly. ``--promote`` accepts only
+a set that is current and was assembled from committed code; it appends to ``history.json``.
+Captions come from ``publication.v2.captions`` and the released wrappers: change them there and
+assemble a new set (a hand-edited wrapper fails verification).
 """
 
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -39,12 +52,15 @@ import numpy as np
 
 from publication import assembly
 from publication import notation as nt
-from publication.provenance import ROOT, sha256
-from publication.release import PRODUCTION, verify_production
+from publication.provenance import ROOT, changed_sources, sha256
+from publication.release import PRODUCTION, PRODUCTION_MANIFEST, verify_production
 from publication.v2 import captions
-from publication.v2.__main__ import NOTATION
+from publication.v2.__main__ import EXTERNAL, NOTATION, presentation_sources
 
-VERSION = "manuscript-release-1"
+VERSION = "manuscript-release-2"  # 2: records presentation sources and external files (2026-11-12)
+SETS = ROOT / "publication/output/manuscript"
+CURRENT = "current"  # symlink in SETS to the official set
+HISTORY = "history.json"  # promotions, oldest first
 # Figures of the revised layout drawn by the v2 manuscript-mode build: number -> stem.
 MAIN = {"1": "fig1_overview", "2": "fig2_terminal_pareto", "3": "fig3_lineage_similarity", "4": "fig4_subtrees",
         "6": "fig6_full_tree_layers", "7": "fig7_briggsae", "S2": "figS2_cell_state_features"}
@@ -217,6 +233,12 @@ def assemble(v2_build: Path, out: Path) -> dict:
         raise ValueError(f"{v2_build} is a draft build; rebuild it with `python -m publication.v2 --manuscript`")
     if sorted(stem for stem, _ in BACKLOG_V2.values()) != sorted(Path(p).stem for p in record.get("backlog", {}).values()):
         raise ValueError(f"{v2_build} does not hold the backlog pages {sorted(BACKLOG_V2)}; rebuild it")
+    if "sources" not in record:
+        raise ValueError(f"{v2_build} records no presentation sources; rebuild it")
+    if changed := changed_sources(record["sources"], presentation_sources()):
+        raise ValueError(f"{v2_build} is stale, sources changed since it was built: {changed}; rebuild it")
+    if changed := external_changes(record["external"]):
+        raise ValueError(f"{v2_build} is stale, external files changed since it was built: {changed}; rebuild it")
     production = verify_production()
     stale = {k: v for k, v in production.get("stale_presentation_sources", {}).items() if v}
     if stale:
@@ -269,8 +291,11 @@ def assemble(v2_build: Path, out: Path) -> dict:
         f"production released on {max(f['released_at'] for f in families.values())[:8]}. Laid out like "
         "`publication/output/production`: every figure and table has a standalone LaTeX wrapper (`.tex`) with its "
         "caption and label, the compiled captioned page (`.pdf`) and the graphics it includes. The main figures of "
-        "the revised layout include their graphic as `<stem>_panel.pdf`. To change a caption, edit the `.tex` and "
-        "run `tectonic <stem>.tex` here. `review.pdf` joins every page (`tectonic review.tex` rebuilds it).", "",
+        "the revised layout include their graphic as `<stem>_panel.pdf`. `review.pdf` joins every page.", "",
+        "The official set is the one `publication/output/manuscript/current` points to. `python -m "
+        "publication.v2.manuscript --verify <set>` checks these files against `manifest.json` and reports whether "
+        "the set is still current. Captions come from `publication/v2/captions.py` and the released wrappers: "
+        "change them there and assemble a new set; a wrapper edited here fails verification.", "",
         "| Wrapper | Figure | Label | Source | Caption |", "|---|---|---|---|---|",
         *(f"| `{f['stem']}.tex` | {n} | `{f['label']}` | {f['source']} | {f['caption']} |" for n, f in figures.items()),
         f"| `{TABLE1}.tex` | Table 1 | `tab:ce_subtree_statistics` | released `{TABLE1}` | released |", "",
@@ -309,7 +334,8 @@ def assemble(v2_build: Path, out: Path) -> dict:
     ]
     (out / "README.md").write_text("\n".join(readme))
     manifest = dict(version=VERSION, git=git_state(), v2_build=str(v2_build),
-                    v2_build_record=sha256(v2_build / "build.json"),
+                    v2_build_record=sha256(v2_build / "build.json"), sources=record["sources"],
+                    external=record["external"],
                     production={k: dict(released_at=v["released_at"], presentation_id=v["presentation_id"])
                                 for k, v in families.items()},
                     figures=figures, table1=dict(stem=TABLE1, source=f"released {TABLE1}"),
@@ -320,11 +346,87 @@ def assemble(v2_build: Path, out: Path) -> dict:
     return manifest
 
 
+def external_changes(recorded: dict) -> list[str]:
+    """External files (Figure 1's sources in ``paper/FIGS``) missing or changed since ``recorded``."""
+    return sorted(n for n, digest in recorded.items()
+                  if n not in EXTERNAL or not EXTERNAL[n].is_file() or sha256(EXTERNAL[n]) != digest)
+
+
+def check_files(set_dir: Path, files: dict) -> None:
+    """The set holds exactly the recorded files (``manifest.json`` aside), each with its recorded hash."""
+    present = {p.relative_to(set_dir).as_posix() for p in set_dir.rglob("*") if p.is_file()} - {"manifest.json"}
+    if present != set(files):
+        raise ValueError(f"{set_dir}: missing {sorted(set(files) - present)}, unexpected {sorted(present - set(files))}")
+    if modified := sorted(n for n, digest in files.items() if sha256(set_dir / n) != digest):
+        raise ValueError(f"{set_dir}: modified since assembly: {modified}")
+
+
+def verify(set_dir: Path = SETS / CURRENT) -> dict:
+    """Integrity (raises) and currency (reported in ``stale``): presentation sources, Figure 1's external files and
+    the production the set reused, each against what the set recorded."""
+    set_dir = Path(set_dir)
+    manifest = json.loads((set_dir / "manifest.json").read_text())
+    check_files(set_dir, manifest["files"])
+    production = json.loads((PRODUCTION / PRODUCTION_MANIFEST).read_text())["families"]
+    live = {k: dict(released_at=v["released_at"], presentation_id=v["presentation_id"]) for k, v in production.items()}
+    recorded = manifest["production"]
+    stale = dict(
+        sources=(changed_sources(manifest["sources"], presentation_sources()) if "sources" in manifest
+                 else [f"not recorded ({manifest['version']})"]),
+        external=external_changes(manifest["external"]) if "external" in manifest else ["not recorded"],
+        production=sorted(k for k in set(live) | set(recorded) if live.get(k) != recorded.get(k)),
+        production_sources=sorted(verify_production()["stale_presentation_sources"]))
+    return dict(set=str(set_dir.resolve()), version=manifest["version"], files=len(manifest["files"]),
+                git=manifest["git"], stale={k: v for k, v in stale.items() if v})
+
+
+def point_current(sets: Path, set_dir: Path, record: dict) -> dict:
+    """Point ``sets/current`` at ``set_dir`` (a folder directly in ``sets``) and append the promotion to the history."""
+    sets, set_dir = Path(sets), Path(set_dir)
+    if set_dir.resolve().parent != sets.resolve() or not set_dir.is_dir():
+        raise ValueError(f"{set_dir} must be a set folder directly in {sets}")
+    link, history = sets / CURRENT, sets / HISTORY
+    previous = os.readlink(link) if link.is_symlink() else None
+    if link.exists() and not link.is_symlink():
+        raise ValueError(f"{link} exists and is not a symlink")
+    entry = dict(set=set_dir.name, previous=previous, promoted_at=datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"),
+                 **record)
+    entries = json.loads(history.read_text()) if history.exists() else []
+    staged = sets / f".{CURRENT}.tmp"
+    if staged.is_symlink():
+        staged.unlink()
+    staged.symlink_to(set_dir.name)
+    os.replace(staged, link)
+    history.write_text(json.dumps([*entries, entry], indent=2) + "\n")
+    return entry
+
+
+def promote(set_dir: Path, sets: Path = SETS) -> dict:
+    """Make ``set_dir`` the official set: it must verify, be current and come from committed code."""
+    result = verify(set_dir)
+    if result["stale"]:
+        raise ValueError(f"{set_dir} is not current: {result['stale']}; assemble a new set")
+    if result["git"]["dirty"]:
+        raise ValueError(f"{set_dir} was assembled from uncommitted changes; commit, rebuild and assemble again")
+    return point_current(sets, set_dir, dict(commit=result["git"]["commit"], branch=result["git"]["branch"],
+                                             version=result["version"], files=result["files"]))
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--v2-build", type=Path, required=True)
-    parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--v2-build", type=Path, help="assemble a set from this v2 manuscript-mode build")
+    parser.add_argument("--output-dir", type=Path, help="new or empty folder for the assembled set")
+    parser.add_argument("--verify", type=Path, nargs="?", const=SETS / CURRENT, metavar="SET",
+                        help="check a set (default: the official set)")
+    parser.add_argument("--promote", type=Path, metavar="SET", help="verify SET and make it the official set")
     args = parser.parse_args(argv)
+    if args.verify or args.promote:
+        if args.v2_build or args.output_dir or (args.verify and args.promote):
+            parser.error("--verify and --promote take no other option")
+        print(json.dumps(verify(args.verify) if args.verify else promote(args.promote), indent=2))
+        return
+    if not (args.v2_build and args.output_dir):
+        parser.error("assembling needs --v2-build and --output-dir")
     manifest = assemble(args.v2_build, args.output_dir)
     summary = {n: dict(stem=f["stem"], caption=f["caption"], warnings=len(f["warnings"]))
                for n, f in manifest["figures"].items()}
