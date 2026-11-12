@@ -5,17 +5,19 @@ Each figure and table has a standalone LaTeX wrapper, ``figN_<stem>.tex``, that 
 and label. Next to it sit the compiled captioned page (``figN_<stem>.pdf``) and the graphics it
 includes.
 
-Numbering of 2026-11-08:
+Numbering of 2026-11-10:
 
-- Figures 1-5, 7 and 8 come from a v2 build made with ``--manuscript`` (figures alone, cropped).
-  Each wrapper includes that figure as ``figN_<stem>_panel.pdf``, as released Figures 4 and 8-11
-  include theirs. Captions are agreed or, until the author approves them, drafts in the v1 style
-  (``publication.v2.captions``).
-- Figure 6 is the released cell-type figure (wrapper, panels and caption) until it is restyled.
-- The supplement is released S3, renumbered S1 (wrapper and graphic renamed ``figS1_*``).
+- Figures 1-4, 6 and 7 and Supplementary Figure S2 (cell-state features) come from a v2 build made
+  with ``--manuscript`` (figures alone, cropped). Each wrapper includes that figure as
+  ``figN_<stem>_panel.pdf``, as released Figures 4 and 8-11 include theirs. Captions are agreed or,
+  until the author approves them, drafts in the v1 style (``publication.v2.captions``).
+- Figure 5 is the released cell-type figure (wrapper, panels and caption) until it is restyled.
+- S1 is released S3 (travel pooled across embryos), renumbered (wrapper and graphic renamed ``figS1_*``).
 - Table 1 is the released table.
-- Released S1 is retired (its r is in Figure 5). Released S2, S4 and S5 are copied unchanged, with
-  their wrappers and graphics, into ``backlog/``.
+- Released S1 is retired (Figure 4 draws d_LP and d_CP on one axis; r stays in Table 1).
+- ``backlog/`` keeps, unchanged with their wrappers and graphics, released S2, S4 and S5 and every
+  comparison of C. briggsae with C. elegans: released Figures 8-11 and the v2 page 7B-C (the former
+  8B-C, a captioned wrapper compiled here like the main figures).
 
 Every wrapper is compiled here. Each must give one page, print its own number (read from the
 ``.aux``) and raise no TeX warning other than the tolerated float overflow (``publication.assembly``).
@@ -43,24 +45,28 @@ from publication.v2 import captions
 from publication.v2.__main__ import NOTATION
 
 VERSION = "manuscript-release-1"
-# Main figures of the revised layout: number -> stem of the v2 manuscript-mode build.
-MAIN = {"1": "fig1_overview", "2": "fig2_cell_state_features", "3": "fig3_terminal_pareto",
-        "4": "fig4_lineage_similarity", "5": "fig5_subtrees", "7": "fig7_full_tree_layers", "8": "fig8_briggsae"}
-# Released figures placed in the set: number -> (released stem, stem in the set). Figure 6 holds the
+# Figures of the revised layout drawn by the v2 manuscript-mode build: number -> stem.
+MAIN = {"1": "fig1_overview", "2": "fig2_terminal_pareto", "3": "fig3_lineage_similarity", "4": "fig4_subtrees",
+        "6": "fig6_full_tree_layers", "7": "fig7_briggsae", "S2": "figS2_cell_state_features"}
+# Released figures placed in the set: number -> (released stem, stem in the set). Figure 5 holds the
 # released cell-type figure until it is restyled; S1 is released S3 (author decisions of 2026-11-08).
-ADOPTED = {"6": ("fig6_ce_cell_types", "fig6_ce_cell_types"),
+ADOPTED = {"5": ("fig6_ce_cell_types", "fig5_ce_cell_types"),
            "S1": ("figS3_ce_tracking_robustness", "figS1_ce_tracking_robustness")}
-SUPPLEMENT = ("S1",)
-BACKLOG = {"S2": "figS2_ce_cell_type_cost_gain", "S4": "figs_ce_full_tree_heuristics",
-           "S5": "figS5_full_tree_layer_travel"}
-RETIRED = {"S1": ("figS1_ce_canonical_summary_cousin_r", "r is a column of Figure 5; panel A repeated Figure 1D")}
+# Released figures kept in reserve under their released numbers: number -> (stem, what it shows).
+BACKLOG = {"S2": ("figS2_ce_cell_type_cost_gain", "per-cell travel and cell-state changes by cell type"),
+           "S4": ("figs_ce_full_tree_heuristics", "full-tree heuristics"),
+           "S5": ("figS5_full_tree_layer_travel", "which travel cost moves in the mid-embryo layers"),
+           "8": ("fig8_terminal_cross_species_comparison", "terminal cross-species comparison"),
+           "9": ("fig9_terminal_cross_species_overlays", "terminal cross-species overlays"),
+           "10": ("fig10_full_tree_cross_species_comparison", "partial-forest cross-species comparison"),
+           "11": ("fig11_full_tree_cross_species_overlays", "partial-forest cross-species overlays")}
+# v2 pages kept in reserve (author, 2026-11-10): number printed -> (v2 build stem, stem in backlog/).
+BACKLOG_V2 = {"7B--C": ("backlog_fig7BC_briggsae_counterparts", "fig7BC_briggsae_counterparts")}
+RETIRED = {"S1": ("figS1_ce_canonical_summary_cousin_r",
+                  "Figure 4 draws d_LP and d_CP on one axis and r stays in Table 1; panel A repeated Figure 1D")}
 TABLE1 = "table1_ce_subtree_statistics"
 # Released figures that the revised layout does not place (listed in the README, not copied).
-NOT_PLACED = {"7": "full-tree layerwise rounds and aggregate front (7A is redrawn as Figure 7A; 7B is not placed)",
-              "8": "terminal cross-species comparison (its C. briggsae front is redrawn as Figure 8A)",
-              "9": "terminal cross-species overlays",
-              "10": "partial-forest cross-species comparison (Figure 8C draws its C. briggsae layers)",
-              "11": "partial-forest cross-species overlays"}
+NOT_PLACED = {"7": "full-tree layerwise rounds and aggregate front (7A is redrawn as Figure 6A; 7B is not placed)"}
 # Released captions that cite the released numbering.
 OLD_REFERENCES = {}
 # The main figure fills the text width and at most 70% of the text height, so its caption fits on the page.
@@ -138,21 +144,24 @@ def copy_released(name: str, target: Path) -> list[Path]:
     return [Path(p) for p in copied]
 
 
-def main_figure(v2_build: Path, out: Path, number: str, stem: str, caption: str, status: str) -> dict:
+def main_figure(v2_build: Path, out: Path, number: str, stem: str, caption: str, status: str,
+                source: str | None = None) -> dict:
+    """A v2 figure in a captioned wrapper; ``source`` is its stem in the v2 build when that differs."""
+    source = source or stem
     graphic = f"{stem}_panel.pdf"
-    shutil.copy2(v2_build / f"{stem}.pdf", out / graphic)
+    shutil.copy2(v2_build / f"{source}.pdf", out / graphic)
     preview(out / graphic)
     label = "fig:" + stem.split("_", 1)[1]
-    note = ("agreed with the author" if status == "agreed" else
-            "draft in the v1 style, awaiting the author's review")
+    note = {"agreed": "agreed with the author", "draft": "draft in the v1 style, awaiting the author's review",
+            "backlog": "kept in reserve, not in review.pdf"}[status]
     body = (f"% Caption: {note}; source publication/v2/captions.py.\n"
-            f"% Graphic: {stem}.pdf of the v2 manuscript-mode build {v2_build.name}.\n"
+            f"% Graphic: {source}.pdf of the v2 manuscript-mode build {v2_build.name}.\n"
             "\\begin{figure}[p]\n\\centering\n"
             f"\\includegraphics[{GRAPHIC_SIZE}]{{{graphic}}}\n"
             f"\\caption{{{caption}}}\n\\label{{{label}}}\n\\end{{figure}}")
     tex = assembly.write_wrapper(out, stem, number=number, body=body)
-    return dict(stem=stem, source=f"v2 build ({stem}.pdf)", caption=status, **compile_page(tex, number=number,
-                                                                                            label=label))
+    return dict(stem=stem, source=f"v2 build ({source}.pdf)", caption=status, **compile_page(tex, number=number,
+                                                                                              label=label))
 
 
 def renumber(tex: str, released: str, stem: str, number: str) -> tuple[str, dict]:
@@ -194,7 +203,7 @@ def notes(record: dict) -> list[str]:
         "- **Supplementary Figure S1 (released S3), d_LP from pooled tracking.** The natural lineage's distance to "
         "its own front, each in that geometry's endpoint coordinates: embryo 1 "
         + ", embryo 2 ".join(f"{v:.3f}" for v in embryos[:2]) + f", embryo 3 {embryos[2]:.3f} "
-        f"(mean {np.mean(embryos):.3f}); pooled travel {d['pooled']:.3f} (the global d_LP of Figure 3). Pooling "
+        f"(mean {np.mean(embryos):.3f}); pooled travel {d['pooled']:.3f} (the global d_LP of Figure 2). Pooling "
         "gives a smaller distance than two of the three single embryos and than their mean, but not the smallest "
         "(embryo 3); the text should say the pooled estimate averages out single-embryo tracking variation, not "
         "that it is closest to the front.",
@@ -206,6 +215,8 @@ def assemble(v2_build: Path, out: Path) -> dict:
     record = json.loads((v2_build / "build.json").read_text())
     if not record.get("manuscript"):
         raise ValueError(f"{v2_build} is a draft build; rebuild it with `python -m publication.v2 --manuscript`")
+    if sorted(stem for stem, _ in BACKLOG_V2.values()) != sorted(Path(p).stem for p in record.get("backlog", {}).values()):
+        raise ValueError(f"{v2_build} does not hold the backlog pages {sorted(BACKLOG_V2)}; rebuild it")
     production = verify_production()
     stale = {k: v for k, v in production.get("stale_presentation_sources", {}).items() if v}
     if stale:
@@ -217,6 +228,7 @@ def assemble(v2_build: Path, out: Path) -> dict:
     with nt.override(**NOTATION):
         agreed = {n: make() for n, make in captions.AGREED.items()}
         drafts = {n: make() for n, make in captions.DRAFT.items()}
+        reserve = {n: make() for n, make in captions.BACKLOG.items()}
     missing = [n for n in MAIN if n not in agreed and n not in drafts]
     if missing:
         raise ValueError(f"No caption for main figures {missing}")
@@ -231,7 +243,10 @@ def assemble(v2_build: Path, out: Path) -> dict:
         shutil.copy2(PRODUCTION / f"{TABLE1}{suffix}", out / f"{TABLE1}{suffix}")
     backlog = out / "backlog"
     backlog.mkdir()
-    for stem in BACKLOG.values():  # kept in reserve, under their released numbers
+    reserved = {number: main_figure(v2_build, backlog, number, stem, reserve[number.replace("--", "-")], "backlog",
+                                    source=source)
+                for number, (source, stem) in BACKLOG_V2.items()}
+    for stem, _ in BACKLOG.values():  # kept in reserve, under their released numbers
         tex = (PRODUCTION / f"{stem}.tex").read_text()
         for suffix in (".tex", ".pdf"):
             shutil.copy2(PRODUCTION / f"{stem}{suffix}", backlog / f"{stem}{suffix}")
@@ -268,17 +283,21 @@ def assemble(v2_build: Path, out: Path) -> dict:
         "## Open items", "",
         "- Figure 1 is the authors' schematic file, unchanged: panels B-C still read \"expression\", and 1D writes "
         "d_LP*/d_CP* where the other figures write d_LP/d_CP.",
-        "- Figure 6 is a placeholder until the cell-type figure is restyled; its caption is the released one.",
+        "- Figure 5 is a placeholder until the cell-type figure is restyled; its caption is the released one.",
         "- Captions of Figures " + ", ".join(n for n, f in figures.items() if f["caption"] == "draft")
         + " are drafts in the v1 style, for the author's review (`publication/v2/captions.py`).",
         "- Table 1 is the released table: its column header and caption still say maximum edge retention, which "
         "the figures now call lineage similarity.",
         *(f"- Released caption of {n} {why}." for n, why in OLD_REFERENCES.items()), "",
         "## Backlog (kept in reserve, not in review.pdf)", "",
-        *(f"- `backlog/{stem}.tex`: released Figure {n}, under its released number, with its graphics."
-          for n, stem in BACKLOG.items()),
+        *(f"- `backlog/{f['stem']}.tex`: Figure {n.replace('--', '-')} of the revised layout (v2 build), "
+          "C. briggsae counterparts of Figures 3A and 6B (the former 8B-C), with its caption. Moved out of Figure 7 "
+          "on 2026-11-10: the gaps in data resolution between the two species make these comparisons hard to "
+          "justify; kept for reviewers." for n, f in reserved.items()),
+        *(f"- `backlog/{stem}.tex`: released Figure {n} ({what}), under its released number, with its graphics."
+          for n, (stem, what) in BACKLOG.items()),
         "- Terminal cohort sensitivity (Track D, D7; author kept the 275-edge cohort on 2026-11-09): 46 cells end "
-        "embryogenesis undivided but are internal in the reference lineage (10 E nuclei, which is why Figure 4 "
+        "embryogenesis undivided but are internal in the reference lineage (10 E nuclei, which is why Figure 3 "
         "shows two E cells; 11 each in ABar, ABpl, ABpr; 3 in MS). With them (321 edges) the global d_LP is 0.031 "
         "instead of 0.015, u 0.204, maximum lineage similarity 0.75; the lineage stays far better than its "
         "first-cousin null (travel z -9.9, cell-state z -5.1). Run "
@@ -294,7 +313,8 @@ def assemble(v2_build: Path, out: Path) -> dict:
                     production={k: dict(released_at=v["released_at"], presentation_id=v["presentation_id"])
                                 for k, v in families.items()},
                     figures=figures, table1=dict(stem=TABLE1, source=f"released {TABLE1}"),
-                    backlog=BACKLOG, retired={n: stem for n, (stem, _) in RETIRED.items()},
+                    backlog=dict(released={n: stem for n, (stem, _) in BACKLOG.items()}, v2=reserved),
+                    retired={n: stem for n, (stem, _) in RETIRED.items()},
                     files={str(p.relative_to(out)): sha256(p) for p in sorted(out.rglob("*")) if p.is_file()})
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest

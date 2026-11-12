@@ -290,4 +290,9 @@ and the published ranking.
   picture was not convincing.
 
 Loader `publication/v2/data.feature_selection`; drawing
-`publication/v2/panels.feature_figure`; caption draft `captions.figure2`.
+`publication/v2/panels.feature_figure`; caption draft `captions.figure_s2`.
+
+**2026-11-10 (author): moved to the supplement as Figure S2.** It pairs with
+S1 (released S3, travel pooled across embryos): one supplementary figure on
+the travel-distance methodology, one on the cell-state distance. Panels and
+caption unchanged; the main figures are 1-7 again (Track B, B6).

@@ -3,7 +3,7 @@
 Every figure of ``publication.v2`` takes its colours from here, so a colour is
 changed in one place and the next build picks it up everywhere. Concepts are
 keyed by meaning, never by hue: a measure keeps its colour in every figure that
-shows it (for example ``front_distance`` in Figures 5, 7B and 8C).
+shows it (for example ``front_distance`` in Figures 4 and 6B).
 
 Groups:
 
@@ -34,7 +34,7 @@ MEASURE = {
     "lineage_similarity": "#0072B2",   # lineage similarity, maximum-similarity point M
     "canonical_position": "#6F6F6F",   # position u
     "front_distance": "#CC79A7",       # distance d_LP from the lineage to its front
-    "cousin_relative": "#6A3D9A",      # cousin-relative distance r
+    "null_front_distance": "#B18F00",  # distance d_CP from the first-cousin null mean to the front (its cloud's hue)
 }
 
 NULL = {
@@ -85,7 +85,7 @@ NEUTRAL = {
 GROUPS = {"MEASURE": MEASURE, "NULL": NULL, "FATE": FATE, "SISTERS": SISTERS, "FEATURE_SET": FEATURE_SET,
           "NEUTRAL": NEUTRAL}
 
-# Hues shared between a measure and a fate class. Pies sit next to the u, d_LP and r columns in the
+# Hues shared between a measure and a fate class. Pies sit next to the u and d_LP/d_CP columns in the
 # subtree figure. Kept for now (author, 2026-11-09); the overall theme is decided when the manuscript wraps up.
 SHARED_HUES = sorted((m, f) for m, mc in MEASURE.items() for f, fc in FATE.items() if mc.lower() == fc.lower())
 

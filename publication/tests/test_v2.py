@@ -33,6 +33,26 @@ class V2Tests(unittest.TestCase):
         order = [n for names in SUBTREE_ORDER.values() for n in names]
         self.assertEqual(len(order), len(set(order)))
 
+    def test_subtree_distances_share_one_axis_without_r(self):
+        import pandas as pd
+        from publication.v2.panels import subtree_metrics
+        canonical = pd.DataFrame(dict(u_lineage_lp=[.2, 0.], d_lp=[.06, 0.], d_np=[.85, .3],
+                                      relative_distance=[.24, 0.]))
+        columns = subtree_metrics(canonical)
+        fields = [[field for field, _ in column.series] for column in columns]
+        # Author, 2026-11-10: d_LP and d_CP on the same axis, r no longer drawn.
+        self.assertEqual(fields, [["u_lineage_lp"], ["d_lp", "d_np"]])
+        self.assertEqual(columns[1].xmax, 1.)
+
+    def test_every_figure_of_the_release_set_has_a_caption(self):
+        from publication.v2 import captions, manuscript
+        captioned = {*captions.AGREED, *captions.DRAFT}
+        self.assertEqual(set(manuscript.MAIN), captioned)
+        self.assertFalse(set(manuscript.ADOPTED) & captioned)
+        self.assertEqual({n.replace("--", "-") for n in manuscript.BACKLOG_V2}, set(captions.BACKLOG))
+        from publication.v2.__main__ import figure_order
+        self.assertEqual(sorted(["figS2", "fig7", "fig1"], key=figure_order), ["fig1", "fig7", "figS2"])
+
     def test_release_set_renumbers_released_wrappers(self):
         from publication.v2.manuscript import renumber
         tex = ("\\begin{document}\n\\renewcommand{\\thefigure}{S3}\n\\begin{figure}[p]\n"

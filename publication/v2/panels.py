@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from dataclasses import dataclass
 
 import matplotlib
 matplotlib.use("Agg")
@@ -26,7 +27,7 @@ TRAVEL_COLOR = palette.MEASURE["travel"]
 STATE_COLOR = palette.MEASURE["cell_state"]
 U_COLOR = palette.MEASURE["canonical_position"]
 D_COLOR = palette.MEASURE["front_distance"]
-R_COLOR = palette.MEASURE["cousin_relative"]
+CP_COLOR = palette.MEASURE["null_front_distance"]
 CLOUD_LABELS = {"first_cousin": "First-cousin shuffle", "second_cousin": "Second-cousin shuffle",
                 "third_cousin": "Third-cousin shuffle"}
 DISTANCE_CMAP = palette.TREE_DISTANCE
@@ -289,45 +290,74 @@ def _pie(ax, center, radius, composition, colors):
         angle -= sweep
 
 
-# One metric column of the subtree rows: (field, heading, color, axis maximum, reference value or None).
+@dataclass(frozen=True)
+class MetricColumn:
+    """One metric column of the subtree rows: a heading, a key line, the ``series`` ((field, color), ...) drawn
+    on one shared axis, each on a stem from zero, the axis maximum and the column's width in base widths."""
+    heading: str
+    heading_color: str
+    series: tuple
+    xmax: float
+    width: float = 1.
+
+    def keys(self):
+        """The key line: the symbol of each series in its colour, with a dot when the column shows several."""
+        dot = "\u25CF " if len(self.series) > 1 else ""
+        return [(dot + nt.math(SERIES_SYMBOLS[field]), color) for field, color in self.series]
+
+
+SERIES_SYMBOLS = {"u_lineage_lp": "canonical_position", "d_lp": "natural_front_distance",
+                  "d_np": "null_front_distance"}
+
+
 def subtree_metrics(canonical):
-    """Figure 5 columns: position u, distance d_LP and the cousin-relative distance r of former S1."""
-    dmax = max(.2, np.ceil(float(canonical.d_lp.max()) * 10) / 10)
-    return [("u_lineage_lp", f"{nt.label('canonical_position')}\n{nt.math('canonical_position')}", U_COLOR, 1., None),
-            ("d_lp", f"Distance\n{nt.math('natural_front_distance')}", D_COLOR, dmax, None),
-            ("relative_distance", f"Cousin-relative\ndistance {nt.math('cousin_relative')}", R_COLOR, 1., 1.)]
+    """Figure 4 columns: position u, and the distances to the front of the lineage (d_LP) and of the first-cousin
+    null mean (d_CP) on one axis (author, 2026-11-10: replaces r, which the two distances let the reader judge)."""
+    dmax = max(.5, np.ceil(float(canonical[["d_lp", "d_np"]].to_numpy().max()) * 2) / 2)  # endpoint units: 0-1
+    return [MetricColumn(nt.label("canonical_position"), U_COLOR, (("u_lineage_lp", U_COLOR),), 1.),
+            MetricColumn("Distance to front", palette.NEUTRAL["text"], (("d_lp", D_COLOR), ("d_np", CP_COLOR)), dmax,
+                         width=2.33)]
 
 
 def metric_columns(fig, left, bottom, height, sections, metrics, *, row_count, pies=None, marks=None, pairs=(),
                    label_width=.1, pie_width=.035, column_width=.085, gap=.028):
     """Subtree rows: [labels | pie | one column per metric] for grouped ``sections``.
 
-    ``sections``: [(heading, [(label, {field: value}, key), ...]), ...]; ``metrics``: see ``subtree_metrics``;
+    ``sections``: [(heading, [(label, {field: value}, key), ...]), ...]; ``metrics``: ``MetricColumn``s;
     ``pies``: {key: Counter} or None; ``marks``: {key: (note mark, field)} as ``terminal_canonical.NOTES``;
     ``pairs``: (key, key) left-right counterparts, joined by a bracket left of their labels when adjacent.
+    Returns {field: axes}; every field of a column maps to that column's axes.
     """
     x = left + label_width
     pie_ax = None
     if pies is not None:
         pie_ax = fig.add_axes([x, bottom, pie_width, height])
         x += pie_width + .008
-    axes = {}
-    for i, (field, title, color, xmax, reference) in enumerate(metrics):
-        ax = fig.add_axes([x + i * (column_width + gap), bottom, column_width, height])
-        axes[field] = ax
+    axes, columns = {}, []
+    for column in metrics:
+        width = column_width * column.width
+        ax = fig.add_axes([x, bottom, width, height])
+        x += width + gap
+        columns.append((ax, column))
+        for field, _ in column.series:
+            axes[field] = ax
+        xmax = column.xmax
         ax.set_ylim(row_count - .3, -1.2)
-        ax.set_xlim(-.07 * xmax, 1.07 * xmax)
+        ax.set_xlim(-.07 * xmax / column.width, xmax * (1 + .07 / column.width))
         ax.set_xticks([0, xmax / 2, xmax])
         ax.xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter("%g"))
         ax.tick_params(axis="x", top=True, labeltop=True, bottom=False, labelbottom=False, labelsize=7.5,
                        length=2, pad=2)
         ax.set_yticks([])
-        ax.set_title(title, fontsize=8.3, color=color, pad=17, linespacing=1.1)
         ax.spines[["left", "right", "bottom"]].set_visible(False)
         ax.spines["top"].set_color(palette.NEUTRAL["rule"])
-        if reference is not None:
-            ax.axvline(reference, color=palette.NEUTRAL["reference"], lw=.6, ls=(0, (2, 2)), zorder=0)
-    first = axes[metrics[0][0]]
+        ax.annotate(column.heading, (.5, 1), xycoords="axes fraction", xytext=(0, 27), textcoords="offset points",
+                    ha="center", va="bottom", fontsize=8.3, weight="bold", color=column.heading_color)
+        keys = column.keys()
+        for i, (text, color) in enumerate(keys):
+            ax.annotate(text, ((i + .5) / len(keys), 1), xycoords="axes fraction", xytext=(0, 16),
+                        textcoords="offset points", ha="center", va="bottom", fontsize=8.3, color=color)
+    first = columns[0][0]
     if pie_ax is not None:
         fig_w, fig_h = fig.get_size_inches()
         inch_per_row = height * fig_h / (row_count - .3 + 1.2)
@@ -348,16 +378,17 @@ def metric_columns(fig, left, bottom, height, sections, metrics, *, row_count, p
             rows[key] = row
             first.text(label_x, row, label, transform=first.get_yaxis_transform(), ha="right", va="center",
                        fontsize=8.3, clip_on=False)
-            for field, _, color, xmax, _ in metrics:
-                ax = axes[field]
-                ax.hlines(row, 0, values[field], color=color, lw=.8, alpha=.45)
-                ax.scatter(values[field], row, color=color, s=18, edgecolor="white", linewidth=.35, zorder=3)
+            for ax, column in columns:
+                # Longest stem first, so each shorter stem stays visible on top of it.
+                for field, color in sorted(column.series, key=lambda fc: -values[fc[0]]):
+                    ax.hlines(row, 0, values[field], color=color, lw=.8, alpha=.45)
+                    ax.scatter(values[field], row, color=color, s=18, edgecolor="white", linewidth=.35, zorder=3)
             if pie_ax is not None and key in pies:
                 _pie(pie_ax, (pie_ax.get_xlim()[1] / 2, row), .42, pies[key], PIE_COLORS)
             if key in (marks or {}):
                 mark, field = marks[key]
-                xmax = next(m[3] for m in metrics if m[0] == field)
-                terminal_canonical.mark_value(axes[field], row, values[field], mark, xmax)
+                column = next(c for _, c in columns if field in dict(c.series))  # same offset in inches as width 1
+                terminal_canonical.mark_value(axes[field], row, values[field], mark, column.xmax / column.width)
         row += 2
     bracket_x = heading_x + .3  # axes-fraction units of the first metric column: near the group's left edge
     for a, b in pairs:
@@ -379,30 +410,32 @@ SUBTREE_ORDER = {"Root & AB branch": ("P0", "AB"),
                  "P1 branch": ("P1", "EMS", "MS", "MSa", "MSp", "P2")}
 
 
-def fate_legend(fig, types, *, y=.02, x=.5, ncol=6, loc="lower center"):
+def fate_legend(fig, types, *, y=.02, x=.5, ncol=6, loc="lower center", columnspacing=1.1):
     handles = [Line2D([], [], marker="o", ls="", markersize=6, markerfacecolor=PIE_COLORS[t], markeredgecolor="white",
                       label=t.replace("_", " ")) for t in types]
-    fig.legend(handles=handles, loc=loc, bbox_to_anchor=(x, y), ncol=min(len(types), ncol), fontsize=7.5,
-               frameon=False, handletextpad=.2, columnspacing=1.1, title="Terminal fates", title_fontsize=7.5,
-               alignment="left")
+    return fig.legend(handles=handles, loc=loc, bbox_to_anchor=(x, y), ncol=min(len(types), ncol), fontsize=7.5,
+                      frameon=False, handletextpad=.2, columnspacing=columnspacing, title="Terminal fates",
+                      title_fontsize=7.5, alignment="left")
 
 
 def subtree_rows(canonical, nodes, *, notes=None, width=7.4, row_inch=.241):
-    """Figure 5: every displayed subtree (at least 24 cells, Track D6) with fate pie, position u, distance d_LP
-    and cousin-relative distance r, left-right counterparts adjacent and bracketed.
+    """Figure 4: every displayed subtree (at least 24 cells, Track D6) with fate pie, position u and the distances
+    to the front of the lineage (d_LP) and of the first-cousin null mean (d_CP), on one axis; left-right
+    counterparts adjacent and bracketed.
 
-    Two columns of groups: Root & AB and ABa on the left (the fate legend fills the space below), ABp and P1
-    on the right. With ``notes`` (the Track D evidence, checked by ``terminal_canonical.check_notes``), ABplp
-    carries the dagger of production Figure 5B.
+    Two columns of groups: Root & AB and ABa on the left (the fate legend fills the space below, within the
+    left half), ABp and P1 on the right. With ``notes`` (the Track D evidence, checked by
+    ``terminal_canonical.check_notes``), ABplp carries the dagger of production Figure 5B.
     """
     table = canonical.set_index("subtree")
     order = [name for names in SUBTREE_ORDER.values() for name in names]
     if sorted(order) != sorted(table.index):
         raise ValueError(f"Subtree order and data differ: {sorted(set(order) ^ set(table.index))}")
     metrics = subtree_metrics(canonical)
+    fields = [field for column in metrics for field, _ in column.series]
 
     def section(heading):
-        return heading, [(n, {m[0]: float(table.loc[n, m[0]]) for m in metrics}, n) for n in SUBTREE_ORDER[heading]]
+        return heading, [(n, {f: float(table.loc[n, f]) for f in fields}, n) for n in SUBTREE_ORDER[heading]]
     columns = [[section("Root & AB branch"), section("ABa branch")],
                [section("ABp branch"), section("P1 branch")]]
     row_count = max(sum(len(es) + 2 for _, es in column) - 1 for column in columns)
@@ -411,18 +444,23 @@ def subtree_rows(canonical, nodes, *, notes=None, width=7.4, row_inch=.241):
     if notes:
         terminal_canonical.check_notes(notes)
         marks = terminal_canonical.NOTES
-    top, bottom = .62, .2  # inches: column heads above, footnote below
+    top, bottom = .72, .2  # inches: column heads above, footnote below
     rows_height = row_inch * (row_count + .9)
     height = rows_height + top + bottom
     fig = plt.figure(figsize=(width, height))
-    for left, column in zip((.0, .5), columns):
-        metric_columns(fig, left, bottom / height, rows_height / height, column, metrics, row_count=row_count,
-                       pies=pies, marks=marks, pairs=SUBTREE_PAIRS)
+    halves = [metric_columns(fig, left, bottom / height, rows_height / height, column, metrics, row_count=row_count,
+                             pies=pies, marks=marks, pairs=SUBTREE_PAIRS) for left, column in zip((.0, .5), columns)]
     types = sorted({t for c in pies.values() for t in c}, key=lambda t: -sum(c[t] for c in pies.values()))
     left_rows = sum(len(es) + 2 for _, es in columns[0]) - 1
     # Rows map to the axes as (row + 1.2) / (row_count + .9) from the top; the legend starts below the left column.
     legend_top = (bottom + rows_height * (row_count - .3 - (left_rows + .2)) / (row_count + .9)) / height
-    fate_legend(fig, types, x=.04, y=legend_top, ncol=3, loc="upper left")
+    legend = fate_legend(fig, types, x=.012, y=legend_top, ncol=3, loc="upper left", columnspacing=.9)
+    # The legend must stay inside the left half: no wider than its rows (labels to the last metric column).
+    fig.canvas.draw()
+    box = legend.get_window_extent().transformed(fig.transFigure.inverted())
+    right = max(ax.get_position().x1 for ax in halves[0].values())
+    if box.x1 > right:
+        raise ValueError(f"Fate legend reaches x = {box.x1:.3f}, past the left half's rows ({right:.3f})")
     if marks:
         fig.text(.5, .02 / height, "\u2020 refers to the caption.", fontsize=7.5, color="#444444", ha="center")
     return fig

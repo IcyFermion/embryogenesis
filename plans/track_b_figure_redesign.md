@@ -118,3 +118,41 @@ so the caption fits. Figure 6 and S1 are the released wrappers, renumbered
 `review.tex` only joins the compiled pages. Set:
 `publication/output/manuscript/v2_release_20261109`, from build
 `candidates/v2_release_20261109`.
+
+## B6. Fourth round of feedback: draft 6 (2026-11-10)
+
+Author, on draft 5 (review page version 14). Branch `figures-v2`; build
+`publication/output/candidates/v2_draft6`, release set
+`publication/output/manuscript/v2_release_20261110` (from manuscript-mode
+build `candidates/v2_release_20261110`).
+
+**Numbering.** The cell-state feature figure moves to the supplement as S2,
+so the main figures are 1-7 again: 1 schematics, 2 terminal front, 3 lineage
+similarity, 4 subtrees, 5 cell types (released panels, placeholder), 6 full
+tree by layer (agreed caption), 7 *C. briggsae*. Supplement: S1 (released S3,
+travel pooled across embryos) and S2 (cell-state features), one figure per
+distance.
+
+Items and what was done:
+1. **Feature figure to S2.** Unchanged panels and caption (Track A, A3);
+   `__main__.figure_s2`, `captions.figure_s2`. The release set compiles it
+   from the v2 build like the main figures.
+2. **Figure 4 (subtrees): d_CP instead of r.** The second column draws, on one
+   axis from 0 to 1 (endpoint units), the distance d_LP from the lineage to
+   P* (pink) and the distance d_CP from the first-cousin null mean to the same
+   P* (gold, the first-cousin cloud's hue; `palette.MEASURE` swaps
+   `cousin_relative` for `null_front_distance`). The r column and its dashed
+   r = 1 line are gone. d_LP < d_CP in all 18 subtrees. d_LP/d_CP is close to
+   r but not equal to it (r scales each cost by its null SD): ABplp 0.20
+   against r 0.24, the same zeros. r stays in Table 1. `panels.MetricColumn`
+   allows several series per column.
+3. **Figure 4 legend.** The fate legend now stays inside the left half; the
+   build raises if it reaches past the left half's last column.
+4. **Figure 7 (*C. briggsae*): front alone.** The comparisons with
+   *C. elegans* (former 8B-C) are hard to justify given the gaps in data
+   resolution between the species. They move to the backlog as a captioned
+   page, `backlog/fig7BC_briggsae_counterparts` (printed "Figure 7B-C"),
+   together with released Figures 8-11 (all cross-species comparisons),
+   ready if a reviewer asks. Figure 6B keeps the d_LP axis shared with the
+   backlog 7C (ceiling 0.3 either way).
+
