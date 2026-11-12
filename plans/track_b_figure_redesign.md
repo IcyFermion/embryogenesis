@@ -1,5 +1,9 @@
 # Track B: figure redesign
 
+**Status (2026-11-12): the revised layout is official (B7).** The manuscript's figures are the set at
+`publication/output/manuscript/current`; the text is written in the authors' Overleaf document. Still
+open: B3 (the new name for maximum edge retention), the draft captions and the Figure 5 restyle.
+
 Branch `figure-ideas`; sketches in `publication/sketches/`, shown on the
 review page (see `PUBLICATION_FIGURES_HANDOFF.md` section 0). Production
 figures change only through a normal family build and release.
@@ -156,3 +160,36 @@ Items and what was done:
    ready if a reviewer asks. Figure 6B keeps the d_LP axis shared with the
    backlog 7C (ceiling 0.3 either way).
 
+## B7. The revised layout made official (2026-11-12)
+
+Author: make the v2 layout official before writing the text. Decisions on the
+options offered:
+
+- **The manuscript set is official; v2 stays outside the registry.**
+  `publication/output/manuscript/current` points to the official set and
+  `history.json` beside it lists promotions. Production (the five released
+  families, v1 numbering) stays the released source of the pages the set
+  reuses: Figure 5, S1, Table 1 and the backlog. Moving v2 into the registry
+  was not chosen.
+- **Checks.** The v2 build records the hashes of its presentation sources
+  (`publication.v2.__main__.presentation_sources`: the build, captions and
+  manuscript modules with every publication module they import, plus v2
+  assets). Assembly refuses a build whose sources or Figure 1 files changed.
+  `python -m publication.v2.manuscript --verify [SET]` fails on a missing,
+  extra or modified file and reports staleness (sources, external files,
+  reused production). `--promote SET` accepts only a current set assembled
+  from committed code.
+- **First official set:** `v2_release_20261112` (build
+  `candidates/v2_release_20261112`, commit ab5f09d), promoted 2026-11-12. Its
+  pages render identically to `v2_release_20261110` (20 pages compared at
+  100 dpi). Only the set README changed: captions now change in
+  `publication/v2/captions.py`, followed by a new set, because a hand-edited
+  wrapper fails verification.
+- **Superseded outputs archived** in
+  `publication/output/archive/v2_superseded_20261112/` (README, `files.json`
+  with hashes): drafts 1-5, sets `v2_20261105` and `v2_release_20261109` and
+  their builds. Draft 6 and the 20261110 set and build stay in place.
+- **Text.** Written in the authors' Overleaf document. How figures and
+  captions sync with Overleaf is open; the author will decide after the
+  housekeeping.
+- **Branch.** `figures-v2` goes to `main` through a PR, merged by the author.
