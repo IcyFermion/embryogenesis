@@ -1,63 +1,41 @@
 # Publication front end
 
-`publication/` turns validated back-end results into figures, captions, tables
-and standalone TeX, and owns production releases. It never runs experiments:
-`terminal_pareto/` and `full_tree_pareto/` own datasets, optimization,
-null/reference generation, metrics, numerical caches and scientific
-validation, and since 2026-10-04 they no longer draw figures at all.
-Migration plan and progress:
-[`PUBLICATION_PIPELINE_REFACTOR_PLAN.md`](../PUBLICATION_PIPELINE_REFACTOR_PLAN.md).
+`publication/` turns validated back-end results into the manuscript's figures,
+captions and Table 1. It never runs experiments: `terminal_pareto/` and
+`full_tree_pareto/` own datasets, optimization, null and reference generation,
+metrics, numerical caches and scientific validation, and they draw no figures.
 
-## Where things are
+Interface rule (author, 2026-10-02): a presentation change never edits a back
+end; a scientific change becomes a new validated run that the adapters read.
 
-| Path | Contents |
-|---|---|
-| `publication/output/manuscript/current` | **Manuscript figures** (official since 2026-11-12): symlink to the promoted set of the revised layout (`v2/`), one captioned wrapper per figure and table with its page and graphics, `review.pdf`, `backlog/`, `manifest.json`; `history.json` beside it lists promotions |
-| `publication/output/production/` | **Released figure families** (v1 numbering): every family side by side, `release_manifest.json` (a section per family plus release history) and each family's `*.presentation_manifest.json`. The manuscript set reuses Figure 5, S1, Table 1 and its backlog pages from here |
-| `publication/output/candidates/<name>/` | Builds for review (`build --all` writes one folder per family plus `build_set.json`) |
-| `publication/output/archive/releases/<stamp>/` | Previous production states, hash-checked, written by every release |
-| `publication/output/archive/migrated_20261004/` | Figure material moved out of the back ends (old production folders, run `figures/`, `publication/`, `layout_history/`, render logs) |
-| `publication/output/archive/legacy_20261004/` | Former `output/legacy/` figure history: old production release archives, the original embryo-1 figures, diagnostic plots |
-| `publication/output/archive/v2_superseded_20261112/` | Superseded drafts, builds and manuscript sets of the revised layout (README, `files.json` with hashes) |
-| `publication/output/baseline_20261002/` | Pre-refactor backup tar and hash lists |
-| `terminal_pareto/output/runs/*/*/analysis/`, `full_tree_pareto/output/runs/*/*/analysis/` | Numerical inputs (unchanged; read through adapters) |
+## The manuscript set
 
-Everything under `output/` is Git-ignored; keep an external backup.
+The manuscript's figures are one free-standing set (official since
+2026-11-12; free-standing since 2026-11-13), at
+`publication/output/manuscript/current`, a symlink to the promoted set;
+`history.json` beside it lists promotions. One v2 build draws every figure and
+Table 1, and nothing is taken from another figure set.
 
-## Families
+| Number | Figure | Caption |
+|---|---|---|
+| 1 | Schematics: the authors' files `paper/FIGS/Fig1_overview.pdf` (A-C) and `FigX_distances_schematic.pdf` (D), unchanged | draft |
+| 2 | Terminal Pareto front with cousin clouds (A), nested null-model schematic (B) | draft |
+| 3 | Lineage similarity along the front (A), rewiring at the travel optimum T, maximum similarity M and cell-state optimum S (B-D) | draft |
+| 4 | 18 subtrees of at least 24 cells: fate pies, u, and d_LP with d_CP on one 0-1 axis; left-right counterparts adjacent | draft |
+| 5 | Cell types: lineage similarity by fate class along the front (A), each class's own front (B), the cost of restricting assignments within cell types (C) | released |
+| 6 | Full tree by layer: every layer's front (A), position (B) and cost (C) on the birth-size axis | agreed (2026-11-05) |
+| 7 | *C. briggsae* terminal front | draft |
+| S1 | Terminal assignments in four tracking geometries | released |
+| S2 | Cell-state feature selection (Track A) | draft |
+| Table 1 | Per-subtree statistics; r lives here | released, citing Figure 4 |
 
-| Family | Figures | Back-end input | Status |
-|---|---|---|---|
-| `terminal-primary` | 1 amendment, 2-6, S1-S3, Table 1 | `terminal_pareto/output/runs/pooled_tracking_v1/migration_candidate_20260920` | released |
-| `terminal-cross-species` | 8, 9 | `.../cross_species_terminal_v1/pooled_comparison_20260930` | released |
-| `full-tree-pooled` | 7, provisional S4 | `full_tree_pareto/output/runs/pooled_full_tree_v1/terminal_clamped_cosine_20261014` | released 2026-10-15 (cosine); the Euclidean release from `terminal_clamped_20260927` is archived |
-| `full-tree-cross-species` | 10, 11 | `.../cross_species_layerwise_v1/terminal_anchored_cosine_20261014` | released 2026-10-15 (cosine); the Euclidean release from `terminal_anchored_20260930` is archived |
-| `full-tree-layers` | S5; Figure 6B-C of the revised layout (`publication.v2`) follow its panels, redrawn there with `palette.py` | `full_tree_pareto/output/runs/layer_features_v1/` runs `hourglass_20261019` and `stages_20261020` (Track E), checked against the two round-reference caches | released 2026-11-05 (the other four families were refreshed in the same release, figures unchanged) |
-
-`python -m publication list` prints this from `registry.py`, which also holds
-wrapper stems, printed numbers and each family's owned production assets
-(disjoint, so one family's release cannot touch another's files).
-
-## Commands
-
-From the repository root in `dev` (or with the `dev` env's `bin/` on `PATH`
-for `tectonic`), with `OPENBLAS_NUM_THREADS=1` and a writable `MPLCONFIGDIR`:
-
-```bash
-python -m publication list
-python -m publication build --all --output-dir publication/output/candidates/NAME
-python -m publication build --family terminal-primary --output-dir publication/output/candidates/NAME
-python -m publication verify --build publication/output/candidates/NAME
-python -m publication release --build publication/output/candidates/NAME --rehearse   # scratch copy
-python -m publication release --build publication/output/candidates/NAME --apply      # production
-python -m publication release --build SET --family terminal-primary --apply           # one family from a set
-python -m publication verify --production
-python -m publication.parity --candidate BUILD --reference publication/output/production
-python -m unittest discover -s publication/tests -t .
-```
-
-The manuscript set (revised layout) is built, assembled and promoted outside
-the registry:
+The set holds one standalone wrapper per figure (`figN_<stem>.tex` with caption
+and label), its compiled page and the one graphic it includes
+(`<stem>_panel.pdf`), `review.pdf` joining every page, `backlog/` with the v2
+page 7B-C (*C. briggsae* against *C. elegans*), `README.md` (notes for the main
+text, open items) and `manifest.json` (file hashes, the presentation sources
+and external files the build recorded). Everything else kept as a backup is
+recorded, with its regeneration command, in [`BACKLOG.md`](BACKLOG.md).
 
 ```bash
 python -m publication.v2 --manuscript --output-dir publication/output/candidates/v2_release_YYYYMMDD
@@ -67,18 +45,76 @@ python -m publication.v2.manuscript --promote publication/output/manuscript/v2_r
 python -m publication.v2.manuscript --verify            # the official set (current)
 ```
 
-Commit first: `--promote` refuses a set assembled from uncommitted code, a
-stale set and one whose files changed. Assembly refuses a stale v2 build and
-a production that is not current.
+- Commit first. The build records the hashes of its presentation sources
+  (`v2.__main__.presentation_sources`: the v2 build, captions and manuscript
+  modules and every `publication` module they import, plus `v2/assets/`) and
+  of Figure 1's external files. Assembly refuses a build whose sources or
+  external files changed since; `--promote` refuses a stale set, a set whose
+  files changed and one assembled from uncommitted code.
+- `--verify` fails on a missing, extra or modified file and reports staleness.
+  Any change to a module in the source list makes the official set stale:
+  rebuild, assemble and promote a new set.
+- Each wrapper must compile to one page that prints its own number (read from
+  the `.aux` label) with no TeX warning except a tolerated float overflow.
+- Captions live in `v2/captions.py` (`AGREED`, `DRAFT`, `RELEASED` and
+  `BACKLOG`); change them there and assemble a new set. A wrapper edited
+  inside a set fails verification.
+- `python -m publication.v2 --output-dir DIR` (without `--manuscript`) writes
+  draft pages with titles, for review. The build also writes the Figure 3
+  edge-change tables (`fig3_edge_changes_<point>_<weight>.csv`) and the
+  palette sheet.
+- The manuscript text is written in the authors' Overleaf document. How the
+  set's figures and captions sync with it is open (author, 2026-11-12). The
+  Git-ignored `paper/` holds a local `paperv2.tex` and Figure 1's source files
+  in `paper/FIGS/`, which the build reads.
 
-Builds are cache-only: adapters call the back ends' validators/loaders
-(replay, never solve; tests block solvers, null generation and RNG) and
-write into a new or empty directory outside both back ends' `output/`. A
-complete `--all` build takes about 30 s. Missing caches fail with the
-back-end command that creates them. A release refuses stale builds (made
-from older presentation source) and assets a family does not own, retires
-assets a family dropped, archives the previous production and rolls back on
-any failure.
+**Open items.** Captions of Figures 1-4, 7 and S2 are drafts in the v1 style
+awaiting the author's review; Figures 5 and S1, redrawn in the v2 style on
+2026-11-13, keep the released captions (Figure 5's says natural-edge retention).
+Figure 1 is the authors' file and bypasses
+`notation.py`: panels B-C read "expression" and 1D writes d_LP*, which need a
+manual fix. The new name for maximum edge retention is pending (below). Five
+fate classes share a hue with a measure (`palette.SHARED_HUES`); the author
+decides at manuscript wrap-up.
+
+## Where things are
+
+| Path | Contents |
+|---|---|
+| `publication/output/manuscript/current` | The official manuscript set (above); `history.json` beside it |
+| `publication/output/candidates/<name>/` | Builds: the v2 build behind a set, family builds that regenerate backlog figures |
+| `publication/output/sketches/<name>/`, `publication/output/notes/<name>/` | Sketch and reserve-note builds, made on demand (`BACKLOG.md`) |
+| `paper/` (Git-ignored) | Local `paperv2.tex`; `paper/FIGS/` with Figure 1's source files |
+| `terminal_pareto/output/runs/*/*/analysis/`, `full_tree_pareto/output/runs/*/*/analysis/` | Numerical inputs, read through adapters |
+
+Everything under `output/` is Git-ignored; keep an external backup. Older
+figure output (the v1 production releases, release archives, the pre-refactor
+backup and the 2026-10-04 migration archive) was deleted on 2026-11-13; the
+ideas in it that still work with the current back end are in `BACKLOG.md`.
+
+## Commands
+
+From the repository root in `dev` (or with the `dev` env's `bin/` on `PATH`
+for `tectonic`), with `OPENBLAS_NUM_THREADS=1` and a writable `MPLCONFIGDIR`:
+
+```bash
+python -m publication list                                  # figure families
+python -m publication build --all --output-dir publication/output/candidates/NAME
+python -m publication build --family terminal-primary --output-dir publication/output/candidates/NAME
+python -m publication verify --build publication/output/candidates/NAME
+python -m publication.sketches --output-dir publication/output/sketches/NAME [--only KEY ...]
+python -m publication.notes --output-dir publication/output/notes/NAME
+python -m unittest discover -s publication/tests -t .
+```
+
+Builds are cache-only: adapters call the back ends' validators and loaders
+(replay, never solve; tests block solvers, null generation and RNG through
+`tests/support.py::no_experiments`, where any new back-end solver or sampler
+must be added) and write into a new or empty directory outside both back ends'
+`output/`. A complete `--all` build takes about 30 s. Missing caches fail with
+the back-end command that creates them. terminal-primary builds and
+`publication.tests.test_terminal_primary` work only from the main checkout
+(the terminal context cache key holds absolute paths).
 
 Back-end numerical commands: `python terminal_pareto/analysis_pipeline.py`,
 `python -m full_tree_pareto.pooled_pipeline`, both `cross_species_analysis`
@@ -88,69 +124,97 @@ modules and the validators (see the package READMEs).
 
 | Module | Responsibility |
 |---|---|
+| `v2/` | The manuscript set: `__main__.py` (build), `panels.py` (every figure's drawing), `data.py` (loaders on the adapters and add-on runs), `captions.py`, `manuscript.py` (assemble, verify, promote), `assets/null_models.tex` (Figure 2B). It imports nothing from `figures/` or `captions/` |
+| `palette.py` | One colour per concept (measures, null shuffles, fate classes, feature-figure categories, neutrals) and the palette sheet; every v2 panel draws from it |
 | `notation.py` | Concept registry: symbol, plain form, label, definition, persisted field names |
-| `style.py` | Palette, rcParams, retention colormap, export |
+| `style.py` | rcParams (the set's base style too), retention colormap and export of the figure families |
 | `contracts.py` | Validated inputs per scope: `FrontComparisonInput`, `TerminalPrimaryInput`, `FullTreePooledInput` |
 | `adapters/terminal.py`, `adapters/full_tree.py` | Only modules that import back ends; load caches after validation, prepare display coordinates |
 | `artists.py`, `canonical_panels.py` | Shared front artists, P* replay checks, named-row metric panels |
-| `figures/` | `cross_species.py` (8-11), `terminal*.py` (1-6, S1-S3), `full_tree.py` (7, S4), `full_tree_layers.py` (S5; revised Figure 6B-C) |
-| `captions/` | `cross_species.py`, `terminal.py`, `full_tree.py`, `full_tree_layers.py` |
-| `tables.py` | Table 1 |
-| `assets/fig3A_ce_null_models.tex` | Figure 3A TikZ schematic |
+| `figures/`, `captions/` | Figure families' drawing and captions (backlog figures only) |
+| `subtrees.py` | Subtree helpers shared by the adapter, the set and the families: lineage order, node layout, the ABplp caption note and its check |
+| `tables.py` | Table 1 (the set's caption cites Figure 4; the family's keeps the released Figure 5) |
+| `assets/fig3A_ce_null_models.tex` | Released Figure 3A TikZ schematic |
 | `assembly.py` | Wrapper preamble, numbering, compilation; page, label and TeX-warning checks |
 | `provenance.py` | Presentation hashes and build manifests; integrity versus readiness |
-| `release.py` | Production releases, rehearsal, verification, archives, transactions |
-| `migration.py` | One-off archive and post-PR purge of figure material left in the back ends |
-| `registry.py`, `__main__.py`, `parity.py` | Families and CLI; candidate/production comparison |
-| `sketches/` | Exploratory figures for discussion (branch `figure-ideas`); outside the registry, never released; writes `output/sketches/<name>/` |
-| `v2/` | Revised manuscript layout, the manuscript's figures since 2026-11-12, outside the registry. `python -m publication.v2 --output-dir DIR` builds draft pages; `--manuscript` builds the figures alone, cropped. `python -m publication.v2.manuscript --v2-build DIR --output-dir publication/output/manuscript/<name>` assembles the manuscript release set from that build and a current production, laid out like `output/production` (2026-11-09): one captioned LaTeX wrapper per figure or table (`figN_<stem>.tex`) with its compiled page and graphics. It holds Figures 1-7, S1 (released S3), S2 (cell-state features), Table 1, `review.pdf` joining all pages, and in `backlog/` released S2/S4/S5, released Figures 8-11 and the v2 page 7B-C (the cross-species comparisons). Each wrapper is checked as a release checks it: one page, its own number, no TeX warning except the tolerated overflow. Official since 2026-11-12: `output/manuscript/current` points to the promoted set; the build and the set record presentation-source hashes (`__main__.presentation_sources`), `--verify` checks a set's files and currency and `--promote` repoints `current`. `v2/captions.py` holds the main-figure captions (agreed, or drafts in the v1 style awaiting review). Numbering of 2026-11-10: 1 schematics, 2 terminal front, 3 lineage similarity, 4 subtrees, 5 cell types, 6 full tree by layer, 7 C. briggsae front; S2 cell-state features |
-| `palette.py` | One colour per concept for the revised layout (measures, null shuffles, fate classes, feature-figure categories, neutrals) and the palette sheet; every `v2` panel draws from it. Not a build module: `style.py` keeps the released families' colours (equal values today) |
-| `notes/` | Reserve notes: one-page supplementary-style pages kept ready for reviewer questions (Note A: the ABplp/ABprp apoptotic-cell endpoint, Track D4c); outside the registry, statements checked against hash-checked runs; `python -m publication.notes --output-dir publication/output/notes/<name>` |
+| `registry.py`, `__main__.py` | Figure families and the CLI (`list`, `build`, `verify --build`) |
+| `sketches/` | Exploratory figures from the October review; outside the registry |
+| `notes/` | Reserve notes for reviewer questions (Note A: the ABplp apoptotic-cell endpoint); statements checked against hash-checked runs |
+
+## Figure families
+
+The registry's families render the released figures (v1 numbering) from the
+same caches as the set. Since 2026-11-13 they only regenerate backlog figures;
+`python -m publication list` prints them.
+
+| Family | Figures | Back-end input |
+|---|---|---|
+| `terminal-primary` | 1 amendment, 2-6, S1-S3, Table 1 | `terminal_pareto/output/runs/pooled_tracking_v1/migration_candidate_20260920` |
+| `terminal-cross-species` | 8, 9 | `.../cross_species_terminal_v1/pooled_comparison_20260930` |
+| `full-tree-pooled` | 7, provisional S4 | `full_tree_pareto/output/runs/pooled_full_tree_v1/terminal_clamped_cosine_20261014` |
+| `full-tree-cross-species` | 10, 11 | `.../cross_species_layerwise_v1/terminal_anchored_cosine_20261014` |
+| `full-tree-layers` | S5 | `full_tree_pareto/output/runs/layer_features_v1/` runs `hourglass_20261019` and `stages_20261020` |
+
+The registry also holds wrapper stems, printed numbers and each family's
+output files (disjoint across families) and non-Python assets.
 
 ## Changing displayed notation
 
 1. Edit the concept's `symbol`/`plain` (or `label`) in `notation.py`. Keys are
-   semantic (`null_front_distance`), so cache fields such as `d_NP`/`d_np`
-   are never renamed and numerical hashes do not change.
-2. `build --all` into a new candidate folder and inspect.
-3. `release --rehearse`, then `--apply`. Earlier builds still verify for
-   integrity but are stale and cannot be released.
+   semantic (`null_front_distance`), so cache fields such as `d_NP`/`d_np` are
+   never renamed and numerical hashes do not change.
+2. Build, assemble and promote a new manuscript set and inspect it.
 
-Symbols reach every figure label, caption, Table 1 and the Figure 1/5/S1
-schematics. Narrative Markdown, handoffs and the manuscript are edited
-manually. Changing a metric's *definition* is a scientific change made in the
-back end under a new run identity.
+Symbols reach every figure label, caption and Table 1. Figure 1 (the authors'
+files), narrative Markdown and the manuscript text are edited by hand.
+Changing a metric's *definition* is a scientific change made in the back end
+under a new run identity.
 
-**Current notation (author decision, 2026-10-02/03):** the distance from the
-first-cousin null mean to P* is `d_CP` (formerly `d_NP`) and the null-mean
-point is `C` (formerly `N`).
+- **Notation (author, 2026-10-02/03):** the distance from the first-cousin
+  null mean to P* is `d_CP` (formerly `d_NP`) and the null-mean point is `C`
+  (formerly `N`).
+- **Lineage similarity (open, Track B3):** the set relabels retention as
+  "Lineage similarity" through `v2.__main__.NOTATION`, and v2 captions write
+  it as literal text, while `notation.py`'s `retention` label and Table 1 still
+  say edge retention. To adopt a name: change the label in `notation.py`, grep
+  `publication/` for "edge retention", drop the override and assemble a new
+  set.
 
-## Style and compilation policy (author decisions, 2026-10-03)
+## Conventions
 
-- One universal style (`style.configure`) for every figure.
-- Vertical float overflow ("Float too large for page", e.g. Figure 7 by
-  8.27 pt, standalone Table 1 by 3.75 pt) is recorded, not fatal; release can
-  use two-page rendering. Every other TeX warning fails the build.
+- **Style (author, 2026-10-03):** one style for every figure. Vertical float
+  overflow ("Float too large for page") is recorded, not fatal; every other TeX
+  warning fails the build.
+- **Comparisons (author, 2026-10-02):** visual equivalence at a glance, not
+  pixel identity; compare rasterized pages, not PDF bytes (metadata changes).
+- **Scope is stated, never inferred:** adapters and captions name the cohort
+  (275, 187, 974 or 454 edges), per-round or aggregate anchors, analytic or
+  sampled null means, the reference and partial or complete forests; never
+  infer scope from a file name, figure number or row count.
+- **Caption claims are checked at build time.** `terminal_canonical.NOTES`
+  (ABplp's † in Figure 4) and `check_notes` fail the build when a claim stops
+  holding; cite only statements backed by a stored run.
+- **Figure 4 encoding (author, 2026-11-10):** d_LP (pink) and d_CP (gold, the
+  first-cousin hue) share one axis, so r can be read from the two; d_LP/d_CP is
+  close to r but not equal (r scales each cost by its null SD; ABplp 0.20 vs
+  0.24). The build raises if the fate legend leaves the left half.
 
 ## Provenance boundaries
 
-- *Scientific* identity: back-end caches and validators (unchanged).
-- *Presentation* identity, per family: hashes of the `publication/` sources
-  and assets that family's build depends on (derived from its registry entry
+- *Scientific* identity: back-end caches and validators.
+- *Presentation* identity of a family build: hashes of the `publication/`
+  sources and assets that family depends on (derived from its registry entry
   points through `publication` imports; `Family.assets` for non-Python files)
-  plus the notation snapshot (`presentation_manifest.json` per build). A
-  change outside a family's dependencies does not make it stale.
-- *Release* identity: `production/release_manifest.json` records, per family,
-  the build, presentation identity, released files and the numerical input
-  hashes; `verify --production` checks files and inputs strictly and reports,
-  per family, presentation source that changed since release.
+  plus the notation snapshot (`presentation_manifest.json`). Reusing another
+  family's drawing module makes it a dependency of both.
+- *Manuscript set* identity: the set's `manifest.json` (above).
 
 ## Remaining back-end exceptions
 
 - `terminal_pareto/figS3_cross_geometry.py` and
   `terminal_pareto/fig5_table1_ce_canonical_metrics.py` stay byte-identical
   because validators hash their source. They still write figure side-files
-  when run; the numerical pipeline sends those to a discarded folder. S3 is
+  when run; the numerical pipeline sends those to a discarded folder. S1 is
   drawn here from the projection table in the pooled run's
   `analysis/s3_cross_geometry/`.
 - `terminal_pareto/plot_style.py` re-exports `style.py` for historical
