@@ -15,7 +15,7 @@ the style of the v1 baseline, for review:
   (``terminal_pareto/METHODS_cell_state_representation.md``).
 ``RELEASED`` holds the released captions of Figure 5 (released Figure 6, cell types)
 and S1 (released S3, four tracking geometries), unchanged; they moved here on
-2026-11-13, when the set stopped reusing released figures.
+2026-11-13, when both figures were redrawn in the v2 style.
 ``BACKLOG`` holds the caption of the backlog page 7B-C (C. briggsae counterparts
 of Figures 3A and 6B, the former 8B-C).
 Counts are those of the released analyses; Figure 3's values were checked against the cached global sweep.

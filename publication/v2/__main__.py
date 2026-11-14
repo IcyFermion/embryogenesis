@@ -9,9 +9,8 @@ Numbering of 2026-11-10: the cell-state feature figure is Supplementary Figure S
 Figure 7 (C. briggsae) is its front alone; its comparisons with C. elegans (the
 former 8B-C) are built as a backlog page, ``backlog_fig7BC_briggsae_counterparts``.
 Since 2026-11-13 the build makes every figure of the manuscript set, one file per
-figure, and Table 1; nothing is taken from a released figure set. Figure 5 and
-S1 keep the released panels, drawn by the released figure code
-(``publication.figures``) in its own style.
+figure, and Table 1, all drawn by ``panels`` with ``publication.palette``; nothing
+is taken from a released figure set or drawn by the figure families' code.
 """
 
 from __future__ import annotations
@@ -26,8 +25,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from publication import notation as nt
-from publication import palette, provenance, style, tables
-from publication.figures import terminal_cell_types, terminal_s3, terminal_within_type
+from publication import palette, provenance, tables
 from publication.provenance import sha256
 from publication.v2 import data, panels
 
@@ -98,48 +96,18 @@ def figure6(out, manuscript=False):
         manuscript=manuscript)
 
 
-def released_panels(out, render, names):
-    """Draw panels with the released figure code (its own style) in a scratch folder and keep ``names``
-    ({released stem: stem here}, PDF and PNG) in ``out``. Returns the kept PDFs in order."""
-    scratch = out / "_released_panels"
-    scratch.mkdir()
-    try:
-        with plt.rc_context():
-            style.configure()
-            render(scratch)
-            plt.close("all")
-        for old, new in names.items():
-            for ext in ("pdf", "png"):
-                (scratch / f"{old}.{ext}").replace(out / f"{new}.{ext}")
-    finally:
-        shutil.rmtree(scratch)
-    return [f"{new}.pdf" for new in names.values()]
-
-
 def figure5(out, t, manuscript=False):
-    """Figure 5 page (cell types): the released panels, drawn by the released figure code and composed here like every
-    other figure (author, 2026-11-13: one build, one figure file each). A restyle is pending."""
-    def render(scratch):
-        terminal_cell_types.plot_retention_heatmap(t.data.cell_type_retention, out_dir=scratch)
-        within = t.data.within_type
-        terminal_within_type.plot_within_type(within["fronts"], within["summary"], within["aggregate"],
-                                              within["endpoints"], out_dir=scratch, display_mode="endpoint")
-    a, b, c = released_panels(out, render, {"fig6A_ce_retention_heatmap": "fig5A_cell_type_retention",
-                                            "fig6B_ce_within_type_fronts": "fig5B_within_type_fronts",
-                                            "fig6C_ce_type_restricted_aggregate": "fig5C_type_restricted_aggregate"})
-    return page(out, "fig5_cell_types", "Figure 5",
-        "{\\centering\n"
-        f"\\includegraphics[width=.95\\textwidth]{{{a}}}\\\\[1mm]\n"
-        f"\\includegraphics[width=.95\\textwidth]{{{b}}}\\\\[1mm]\n"
-        f"\\includegraphics[width=.95\\textwidth]{{{c}}}\\par}}", manuscript=manuscript)
+    """Figure 5 page (cell types): lineage similarity by fate class (A), within-type fronts (B) and the type-restricted
+    aggregate (C), from the released cell-type caches, drawn in the v2 style like every other figure (2026-11-13)."""
+    a = save(panels.cell_type_figure(t.data.cell_type_retention, t.data.within_type), out, "fig5_cell_types_panels")
+    return page(out, "fig5_cell_types", "Figure 5", f"\\noindent\\includegraphics[width=\\textwidth]{{{a}}}",
+                manuscript=manuscript)
 
 
 def figure_s1(out, t, manuscript=False):
-    """Supplementary Figure S1 page (terminal assignments in four tracking geometries): the released panel (released
-    S3), drawn by the released figure code."""
-    (a,) = released_panels(out, lambda scratch: terminal_s3.render_publication(
-        t.data.s3_projections, t.data.s3_references, out_dir=scratch),
-        {"figS3_four_geometries_with_insets": "figS1_four_geometries"})
+    """Supplementary Figure S1 page: terminal assignments in four tracking geometries (the released S3 projections),
+    drawn in the v2 style (2026-11-13)."""
+    a = save(panels.tracking_figure(t.data.s3_projections, t.data.s3_references), out, "figS1_four_geometries")
     return page(out, "figS1_tracking_robustness", "Figure S1", f"\\noindent\\includegraphics[width=\\textwidth]{{{a}}}",
                 manuscript=manuscript)
 

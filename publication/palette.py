@@ -13,12 +13,14 @@ Groups:
   random), warm earth tones.
 * ``FATE``: the categorical terminal-fate classes of the pies and cell-type
   panels. Categorical; legends always name them.
+* ``TRACKING``: the travel geometry an assignment set was optimized in
+  (embryos 1-3, pooled; Figure S1).
 * ``SISTERS``, ``FEATURE_SET``: categories of the cell-state feature figure.
 * ``NEUTRAL``: text, rules and reference lines.
+* ``SIMILARITY`` and ``TREE_DISTANCE``: colormaps (Figure 5A, Figure 3 arcs).
 
-The figure families (backlog figures, and the released panels of Figures 5
-and S1) still draw with ``publication.style``, whose values equal the ones here
-today. ``sheet()`` draws the palette for review.
+The figure families (backlog figures only) still draw with
+``publication.style``. ``sheet()`` draws the palette for review.
 """
 
 from __future__ import annotations
@@ -34,6 +36,7 @@ MEASURE = {
     "canonical_position": "#6F6F6F",   # position u
     "front_distance": "#CC79A7",       # distance d_LP from the lineage to its front
     "null_front_distance": "#B18F00",  # distance d_CP from the first-cousin null mean to the front (its cloud's hue)
+    "restricted_front": "#7570B3",     # front with assignments restricted within cell type (Figure 5C)
 }
 
 NULL = {
@@ -42,6 +45,9 @@ NULL = {
     "third_cousin": "#7B4F2C",
     "full_random": "#6F3B5C",
 }
+
+# Lineage similarity as a heat map (Figure 5A), light (none retained) to dark, through the similarity hue.
+SIMILARITY = LinearSegmentedColormap.from_list("lineage_similarity", ("#F1F6FB", MEASURE["lineage_similarity"], "#0B2545"))
 
 # Tree distance between the natural and the assigned parent (Figure 4 arcs), light to dark.
 TREE_DISTANCE_STOPS = ("#F2D49B", "#D9822B", "#A33B3B", "#4B1D4F")
@@ -59,6 +65,14 @@ FATE = {
     "mesoderm": "#8B5A2B",
     "other": "#D9D9D9",
     "tail": "#A64D79",
+}
+
+# Source of the travel geometry an assignment set was optimized in (Figure S1); pooled is the Pareto front.
+TRACKING = {
+    "embryo1": "#4477AA",
+    "embryo2": "#CC6677",
+    "embryo3": "#228833",
+    "pooled": MEASURE["front"],
 }
 
 SISTERS = {
@@ -81,8 +95,8 @@ NEUTRAL = {
     "dendrogram": "#555555",
 }
 
-GROUPS = {"MEASURE": MEASURE, "NULL": NULL, "FATE": FATE, "SISTERS": SISTERS, "FEATURE_SET": FEATURE_SET,
-          "NEUTRAL": NEUTRAL}
+GROUPS = {"MEASURE": MEASURE, "NULL": NULL, "FATE": FATE, "TRACKING": TRACKING, "SISTERS": SISTERS,
+          "FEATURE_SET": FEATURE_SET, "NEUTRAL": NEUTRAL}
 
 # Hues shared between a measure and a fate class. Pies sit next to the u and d_LP/d_CP columns in the
 # subtree figure. Kept for now (author, 2026-11-09); the overall theme is decided when the manuscript wraps up.
@@ -97,7 +111,7 @@ def sheet():
     import matplotlib.pyplot as plt
     from matplotlib.patches import Rectangle
 
-    columns = (("MEASURE", "NULL"), ("FATE",), ("SISTERS", "FEATURE_SET", "NEUTRAL"))
+    columns = (("MEASURE", "NULL"), ("FATE", "TRACKING"), ("SISTERS", "FEATURE_SET", "NEUTRAL"))
     shared = {f for _, f in SHARED_HUES}
     rows = max(sum(len(GROUPS[g]) + 1 for g in column) for column in columns)
     fig = plt.figure(figsize=(7.4, .2 * rows + .2))

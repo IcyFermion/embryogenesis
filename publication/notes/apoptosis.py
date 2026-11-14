@@ -1,6 +1,6 @@
 """Reserve note: one apoptotic cell's track endpoint places ABplp off its front (Track D4-D4c).
 
-Answers the question a reader of Figure 5B (note †) may ask: is ABplp's
+Answers the question a reader of Figure 4 (note †; Figure 5B in the released numbering) may ask: is ABplp's
 distance from its front how the lineage is organized, or one cell? Every
 number comes from hash-checked Track D tables, and ``check`` fails the build
 if a sentence no longer holds. The mirror subtrees and cells serve as controls.
@@ -192,7 +192,7 @@ def tex(f, figure):
 {{\large\textbf{{Supplementary Note {LABEL}: One apoptotic cell's track endpoint places ABplp\\
 off its front}}}}
 
-\textbf{{Question.}} In Figure~5B (note~$\dagger$), ABplp lies farther from its terminal front than
+\textbf{{Question.}} In Figure~4 (note~$\dagger$), ABplp lies farther from its terminal front than
 any other subtree ({t('natural_front_distance_sd')} = {rows['ABplp']['left']:.2f} in null-SD units). Its parent ABpl
 ({rows['ABpl']['left']:.2f}) and two smaller subtrees of the same family, ABplpp and ABplppp ({rows['ABplpp']['left']:.2f}
 and {rows['ABplppp']['left']:.2f}; below the figure's size floor), lie off their fronts too, while the mirror

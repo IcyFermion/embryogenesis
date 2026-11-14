@@ -234,8 +234,8 @@ def assemble(v2_build: Path, out: Path) -> dict:
         "## Open items", "",
         "- Figure 1 is the authors' schematic file, unchanged: panels B-C still read \"expression\", and 1D writes "
         "d_LP*/d_CP* where the other figures write d_LP/d_CP.",
-        "- Figures 5 and S1 keep the released panels, drawn by the released figure code in its own style, and their "
-        "released captions; Figure 5 waits for a restyle.",
+        "- Figures 5 and S1 were redrawn in the v2 style on 2026-11-13 and keep their released captions (Figure 5's "
+        "says natural-edge retention).",
         "- Captions of Figures " + ", ".join(n for n, f in figures.items() if f["caption"] == "draft")
         + " are drafts in the v1 style, for the author's review (`publication/v2/captions.py`).",
         "- Table 1 keeps the released caption, now citing Figure 4; its column header and caption still say maximum "
