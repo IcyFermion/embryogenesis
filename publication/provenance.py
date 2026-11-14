@@ -44,7 +44,7 @@ def stale_files(hashes: dict[str, str], base: Path = ROOT) -> list[str]:
 
 
 # Maintenance tools that never influence rendered assets.
-NON_RENDERING = {"migration.py", "parity.py"}
+NON_RENDERING: set[str] = set()  # none since migration.py and parity.py were removed (2026-11-13)
 # Shared by every build through ``registry.build`` (style, assembly, manifests).
 BUILD_MODULES = ("publication.assembly", "publication.provenance", "publication.style", "publication.notation")
 # Holds layout options (titles, colorbar labels) for every family: hashed, not traversed.

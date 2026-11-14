@@ -16,10 +16,9 @@ Groups:
 * ``SISTERS``, ``FEATURE_SET``: categories of the cell-state feature figure.
 * ``NEUTRAL``: text, rules and reference lines.
 
-The released families still draw with ``publication.style``. Its values
-equal the ones here today; ``style.py`` is hashed into every family's build
-identity, so it changes only together with a release. ``sheet()`` draws the
-palette for review.
+The figure families (backlog figures, and the released panels of Figures 5
+and S1) still draw with ``publication.style``, whose values equal the ones here
+today. ``sheet()`` draws the palette for review.
 """
 
 from __future__ import annotations

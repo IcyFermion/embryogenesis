@@ -44,7 +44,7 @@ class V2Tests(unittest.TestCase):
         self.assertEqual(fields, [["u_lineage_lp"], ["d_lp", "d_np"]])
         self.assertEqual(columns[1].xmax, 1.)
 
-    def test_every_figure_of_the_release_set_has_a_caption(self):
+    def test_every_figure_of_the_manuscript_set_has_a_caption(self):
         from publication.v2 import captions, manuscript
         captioned = [*captions.AGREED, *captions.DRAFT, *captions.RELEASED]
         # Every figure of the free-standing set comes from the v2 build with exactly one caption (2026-11-13).

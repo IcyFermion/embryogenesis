@@ -57,10 +57,7 @@ class EndpointDisplay(unittest.TestCase):
 
 
 class Ownership(unittest.TestCase):
-    def test_families_sharing_a_production_root_own_disjoint_assets(self):
-        by_root = {}
-        for family in registry.FAMILIES.values():
-            self.assertTrue(family.owned_assets, family.key)
-            by_root.setdefault(family.production, []).append(set(family.owned_assets))
-        for root, owned in by_root.items():
-            self.assertEqual(sum(map(len, owned)), len(set().union(*owned)), root)
+    def test_families_own_disjoint_assets(self):
+        owned = [set(family.owned_assets) for family in registry.FAMILIES.values()]
+        self.assertTrue(all(owned))
+        self.assertEqual(sum(map(len, owned)), len(set().union(*owned)))
