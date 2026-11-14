@@ -28,8 +28,10 @@ def _rows(metrics: pd.DataFrame, summary: pd.DataFrame) -> pd.DataFrame:
     return df.sort_values(["_r", "n"], ascending=[True, False])
 
 
-def subtree_statistics_tex(metrics: pd.DataFrame, summary: pd.DataFrame, min_cells: int) -> str:
-    """Standalone booktabs Table 1 from validated canonical metrics and the subtree summary."""
+def subtree_statistics_tex(metrics: pd.DataFrame, summary: pd.DataFrame, min_cells: int,
+                           subtree_figure: str = "5") -> str:
+    """Standalone booktabs Table 1 from validated canonical metrics and the subtree summary. ``subtree_figure`` is
+    the number of the canonical subtree summary the caption cites (5 in the released numbering, 4 in the revised)."""
     u, lp, cp = (nt.symbol(k) for k in ("canonical_position", "natural_front_distance", "null_front_distance"))
     null_mean, closest, r = nt.symbol("null_mean"), nt.symbol("closest_point"), nt.symbol("cousin_relative")
     body, last_region = [], None
@@ -81,7 +83,7 @@ along the front; and fate diversity, the Shannon entropy
 \(H=-\sum_k p_k\ln p_k\) for the terminal cell-type proportions in nats
 (0 for a single fate; larger values indicate a more even mixture of fates).
 Subtrees are grouped by first-order lineage region. The endpoint-normalized
-coordinates are those used in the canonical subtree summary (Figure 5);
+coordinates are those used in the canonical subtree summary (Figure {subtree_figure});
 \({r}\) is retained as a null-model sensitivity measure.}}
 \label{{tab:ce_subtree_statistics}}
 \resizebox{{\textwidth}}{{!}}{{
@@ -98,7 +100,8 @@ Subtree & Region & \(n\) & On front & \({u}_L\) & \({lp}\) & \({cp}\) &
 """
 
 
-def write_subtree_statistics(out_dir: Path, metrics, summary, min_cells: int) -> Path:
-    path = Path(out_dir) / f"{TABLE1_STEM}.tex"
-    path.write_text(subtree_statistics_tex(metrics, summary, min_cells))
+def write_subtree_statistics(out_dir: Path, metrics, summary, min_cells: int, *, stem: str = TABLE1_STEM,
+                             subtree_figure: str = "5") -> Path:
+    path = Path(out_dir) / f"{stem}.tex"
+    path.write_text(subtree_statistics_tex(metrics, summary, min_cells, subtree_figure))
     return path

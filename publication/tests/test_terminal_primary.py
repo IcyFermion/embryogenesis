@@ -1,8 +1,7 @@
-"""Terminal primary family: cache-only build, production inventory and notation propagation."""
+"""Terminal primary family (backlog figures since 2026-11-13): cache-only build, inventory and notation."""
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 import shutil
 import tempfile
@@ -19,7 +18,6 @@ from publication.figures import terminal_canonical
 from publication.tables import subtree_statistics_tex
 from publication.tests.support import no_experiments
 
-PRODUCTION = provenance.ROOT / "publication/output/production"
 HAS_TEX = shutil.which("tectonic") is not None or shutil.which("pdflatex") is not None
 MARKER = r"\Delta_{\mathrm{test}}"
 
@@ -42,13 +40,8 @@ class CacheOnlyTerminalBuild(unittest.TestCase):
             self.assertEqual(figure["compiled"]["pages"], PAGES.get(stem, 1), stem)
             self.assertTrue(all("Float too large for page" in w for w in figure["compiled"]["warnings"]), stem)
 
-    def test_rendered_inventory_matches_production_figures(self):
-        released = set(json.loads((PRODUCTION / "release_manifest.json").read_text())
-                       ["families"]["terminal-primary"]["files"])
-        figure_assets = {name for name in released if Path(name).suffix in (".pdf", ".png", ".svg", ".tex")}
-        self.assertEqual(set(self.record["files"]), figure_assets)
-        self.assertEqual(figure_assets,
-                         set(registry.FAMILIES["terminal-primary"].owned_assets))
+    def test_rendered_inventory_matches_the_family_assets(self):
+        self.assertEqual(set(self.record["files"]), set(registry.FAMILIES["terminal-primary"].owned_assets))
         self.assertTrue(provenance.verify_build(self.tmp / "build")["ready"])
 
     def test_numerical_inputs_are_recorded_and_unchanged(self):
