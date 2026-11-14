@@ -48,7 +48,6 @@ class FamilyDependencies(unittest.TestCase):
         for key in FAMILIES:
             for name in deps(key) | everything:
                 self.assertNotIn("/tests/", name)
-                self.assertNotIn(name, {"publication/migration.py", "publication/parity.py"})
 
     def test_changes_are_judged_against_the_familys_own_dependencies(self):
         recorded = {key: provenance.presentation_sources(key) for key in ("terminal-cross-species", "terminal-primary")}

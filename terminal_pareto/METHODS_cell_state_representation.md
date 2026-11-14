@@ -10,9 +10,17 @@ add-ons:
   memory and the fate-only control, run
   `output/runs/representation_criteria_v1/criteria_metric_20261014/`.
 
-No figure or manuscript text exists yet. Displayed symbols must come from
-`publication/notation.py`. `d_SD` (below) has no notation concept yet; add one
-before any figure uses it. The cache field `d_NP` is displayed as d_CP.
+Supplementary Figure S2 of the manuscript set shows the selection: top-20
+classifier importance, distances of same-type and different-type terminal
+sisters (35 and 63 pairs), sibling separation against 200 random 20-sets from
+the HV pool, and distance by lineage path length (lengths pooled in twos; the
+top-20 follows the random median, so distance rises with lineage distance for
+any reporter set). Loader `publication/v2/data.feature_selection` (seed
+20261108), drawing `publication/v2/panels.feature_figure`. A panel of
+same-type pairs against the within-type null (rho 0.36 against 0.16) was
+dropped on 2026-11-09; the measure stays in Methods. Displayed symbols come
+from `publication/notation.py`: `d_SD` (below) is `natural_front_distance_sd`,
+displayed d̃_LP, and the cache field `d_NP` is displayed as d_CP.
 
 ## Principle
 
@@ -63,7 +71,14 @@ Each modality has three candidates:
 
 1. **top-20**: the published set, the 20 features with the largest maximum
    |coefficient| of an L2 multinomial logistic regression (C = 1, Schema D)
-   on terminal cells. The full rankings are in A0.
+   on terminal cells. The full rankings: protein,
+   `expression_embedding/elegans_protein_feature_ranking.py` writes
+   `expression_embedding/results/elegans_protein_linear_baseline/protein_feature_ranking.csv`
+   (ranked on `s3.csv`, not z-scored; it reproduces the saved top-20 in order);
+   RNA, `expression_embedding/results/cross_species_rna_linear/linear_coefficients.csv`.
+   Importance gaps at the k/k+1 cutoff are small (protein 0.018, 0.012, 0.009,
+   0.012; RNA 0.006, 0.004, 0.002, 0.0005 for k = 5, 10, 20, 30), so
+   membership near each cutoff is fragile.
 2. **HV pool**: the top half of the panel by variance of log1p values over the
    cohort cells. There is no classifier and no k. That is 105 proteins, ranked
    over the 275-edge cells on `s3.csv`. For RNA it is 118 TFs, ranked by the
@@ -77,7 +92,13 @@ sisters of different type (set T) and sisters of the same type (set S):
 
     d = (mean_T - mean_S) / sqrt((var_S + var_T) / 2)
 
-with sample variances. Only cohort sisters with both cells typed are used. It
+with sample variances. The pooled SD is the unweighted mean of the two
+variances, not the n−1-weighted textbook form (with 35 and 63 fine-type pairs
+the weighted form gives top-20 0.68 against 0.70, HV pool 0.57 against 0.58,
+whole panel 0.34 against 0.35); Methods should state the form used. Intervals
+resample sister pairs within each group (2,000 bootstraps). A p-value is not
+reported yet; the candidate tests and the founder confound are in
+`publication/BACKLOG.md`. Only cohort sisters with both cells typed are used. It
 is reported for Schema D and for fine types. The Schema D value is partly
 in-sample for the top-20 sets, so the fine-type value is the primary
 comparison.
@@ -136,11 +157,12 @@ Every front, measured or fate-only, uses the published sweep
 301 weights, each cost scaled by its exact first-cousin-null SD, Hungarian
 assignment, and checked endpoint ties. Reported metrics:
 
-- u, d_LP, d_CP (`d_NP`) and maximum edge retention, as in Figures 5 and 9.
+- u, d_LP, d_CP (`d_NP`) and maximum edge retention, as in Figure 4 and
+  Table 1 of the manuscript set.
 - **d_SD**: the distance from L to the closest sampled assignment in null-SD
   coordinates centred on L, ((T − T_L)/σ_T, (S − S_L)/σ_S). Endpoint
   normalization absorbs much of a representation's effect on the front
-  (shown with a noise ladder in A1), so d_SD is the sensitive readout.
+  (shown by the noise ladder of the A1 survey, `survey_20261014`), so d_SD is the sensitive readout.
 - **Natural-lineage state z**: (S_L − mean_null S) / σ_S, the lineage's
   cell-state cost against first-cousin shuffles.
 

@@ -44,11 +44,11 @@ class V2Tests(unittest.TestCase):
         self.assertEqual(fields, [["u_lineage_lp"], ["d_lp", "d_np"]])
         self.assertEqual(columns[1].xmax, 1.)
 
-    def test_every_figure_of_the_release_set_has_a_caption(self):
+    def test_every_figure_of_the_manuscript_set_has_a_caption(self):
         from publication.v2 import captions, manuscript
-        captioned = {*captions.AGREED, *captions.DRAFT}
-        self.assertEqual(set(manuscript.MAIN), captioned)
-        self.assertFalse(set(manuscript.ADOPTED) & captioned)
+        captioned = [*captions.AGREED, *captions.DRAFT, *captions.RELEASED]
+        # Every figure of the free-standing set comes from the v2 build with exactly one caption (2026-11-13).
+        self.assertEqual(sorted(manuscript.MAIN), sorted(captioned))
         self.assertEqual({n.replace("--", "-") for n in manuscript.BACKLOG_V2}, set(captions.BACKLOG))
         from publication.v2.__main__ import figure_order
         self.assertEqual(sorted(["figS2", "fig7", "fig1"], key=figure_order), ["fig1", "fig7", "figS2"])
@@ -104,25 +104,6 @@ class V2Tests(unittest.TestCase):
             self.assertEqual([h["set"] for h in history], ["set_a", "set_b"])
             with self.assertRaises(ValueError):
                 point_current(sets / "set_a", sets / "set_b", {})
-
-    def test_release_set_renumbers_released_wrappers(self):
-        from publication.v2.manuscript import renumber
-        tex = ("\\begin{document}\n\\renewcommand{\\thefigure}{S3}\n\\begin{figure}[p]\n"
-               "\\includegraphics[width=\\textwidth]{figS3_four_geometries.pdf}\n"
-               "\\includegraphics{figS3A_panel.pdf}\\input{figS30_other.tex}\n\\end{figure}\n")
-        new, names = renumber(tex, "figS3_ce_tracking_robustness", "figS1_ce_tracking_robustness", "S1")
-        self.assertIn("\\renewcommand{\\thefigure}{S1}\n", new)
-        self.assertNotIn("{S3}", new)
-        self.assertEqual(names, {"figS3_four_geometries.pdf": "figS1_four_geometries.pdf",
-                                 "figS3A_panel.pdf": "figS1A_panel.pdf", "figS30_other.tex": "figS30_other.tex"})
-        self.assertIn("{figS1_four_geometries.pdf}", new)
-        # A figure that keeps its number keeps its files.
-        tex = "\\setcounter{figure}{5}\n\\includegraphics{fig6A_ce_retention_heatmap.pdf}\n"
-        new, names = renumber(tex, "fig6_ce_cell_types", "fig6_ce_cell_types", "6")
-        self.assertIn("\\setcounter{figure}{5}\n", new)
-        self.assertEqual(names, {"fig6A_ce_retention_heatmap.pdf": "fig6A_ce_retention_heatmap.pdf"})
-        with self.assertRaises(ValueError):
-            renumber("\\includegraphics{figS3_x.pdf}\n", "figS3_a", "figS1_a", "S1")
 
 
 if __name__ == "__main__":

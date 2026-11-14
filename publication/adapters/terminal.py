@@ -117,7 +117,7 @@ def _within_type(analysis: Path, context):
 
 
 def _subtree_map(context, analysis: Path, min_cells: int, floor: int):
-    from publication.figures.terminal_subtree_map import collect_nodes, terminal_inorder
+    from publication.subtrees import collect_nodes, terminal_inorder
     from terminal_pareto import data_loader as dl
     from terminal_pareto import lineage_metrics as lm
     from terminal_pareto.subtree_analysis import build_type_map, load_validated_subtree_summary

@@ -1,6 +1,6 @@
 # Per-layer lineage advantage and the mid-embryo travel dip (Track E, E3-E4)
 
-Brief: `plans/track_e_layer_features.md`. Modules: `layer_hourglass.py` (E3) and
+Brief: `plans/track_e_layer_features.md`, retired with the other track briefs (`git show 0b38600:plans/track_e_layer_features.md`; the track closed on 2026-11-05). Modules: `layer_hourglass.py` (E3) and
 `layer_stages.py` (birth stages and the Large et al. JSD), with tests in
 `test_layer_hourglass.py` and `test_layer_stages.py`. Figure candidates:
 `publication/sketches/hourglass.py`.

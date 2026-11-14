@@ -8,6 +8,9 @@ Numbering of 2026-11-10: the cell-state feature figure is Supplementary Figure S
 (next to S1, travel pooled across embryos), so the main figures are 1-7 again.
 Figure 7 (C. briggsae) is its front alone; its comparisons with C. elegans (the
 former 8B-C) are built as a backlog page, ``backlog_fig7BC_briggsae_counterparts``.
+Since 2026-11-13 the build makes every figure of the manuscript set, one file per
+figure, and Table 1, all drawn by ``panels`` with ``publication.palette``; nothing
+is taken from a released figure set or drawn by the figure families' code.
 """
 
 from __future__ import annotations
@@ -22,7 +25,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from publication import notation as nt
-from publication import palette, provenance
+from publication import palette, provenance, tables
 from publication.provenance import sha256
 from publication.v2 import data, panels
 
@@ -93,6 +96,28 @@ def figure6(out, manuscript=False):
         manuscript=manuscript)
 
 
+def figure5(out, t, manuscript=False):
+    """Figure 5 page (cell types): lineage similarity by fate class (A), within-type fronts (B) and the type-restricted
+    aggregate (C), from the released cell-type caches, drawn in the v2 style like every other figure (2026-11-13)."""
+    a = save(panels.cell_type_figure(t.data.cell_type_retention, t.data.within_type), out, "fig5_cell_types_panels")
+    return page(out, "fig5_cell_types", "Figure 5", f"\\noindent\\includegraphics[width=\\textwidth]{{{a}}}",
+                manuscript=manuscript)
+
+
+def figure_s1(out, t, manuscript=False):
+    """Supplementary Figure S1 page: terminal assignments in four tracking geometries (the released S3 projections),
+    drawn in the v2 style (2026-11-13)."""
+    a = save(panels.tracking_figure(t.data.s3_projections, t.data.s3_references), out, "figS1_four_geometries")
+    return page(out, "figS1_tracking_robustness", "Figure S1", f"\\noindent\\includegraphics[width=\\textwidth]{{{a}}}",
+                manuscript=manuscript)
+
+
+def table1(out, t):
+    """Table 1 (subtree statistics) as a standalone captioned TeX table; its caption cites the subtree figure (4)."""
+    return tables.write_subtree_statistics(out, t.data.canonical, t.data.subtree_summary, t.data.min_cells,
+                                           stem="table1_subtree_statistics", subtree_figure="4").name
+
+
 def figure_s2(out, manuscript=False):
     """Supplementary Figure S2 page (cell-state features, Track A); callable alone."""
     a = save(panels.feature_figure(data.feature_selection()), out, "figS2_cell_state_features_panels")
@@ -139,10 +164,9 @@ def briggsae_counterparts(out, curve, metric, manuscript=False):
 
 def presentation_sources() -> dict[str, str]:
     """Hashes of the publication sources the revised layout renders from: the v2 build, its captions and the manuscript
-    set, with every publication module they import (``publication.release`` is hashed, not followed). The build
+    set, with every publication module they import. The build
     records them; ``publication.v2.manuscript`` refuses a build, and reports a set as stale, when they changed."""
-    files = provenance.module_closure(["publication.v2.__main__", "publication.v2.captions", "publication.v2.manuscript"],
-                                      files_only=("publication.release",))
+    files = provenance.module_closure(["publication.v2.__main__", "publication.v2.captions", "publication.v2.manuscript"])
     return {str(p.relative_to(ROOT)): sha256(p) for p in sorted({*files, *ASSETS.rglob("*")}) if p.is_file()}
 
 
@@ -154,8 +178,8 @@ def figure_order(name):
 
 def build(out: Path, manuscript=False):
     """Revised layout, numbering of 2026-11-10: 1 schematics, 2 terminal front, 3 lineage similarity, 4 subtrees,
-    5 cell types (released panels, placed by ``manuscript``), 6 full tree by layer, 7 C. briggsae front; S2 the
-    cell-state features (S1 is released S3, placed by ``manuscript``); backlog: C. briggsae 7B-C."""
+    5 cell types, 6 full tree by layer, 7 C. briggsae front; S1 terminal assignments in four tracking geometries,
+    S2 the cell-state features; Table 1; backlog: C. briggsae 7B-C."""
     out.mkdir(parents=True, exist_ok=True)
     panels.configure()
     for name, source in EXTERNAL.items():
@@ -194,6 +218,8 @@ def build(out: Path, manuscript=False):
     figures["fig4"] = page(out, "fig4_subtrees", "Figure 4",
         f"\\noindent\\includegraphics[width=\\textwidth]{{{a}}}", manuscript=manuscript)
 
+    figures["fig5"] = figure5(out, t, manuscript=manuscript)
+    figures["figS1"] = figure_s1(out, t, manuscript=manuscript)
     figures["figS2"] = figure_s2(out, manuscript=manuscript)
     figures["fig6"] = figure6(out, manuscript=manuscript)
     figures["fig7"], backlog = figure7(out, manuscript=manuscript)
@@ -205,11 +231,12 @@ def build(out: Path, manuscript=False):
         note="Authors' files, unchanged: B-C still read \\emph{expression}.", manuscript=manuscript)
     palette_sheet = save(palette.sheet(), out, "palette")
     record = dict(figures=dict(sorted(figures.items(), key=lambda kv: figure_order(kv[0]))),
-                  backlog=dict(fig7BC=backlog), notation=NOTATION,
+                  table1=table1(out, t), backlog=dict(fig7BC=backlog), notation=NOTATION,
                   manuscript=manuscript, palette=palette_sheet, palette_groups=palette.GROUPS,
                   main_text_notes=dict(tracking_front_distance=data.tracking_front_distances(t)),
                   external={name: sha256(out / name) for name in EXTERNAL}, sources=presentation_sources(),
-                  files={p.name: sha256(p) for p in sorted(out.iterdir()) if p.suffix in (".pdf", ".png", ".csv")})
+                  files={p.name: sha256(p) for p in sorted(out.iterdir())
+                         if p.suffix in (".pdf", ".png", ".csv") or p.name.startswith("table1")})
     (out / "build.json").write_text(json.dumps(record, indent=2) + "\n")
     return record
 

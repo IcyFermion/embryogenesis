@@ -13,6 +13,9 @@ the style of the v1 baseline, for review:
   alone (2026-11-10).
 - Figure 3 is new; S2 takes its facts from Track A
   (``terminal_pareto/METHODS_cell_state_representation.md``).
+``RELEASED`` holds the released captions of Figure 5 (released Figure 6, cell types)
+and S1 (released S3, four tracking geometries), unchanged; they moved here on
+2026-11-13, when both figures were redrawn in the v2 style.
 ``BACKLOG`` holds the caption of the backlog page 7B-C (C. briggsae counterparts
 of Figures 3A and 6B, the former 8B-C).
 Counts are those of the released analyses; Figure 3's values were checked against the cached global sweep.
@@ -183,6 +186,43 @@ when the matched \emph{C.\@ elegans} cells are born (Large et al.\ 2025). Layer 
 resolved front, so C starts at layer 4. The distance axis is shared with Figure~6B."""
 
 
+def figure5() -> str:
+    """Released caption of the cell-type figure (released Figure 6), unchanged."""
+    return r"""\textbf{Terminal fates differ in retained lineage structure and in
+the cost of type restriction under pooled travel.} \textbf{(A)} Fate-specific
+natural-edge retention along the pooled unrestricted front, parameterized by
+canonical arc length. \textbf{(B)} Separate within-type shape comparisons use
+each type's own endpoint spans. All six displayed types have valid endpoint
+spans; degenerate small-type cases remain explicitly flagged in the numerical
+cache. \textbf{(C)} The type-restricted
+and unrestricted aggregate fronts share the unrestricted pooled endpoint
+reference, so their performance difference remains visible. Endpoint
+penalties are also reported in the interpretable global null-SD units."""
+
+
+def figure_s1() -> str:
+    """Released caption of the tracking-robustness figure (released S3), unchanged."""
+    return r"""\textbf{Geometry dependence of terminal assignments and the pooled
+travel compromise.} The same 275 terminal edges and top-20 protein cosine
+costs are used throughout. Colors identify assignment sets optimized using
+each of three embryos separately or pooled travel. Travel is measured in
+embryo~1 (A), embryo~2 (B), embryo~3 (C), or the pooled geometry (D), with
+assignments held fixed during transfer. Pooled travel is the equal mean of
+embryo-specific travel costs divided by their respective natural-lineage
+totals. Solid curves are optimized for the displayed geometry; dashed curves
+show the other three sources. Each curve connects 301 weighted-sweep
+solutions; connecting segments guide the eye and need not represent
+attainable assignments. Each panel uses its native front's endpoint anchors
+for all four curves and the natural lineage (X). Main axes show the full
+sampled fronts; insets enlarge the marked near-natural regions in the same
+coordinates. The pooled assignments provide a compromise between the
+distinct native fronts of the three measured embryos. Variation in biology
+and tracking is not separated here, and these embryos do not establish
+performance in unmeasured embryos; the earlier leave-one-geometry-out check
+improved held-out travel in only 2 of 12 settings."""
+
+
 AGREED = {"6": figure6}
 DRAFT = {"1": figure1, "2": figure2, "3": figure3, "4": figure4, "7": figure7, "S2": figure_s2}
+RELEASED = {"5": figure5, "S1": figure_s1}
 BACKLOG = {"7B-C": backlog_figure7bc}

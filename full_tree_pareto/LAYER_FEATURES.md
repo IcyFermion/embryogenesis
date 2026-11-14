@@ -1,6 +1,6 @@
 # Layer-specific expression features (Track E)
 
-Brief: `plans/track_e_layer_features.md`. Module: `layer_features.py`, tests:
+Brief: `plans/track_e_layer_features.md`, retired with the other track briefs (`git show 0b38600:plans/track_e_layer_features.md`; the track closed on 2026-11-05). Module: `layer_features.py`, tests:
 `test_layer_features.py`. Runs: `output/runs/layer_features_v1/<run_id>/`.
 Principles follow `terminal_pareto/METHODS_cell_state_representation.md`:
 features are chosen without travel or the front, the global top-20 is the

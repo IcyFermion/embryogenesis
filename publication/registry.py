@@ -43,8 +43,7 @@ class Family:
     status: str
     figures: tuple[FigureSpec, ...] = ()  # single-graphic figures (captioned from a spec)
     wrappers: tuple[tuple[str, str], ...] = ()  # (stem, printed number) for multi-panel figures
-    production: str | None = None  # production root (repository-relative) this family releases into
-    owned_assets: tuple[str, ...] = ()  # production file names only this family may add, change or remove
+    owned_assets: tuple[str, ...] = ()  # file names this family's build writes (disjoint across families)
     assets: tuple[str, ...] = ()  # non-Python files under publication/ that its builds read
 
     def load(self, run_id: str | None = None):
@@ -188,7 +187,6 @@ FAMILIES = {family.key: family for family in (
            "Pooled 275-edge terminal analysis, 18 subtrees of at least 24 cells (cosine molecular distance); "
            "Figures 1-6, S1-S3, Table 1",
            "publication.adapters.terminal:primary", _build_terminal_primary,
-           production="publication/output/production",
            status="active: published 2026-09-23 (Figure 1 amendment pending co-author integration)",
            wrappers=TERMINAL_WRAPPERS, owned_assets=TERMINAL_PRIMARY_ASSETS,
            assets=("assets/fig3A_ce_null_models.tex",)),
@@ -197,7 +195,6 @@ FAMILIES = {family.key: family for family in (
            "publication.adapters.full_tree:pooled", _build_full_tree_pooled,
            status="active: Figure 7 and provisional S4 released 2026-10-15 (cosine cell-state distance)",
            wrappers=(("fig7_ce_full_tree_layerwise", "7"), ("figs_ce_full_tree_heuristics", "S4")),
-           production="publication/output/production",
            owned_assets=tuple(f"{stem}{suffix}" for stem, suffixes in (
                ("fig7A_ce_full_tree_layerwise_rounds", (".pdf", ".png")),
                ("fig7B_ce_full_tree_collective", (".pdf", ".png")),
@@ -207,7 +204,6 @@ FAMILIES = {family.key: family for family in (
     Family("terminal-cross-species",
            "Pooled 187-edge terminal CE protein/CE RNA/CB RNA comparison (cosine molecular distance)",
            "publication.adapters.terminal:cross_species", _build_specs,
-           production="publication/output/production",
            status="active: Figures 8-9 published 2026-10-01",
            figures=(FigureSpec("8", "fig8_terminal_cross_species_comparison", "fig:terminal_cross_species_8",
                                partial(cs_figures.comparison_figure,
@@ -220,7 +216,6 @@ FAMILIES = {family.key: family for family in (
     Family("full-tree-cross-species",
            "Terminal-anchored partial forest, 485 cells/454 edges (cosine molecular distance)",
            "publication.adapters.full_tree:cross_species", _build_specs,
-           production="publication/output/production",
            status="active: Figures 10-11 released 2026-10-15 (cosine cell-state distance)",
            figures=(FigureSpec("10", "fig10_full_tree_cross_species_comparison", "fig:full_tree_cross_species_10",
                                partial(cs_figures.comparison_figure,
@@ -235,7 +230,6 @@ FAMILIES = {family.key: family for family in (
     Family("full-tree-layers",
            "Pooled full tree by layer (layers 3-8): which travel cost moves in the mid layers (Track E)",
            "publication.adapters.full_tree:layers", _build_layer_specs,
-           production="publication/output/production",
            status="active: supplement S5 released 2026-11-05 (Track E); its panels also draw Figure 6B-C of the "
                   "revised layout (publication.v2)",
            figures=(FigureSpec("S5", "figS5_full_tree_layer_travel", "fig:full_tree_layer_travel_S5",
@@ -272,16 +266,16 @@ def build(family_key: str, output_dir: Path, *, run_id: str | None = None) -> di
 
 
 def build_all(output_dir: Path) -> dict:
-    """Every family into ``output_dir/<family>``, plus one build-set manifest; production roots stay separate."""
+    """Every family into ``output_dir/<family>``, plus one build-set manifest."""
     output_dir = Path(output_dir)
     _check_destination(output_dir)
     families = {}
     for key, family in FAMILIES.items():
         record = build(key, output_dir / key)
-        families[key] = dict(directory=key, production=family.production, status=family.status,
+        families[key] = dict(directory=key, status=family.status,
                              presentation_id=record["presentation_id"], figure_numbers=record["figure_numbers"],
                              files=len(record["files"]))
-    manifest = dict(version="publication-build-set-1", families=families, release_promoted=False)
+    manifest = dict(version="publication-build-set-1", families=families)
     (output_dir / BUILD_SET).write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest
 
@@ -296,7 +290,7 @@ def verify_any(path: Path) -> dict:
 
 
 def describe() -> list[dict]:
-    return [dict(family=f.key, description=f.description, status=f.status, production=f.production,
+    return [dict(family=f.key, description=f.description, status=f.status,
                  figures={number: stem for stem, number in f.numbers.items()}) for f in FAMILIES.values()]
 
 

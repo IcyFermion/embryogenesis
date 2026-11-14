@@ -19,6 +19,7 @@ from matplotlib.transforms import Bbox
 
 from publication import notation as nt
 from publication import style as ps
+from publication.subtrees import NOTES, check_notes  # noqa: F401 (moved 2026-11-13)
 
 
 def _points():
@@ -49,25 +50,8 @@ LP_COLOR = ps.SEMANTIC_COLORS["lineage_front_distance"]
 NP_COLOR = ps.SEMANTIC_COLORS["first_cousin_null"]
 TRAVEL_COLOR = ps.SEMANTIC_COLORS["travel"]
 STATE_COLOR = ps.SEMANTIC_COLORS["cell_state"]
-# Figure 5 caption note: mark and the readout it explains, keyed by subtree (Track D6).
-NOTES = {"ABplp": ("†", "d_lp")}
 ROW_INCH = .169  # Figure 5B row pitch, as in the 42-subtree layout
-
-
-def check_notes(evidence):
-    """Raise if the stored Track D results no longer support the Figure 5 caption note."""
-    claims = {
-        "ABplp lies farthest from its front": evidence["farthest"] == "ABplp",
-        "ABplp has three apoptotic cells": len(evidence["deaths"]) == 3,
-        "only ABplpppapp's birth endpoint puts ABplp on its front":
-            {d for d, on in evidence["alone_on_front"].items() if on} == {"ABplpppapp"},
-        "matched living cells: 0 of 1000 draws": (evidence["control_draws"], evidence["control_on_front"]) == (1000, 0),
-    }
-    failed = [claim for claim, ok in claims.items() if not ok]
-    if failed:
-        raise ValueError(f"Figure 5 caption note no longer holds: {failed}")
-
-
+# Figure 5 caption note: mark and the readout it explains, keyed by subtree (Track D6).
 def mark_value(ax, row, value, mark, xmax, *, fontsize=8):
     """Note mark just right of a plotted readout."""
     ax.text(value + .06 * xmax, row, mark, fontsize=fontsize, color="#222222", va="center", ha="left",
